@@ -177,8 +177,8 @@ public sealed class SqliteIndexRebuilderTests : IDisposable
         Assert.True(result.Success);
         Assert.Empty(result.Diagnostics);
         Assert.Equal(1, result.ProjectCount);
-        Assert.Equal(21, result.ArtifactCount);
-        Assert.Equal(21, result.RevisionCount);
+        Assert.Equal(28, result.ArtifactCount);
+        Assert.Equal(28, result.RevisionCount);
         Assert.Equal(33, result.RelationshipCount);
         Assert.Equal("demo-project", ExecuteScalar<string>(connection, "SELECT project_id FROM projects LIMIT 1;"));
         Assert.Equal(13L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions WHERE is_canonical = 1;"));

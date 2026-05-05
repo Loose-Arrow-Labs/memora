@@ -26,12 +26,10 @@ Defines Memora's core domain model and rules.
 - `Editing/`: draft-edit behavior
 - `Revisions/`: field-level revision diffs with deterministic areas and display labels
 - `AgentInteraction/`: shared contracts used by API and MCP, including the provider-agnostic external runtime boundary
-<<<<<<< feature/54-validate-shared-contract-compatibility-across-runtimes
 
 ## Current Runtime Alignment Scope
 
 - the shared agent interaction contract remains the single boundary reused by API and MCP
 - `AgentInteraction/ExternalRuntimeContract.cs` defines the published runtime-facing operations and governance constraints
+- `AgentInteraction/ProjectStateViewSerializer.cs` normalizes the deterministic state view shared by runtime-facing surfaces
 - core remains provider-agnostic and does not take on runtime-host responsibilities
-=======
->>>>>>> main

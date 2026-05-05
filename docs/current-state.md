@@ -7,6 +7,7 @@ It is intentionally separate from roadmap and milestone planning docs.
 
 ### Foundation
 
+- .NET 10 solution with product projects for Core, Storage, Index, Context, API, MCP, and UI
 - typed artifact models, enums, and lifecycle rules in `Memora.Core`
 - artifact validation, diagnostic formatting, planning intake, draft editing, approval queue building, and revision diffs
 - revision diffs include deterministic change areas, display labels, and raw paths
@@ -14,6 +15,7 @@ It is intentionally separate from roadmap and milestone planning docs.
 - filesystem persistence for canonical, draft, and summary artifacts
 - workspace discovery through `project.json`
 - SQLite schema plus rebuild-from-files indexing in `Memora.Index`
+- typed relationship indexing and direct, dependency, and impact traceability queries over approved artifacts
 - rebuild diagnostics distinguish filesystem truth from derived SQLite index state
 
 ### Context Assembly
@@ -24,6 +26,7 @@ It is intentionally separate from roadmap and milestone planning docs.
 - bounded typed relationship traversal for focus proximity
 - explicit inclusion reasoning for selected artifacts, including traversed relationship paths
 - layered bundle assembly in `Memora.Context`
+- a normalized runtime-facing state view exposed as `GetContextResponse.bundle`
 - context viewer UI route at `/context-viewer`
 - optional retrieval extension contracts exist for future advisory candidate discovery, but they are disabled by default and do not execute semantic retrieval in core v1
 
@@ -36,9 +39,14 @@ It is intentionally separate from roadmap and milestone planning docs.
   - artifact updates
   - outcome recording
 - a thin MCP adapter in `Memora.Mcp` over the shared agent interaction contract
+- MCP tools for `get_context`, `propose_artifact`, `propose_update`, and `record_outcome`
+- MCP resource template `memora://projects/{projectId}`
 - a provider-agnostic external runtime contract definition shared by MCP and OpenAPI
+- byte-equal compatibility validation for the serialized state view across MCP and OpenAPI paths
 - a documented Machina-to-Memora interaction model that keeps runtime execution outside Memora
-- runtime-facing prototype coverage for deterministic context retrieval and proposal submission through the current OpenAPI path
+- runtime-facing prototype coverage for deterministic context retrieval, proposal submission, update proposal submission, and outcome recording through the current OpenAPI path
+- Codex external workflow sample that performs project lookup, context retrieval, proposal submission, and outcome recording
+- ChatGPT-oriented sample that validates the current read-only state-view path
 - shared compatibility validation across the current MCP and OpenAPI runtime-facing surfaces
 
 ### Controlled Automation
@@ -62,17 +70,20 @@ It is intentionally separate from roadmap and milestone planning docs.
 
 - workflow-focused operator guide in `docs/operator-workflows.md`
 - operations doc that points operators to current review and recovery workflows
+- remote conversational planning gap analysis that distinguishes the current local external workflow proof from future remote planning-write work
+- sample draft artifacts that capture the next IDE review boundary for VS Code and Cursor
 
 ## Still Intentionally Thin
 
 - UI review is preview-oriented and does not persist approval or rejection decisions
 - API is a minimal HTTP surface, not a fully documented production service
 - MCP is currently an in-process adapter surface, not a complete hosted server transport
-- runtime alignment is grounded in the shared contract, but provider-specific attachments still remain follow-up work
+- runtime alignment is grounded in the shared contract, but hosted transport, remote reachability, authentication, and provider-specific attachments still remain follow-up work
 - context assembly is deterministic and explainable, but remains non-semantic and non-vector in v1
 - cached context packages are derived convenience and never replace filesystem truth
 - rebuild diagnostics identify filesystem issues, but they do not auto-repair artifacts or indexes
 - controlled automation does not provide a general direct-write path and does not write canonical artifacts
+- IDE review is captured as draft/sample planning state, not implemented product behavior
 
 ## Where To Look In Code
 
@@ -85,6 +96,7 @@ It is intentionally separate from roadmap and milestone planning docs.
 - `src/Memora.Core/Revisions/`
 - `src/Memora.Core/AgentInteraction/AgentInteractionContract.cs`
 - `src/Memora.Core/AgentInteraction/ExternalRuntimeContract.cs`
+- `src/Memora.Core/AgentInteraction/ProjectStateViewSerializer.cs`
 
 ### Storage
 
@@ -97,6 +109,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - `src/Memora.Index/Schema/SqliteIndexSchema.cs`
 - `src/Memora.Index/Rebuild/SqliteIndexRebuilder.cs`
 - `src/Memora.Index/Rebuild/IndexRebuildResult.cs`
+- `src/Memora.Index/Relationships/ArtifactRelationshipIndex.cs`
+- `src/Memora.Index/Traceability/TraceabilityQueryService.cs`
 
 ### Context
 
@@ -132,6 +146,9 @@ It is intentionally separate from roadmap and milestone planning docs.
 - `docs/external-runtime-contract.md`
 - `docs/machina-interaction-model.md`
 - `docs/integration-strategy.md`
+- `docs/project-state-view.md`
+- `docs/agent-project-state-interpretation.md`
+- `docs/remote-conversational-planning-gap-analysis.md`
 
 ### UI
 

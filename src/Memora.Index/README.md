@@ -8,6 +8,8 @@ Maintains the derived SQLite index for Memora artifacts.
 - indexing metadata
 - indexing links
 - rebuild from files
+- relationship indexing
+- traceability query support
 
 ## Does NOT contain
 - canonical truth decisions
@@ -18,6 +20,8 @@ Maintains the derived SQLite index for Memora artifacts.
 - `Schema/SqliteIndexSchema.cs`: schema creation and rebuildable index shape
 - `Rebuild/SqliteIndexRebuilder.cs`: rebuilds the index from filesystem truth
 - `Rebuild/IndexRebuildResult.cs`: diagnostics and rebuild summary models
+- `Relationships/ArtifactRelationshipIndex.cs`: persists and reads approved artifact relationships
+- `Traceability/TraceabilityQueryService.cs`: builds direct, dependency, and impact paths from approved relationships
 
 ## Rebuild Diagnostics
 

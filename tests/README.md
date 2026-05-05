@@ -12,8 +12,8 @@ Contains automated tests for Memora modules.
 
 - `Memora.Core.Tests`: lifecycle, validation, planning, approval queue, and diff behavior
 - `Memora.Storage.Tests`: parsing, persistence, and workspace layout behavior
-- `Memora.Index.Tests`: SQLite schema and rebuild behavior
+- `Memora.Index.Tests`: SQLite schema, rebuild, relationship, and traceability behavior
 - `Memora.Context.Tests`: ranking, inclusion reasoning, and context assembly behavior
-- `Memora.Api.Tests`: HTTP contract and file-backed agent interaction behavior
-- `Memora.Mcp.Tests`: MCP adapter contract behavior
-- `Memora.Ui.Tests`: operator shell and context viewer behavior
+- `Memora.Api.Tests`: HTTP contract, file-backed agent interaction, runtime prototype, and contract compatibility behavior
+- `Memora.Mcp.Tests`: MCP adapter and shared contract behavior
+- `Memora.Ui.Tests`: operator shell, context viewer, and understanding output behavior

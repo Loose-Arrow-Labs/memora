@@ -15,19 +15,23 @@ It is built around a few non-negotiable rules:
 
 This checkout includes working slices across:
 
+- .NET 10 solution and project structure for Core, Storage, Index, Context, API, MCP, and UI
 - core artifact schemas, lifecycle rules, validation, editing, approval queue, and diffs
 - validation diagnostics that surface code and path context for operators and integrations
 - filesystem parsing and persistence for canonical, draft, and summary artifacts
-- SQLite rebuild-from-files indexing with filesystem-first rebuild diagnostics
+- SQLite rebuild-from-files indexing, relationship indexing, traceability queries, and filesystem-first rebuild diagnostics
 - deterministic context ranking, cached context packages, bounded relationship traversal, inclusion reasoning, and layered context assembly
+- deterministic serialized project-state views through the shared `GetContextResponse.bundle` contract
 - a provider-agnostic external runtime contract reused by MCP and OpenAPI
 - a minimal local HTTP API for project lookup, context assembly, proposals, updates, and outcomes
 - a thin MCP surface over the shared agent interaction contract
 - Machina-to-Memora interaction guidance that keeps runtime execution outside Memora
-- runtime-facing prototype and compatibility validation for context and proposal flows across MCP and OpenAPI
+- Codex and ChatGPT-oriented local workflow samples over the current companion API path
+- runtime-facing prototype and compatibility validation for context, proposal, update, and outcome flows across MCP and OpenAPI
 - controlled automation policy models, safe trigger evaluation, and a guarded session-summary direct-write prototype
 - a styled local operator UI with approval review navigation, clearer revision diffs, a context viewer route, and an understanding-output route
 - operator workflow guidance for review, draft editing, diff inspection, and rebuild recovery
+- sample workspace artifacts that capture the next IDE review boundary work as draft project memory
 
 Important limits still apply:
 
@@ -36,7 +40,7 @@ Important limits still apply:
 - no semantic or vector retrieval executes in core v1; optional future extension contracts are advisory and disabled by default
 - the UI shows review previews and inactive approval decision controls, but it does not persist approval or rejection decisions
 - the MCP layer is currently a thin in-process adapter surface, not a production transport host
-- provider-facing runtime alignment is shared-contract based; provider-specific attachments still remain separate follow-up work
+- provider-facing runtime alignment is shared-contract based; hosted transport, remote reachability, authentication, and provider-specific attachment work remain follow-up scope
 
 ## Start Here
 
@@ -49,6 +53,10 @@ If you are orienting yourself in the repo, this order works well:
 5. [docs/operator-workflows.md](docs/operator-workflows.md)
 6. [src/README.md](src/README.md)
 7. [tests/README.md](tests/README.md)
+
+For runtime-facing state view details, read
+[docs/project-state-view.md](docs/project-state-view.md) and
+[docs/agent-project-state-interpretation.md](docs/agent-project-state-interpretation.md).
 
 ## Local Run
 
@@ -87,9 +95,8 @@ Smallest useful validation:
 
 ## Status
 
-Memora is no longer at scaffold-only status. This checkout contains real
-foundational, integration, and UI slices, but the product is still in an
-early, honesty-first phase where some surfaces are intentionally thin.
+Memora is an early product slice with real foundational, integration, and UI
+behavior, but some surfaces are intentionally thin and documented as such.
 
 Use [docs/current-state.md](docs/current-state.md) for the most accurate
 summary of implemented behavior in this checkout.
