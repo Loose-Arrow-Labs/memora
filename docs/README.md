@@ -11,6 +11,8 @@ Docs must describe current implementation honestly and keep roadmap work clearly
 - `current-state.md` for implemented behavior in the current checkout
 - `architecture.md` for module boundaries and system rules
 - `integration-strategy.md` for provider-facing MCP and OpenAPI guidance
+- `import-and-workspace-strategy.md` for planned first-run import modes and
+  multi-project workspace placement
 - `external-runtime-contract.md` for the shared runtime-facing contract boundary
 - `machina-interaction-model.md` for the Machina-to-Memora execution boundary
 - `project-state-view.md` for the serialized deterministic state view returned by `get_context`

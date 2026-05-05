@@ -153,50 +153,153 @@ Outcome: external runtimes can treat the current `get_context` response as a
 bounded, explainable project-state view while still respecting lifecycle,
 approval, and filesystem-first truth rules.
 
-## Milestone 10 - Local External Workflow Proof
+## Milestone 10 - Project Import And First Run
 
-Goal: prove the shared runtime-facing contract through real local external
-workflow samples without claiming remote product readiness.
+Goal: make the first ten minutes excellent by letting an operator install
+Memora without Docker, attach a local or GitHub repository, import project
+evidence, and see immediate reviewable direction for agent work.
 
 Includes:
 
-- Codex-oriented local external workflow guidance
-- ChatGPT-oriented read-only state-view guidance
-- sample scripts for Codex proposal/outcome flow and ChatGPT read-only context
-- runtime-facing prototype tests
-- protocol surface parity and byte-equal state-view compatibility validation
-- remote conversational planning gap analysis
+- app-managed multi-project workspace setup
+- local Git and GitHub repository attachment
+- first-run import modes: Fast Baseline, Strict Governance, Evidence
+  Canonical, and Bulk Approval
+- deterministic repo scan and Git evidence import
+- direct GitHub issue, PR, review, commit, release, and discussion evidence
+  intake where available
+- secret and privacy filtering before evidence persistence
+- first-run project import dashboard with scan progress and evidence counts
+- initial candidate project memory: repo structure, build/test commands,
+  constraints, outcomes, contribution style, risks, and open questions
+- agent readiness report that highlights missing project memory and next review
+  steps
+- MCP readiness for imported projects: project resolution, deterministic context
+  retrieval, readiness-state exposure, and lifecycle-safe proposal paths
 
-Outcome: Memora can support local external clients through the current shared
-contract, while the docs clearly separate that proof from remote
-conversation-driven planning writes.
+Outcome: a legacy repo can be attached and scanned quickly, with lived project
+evidence imported into a governed Memora workspace and derived meaning prepared
+for review or baseline approval according to the selected import mode.
 
-## Milestone 11 - IDE Review Boundary
+M10 should sequence toward a polished happy-path first-run experience, not every
+legacy import edge case at once. The first target is one attached local or
+GitHub repository, bounded evidence import, candidate memory generation,
+readiness reporting, and MCP/OpenAPI exposure that respects the selected import
+mode.
 
-Goal: define the smallest IDE review path for VS Code and Cursor so Memora
-artifact review can happen where development work already happens.
+## Milestone 11 - Human Review And Trust UI
 
-Current captured scope:
+Goal: make review, approval, and trust inspection usable from the operator UI
+and IDE surfaces before deeper automation expands.
 
-- draft sample decision `ADR-010` treats VS Code and Cursor as review surfaces
-- draft sample plan `PLN-003` scopes the M11 IDE review issues
-- the IDE layer must remain a review surface over governed Memora behavior, not
-  a second source of truth
+Includes:
 
-Outcome: the next IDE review work is captured as reviewable project memory, but
-the product does not yet ship a VS Code or Cursor extension.
+- proposal review interface with provenance preview
+- approval and rejection persistence through governed lifecycle rules
+- deterministic state view rendering
+- validation and lifecycle failure display
+- initial trust dashboard for pending proposals, stale drafts, broken
+  relationships, rebuild diagnostics, and missing project memory
+- VS Code and Cursor review inbox and governed approve/reject bridge
+- review UI structure that keeps granular views organized without making them
+  competing sources of truth
 
-## Proposed Follow-On Milestone - Remote Conversational Planning
+Outcome: operators can inspect imported evidence, generated candidates, and
+agent proposals in the places they already work, while Memora remains the only
+governed authority for canonical memory.
 
-Goal: define the smallest real remote planning workflow in which an external
-conversation client can create reviewable Memora artifacts without weakening
-filesystem-first truth or approval governance.
+## Milestone 12 - Existing Repo And GitHub Evidence Understanding MVP
 
-Suggested first issue:
+Goal: turn imported local repo and GitHub evidence into useful, reviewable
+project understanding for legacy codebases.
 
-- use-case planning for remote conversational writes
+Includes:
 
-Suggested focus areas after that issue:
+- deterministic repo intake boundary and large-repo scan behavior
+- GitHub evidence normalization for issues, PRs, diffs, reviews, comments,
+  commits, releases, and linked discussions
+- candidate decisions with provenance
+- candidate constraints and contribution-style rules with provenance
+- candidate integration contracts, APIs, modules, adapters, and ownership areas
+- candidate outcomes from merged PRs, releases, bug fixes, and recurring review
+  signals
+- confidence and ambiguity reporting for inferred meaning
+- conversion of candidates into reviewable Memora artifacts
+- large legacy repo golden path validation
+
+Outcome: Memora can explain what a legacy project appears to know from its code
+and history without confusing imported evidence with approved interpretation.
+
+## Milestone 13 - Mobile Contribution MVP
+
+Goal: provide a local-first mobile capture path that feeds the same governed
+intake and review model without requiring hosted sync or mobile approval.
+
+Includes:
+
+- portable contribution packet format
+- simple local-first mobile capture surface
+- copy, export, and local save flows
+- desktop import path into non-canonical planning or proposal input
+- Nextcloud-style shared-folder transfer workflow
+- same-network sync feasibility spike only if it remains small and low-risk
+
+Outcome: mobile notes can become structured Memora evidence or proposals
+through the desktop review flow while preserving local-first boundaries.
+
+## Milestone 14 - Observability And Replay Debugging
+
+Goal: make Memora able to show what agents saw, what evidence was used, why a
+proposal happened, and how bugs escaped.
+
+Includes:
+
+- agent run records linked to project, branch, issue, PR, commits, and context
+  request
+- deterministic context snapshot hashes and included artifact revisions
+- timeline of context retrieval, file changes, commands, tests, proposals,
+  outcomes, review comments, and validation failures
+- replay/debugging UI for Memora interactions and imported agent run packets
+- bug escape analysis that compares missed bugs against known constraints,
+  outcomes, test expectations, and GitHub review evidence
+- proposed follow-up artifacts for newly discovered constraints, regression
+  tests, outcomes, or contribution-style rules
+
+Outcome: Memora can help teams understand why an agent missed something and
+what governed memory should be added so the same failure is less likely next
+time.
+
+Boundary: this milestone ingests and reconstructs runtime evidence. It must not
+turn Memora into an agent execution host, workflow orchestrator, or system that
+replays runtime behavior by re-executing it.
+
+## Milestone 15 - Agentic Workflow Baseline
+
+Goal: make Memora straightforward to attach to common agent and chat tools
+after project import, review, and observability foundations exist.
+
+Includes:
+
+- setup packs for Codex, Claude Code, Cursor, Cline/Roo, Gemini CLI, OpenCode,
+  Windsurf, and Aider where practical
+- deterministic session handoff packages
+- agent-facing contribution-style and project-state bundles
+- MCP and OpenAPI workflow validation across representative clients
+- local external workflow guidance updated around imported project workspaces
+- agent readiness report v2 that verifies each configured tool can resolve the
+  intended Memora project
+
+Outcome: agents can reliably retrieve governed context, respect contribution
+style, submit reviewable proposals, and record outcomes for imported legacy
+projects.
+
+## Milestone 16 - Remote Conversational Planning
+
+Goal: define and validate the smallest real remote planning workflow in which
+an external conversation client can create reviewable Memora artifacts without
+weakening filesystem-first truth or approval governance.
+
+Includes:
 
 - remote reachability model
 - client authentication and project scoping
@@ -204,9 +307,8 @@ Suggested focus areas after that issue:
 - remote review and approval fit
 - first real remote planning-write prototype
 
-Outcome: Memora has an explicitly scoped roadmap path for remote planning
-conversations that can update reviewable project memory without pretending the
-workflow already exists.
+Outcome: remote conversations can create reviewable planning artifacts while
+canonical truth remains in governed Memora workspaces.
 
 ## Roadmap Bands
 
@@ -227,9 +329,13 @@ workflow already exists.
 - Milestone 7 - Advanced Retrieval Evolution
 - Milestone 8 - Machina Alignment
 - Milestone 9 - Deterministic Project State View
-- Milestone 10 - Local External Workflow Proof
-- Milestone 11 - IDE Review Boundary
-- Proposed Follow-On Milestone - Remote Conversational Planning
+- Milestone 10 - Project Import And First Run
+- Milestone 11 - Human Review And Trust UI
+- Milestone 12 - Existing Repo And GitHub Evidence Understanding MVP
+- Milestone 13 - Mobile Contribution MVP
+- Milestone 14 - Observability And Replay Debugging
+- Milestone 15 - Agentic Workflow Baseline
+- Milestone 16 - Remote Conversational Planning
 
 ## Guidance
 

@@ -166,6 +166,16 @@ A workspace represents a project.
   project.json
 ```
 
+The recommended product model is one installed local app or service managing
+many isolated project workspaces. Source repositories are evidence sources; the
+default Memora workspace root should be app-managed rather than inside a source
+checkout. This lets Memora scan repositories under locations such as
+`~/source/repos` without mixing generated evidence, review state, derived
+indexes, and approved memory into application code.
+
+An optional repo-local pointer may identify the attached Memora project later,
+but it must not become a second source of truth.
+
 Rules:
 
 - only approved artifacts live in `canonical/`
@@ -173,7 +183,12 @@ Rules:
 - drafts and proposals live in `drafts/`
 - summaries are supporting and non-canonical
 - workspaces typically live outside the product repo
+- source repositories are imported as evidence into a workspace, not used as
+  the workspace by default
 - `samples/` may contain demo workspaces
+
+For first-run import and multi-project placement guidance, see
+`docs/import-and-workspace-strategy.md`.
 
 ## Artifact Model
 
@@ -239,6 +254,25 @@ No semantic or vector retrieval belongs in core v1.
 Rule:
 
 Integration layers never bypass lifecycle or approval.
+
+## Runtime Evidence Boundary
+
+Memora may ingest runtime evidence from agents, chat clients, CI systems, Git,
+GitHub, or operator tools. Runtime evidence can include context requests,
+context response hashes, included artifact revisions, command summaries, test
+results, file-change summaries, review comments, and outcome records.
+
+Memora must not become the execution runtime for those systems.
+
+Rules:
+
+- Memora ingests runtime evidence; it does not host agent sessions.
+- Memora reconstructs replay/debugging timelines from captured evidence; it
+  does not replay or re-execute runtime behavior.
+- Memora may explain what an agent saw, missed, proposed, or validated; it does
+  not orchestrate the agent's work loop.
+- Runtime evidence remains subject to import mode, lifecycle, provenance,
+  privacy filtering, and approval rules before it can affect canonical memory.
 
 ## Separation Of Concerns
 
