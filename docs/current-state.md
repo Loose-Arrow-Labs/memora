@@ -18,6 +18,10 @@ It is intentionally separate from roadmap and milestone planning docs.
   repository attachment metadata
 - shared repository attachment service for local Git and GitHub source
   references that keeps Memora workspaces app-managed by default
+- local Git evidence import for attached repositories, including commits,
+  branches, tags, changed-file summaries, changelog/release signals,
+  stable evidence ids, idempotent JSON persistence under `evidence/`, and
+  bounded diagnostics
 - SQLite schema plus rebuild-from-files indexing in `Memora.Index`
 - typed relationship indexing and direct, dependency, and impact traceability queries over approved artifacts
 - rebuild diagnostics distinguish filesystem truth from derived SQLite index state
@@ -88,8 +92,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - rebuild diagnostics identify filesystem issues, but they do not auto-repair artifacts or indexes
 - controlled automation does not provide a general direct-write path and does not write canonical artifacts
 - IDE review is captured as draft/sample planning state, not implemented product behavior
-- first-run import currently attaches repositories only; local Git history
-  import, GitHub evidence import, secret filtering, generated candidates,
+- first-run import currently covers repository attachment and local Git evidence
+  import only; GitHub evidence import, secret filtering, generated candidates,
   readiness reporting, and UI review remain M10 follow-up slices
 
 ## Where To Look In Code
@@ -109,6 +113,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 ### Import
 
 - `src/Memora.Import/Attachment/RepositoryAttachmentService.cs`
+- `src/Memora.Import/Evidence/FileBackedImportedEvidenceStore.cs`
+- `src/Memora.Import/Git/LocalGitEvidenceImporter.cs`
 - `src/Memora.Import/Git/ProcessGitRepositoryInspector.cs`
 
 ### Storage
