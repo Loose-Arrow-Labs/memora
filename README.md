@@ -49,10 +49,11 @@ If you are orienting yourself in the repo, this order works well:
 1. [docs/current-state.md](docs/current-state.md)
 2. [docs/architecture.md](docs/architecture.md)
 3. [docs/milestones.md](docs/milestones.md)
-4. [docs/retrieval-evolution.md](docs/retrieval-evolution.md)
-5. [docs/operator-workflows.md](docs/operator-workflows.md)
-6. [src/README.md](src/README.md)
-7. [tests/README.md](tests/README.md)
+4. [docs/import-and-workspace-strategy.md](docs/import-and-workspace-strategy.md)
+5. [docs/retrieval-evolution.md](docs/retrieval-evolution.md)
+6. [docs/operator-workflows.md](docs/operator-workflows.md)
+7. [src/README.md](src/README.md)
+8. [tests/README.md](tests/README.md)
 
 For runtime-facing state view details, read
 [docs/project-state-view.md](docs/project-state-view.md) and
