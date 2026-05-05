@@ -136,6 +136,56 @@ Includes:
 Outcome: Memora is ready to serve as a memory and governance substrate for
 Machina and other runtimes.
 
+## Milestone 9 - Deterministic Project State View
+
+Goal: name and document the runtime-facing state view already carried by the
+shared context contract without adding a second project-state model.
+
+Includes:
+
+- project-state view documentation
+- state-view boundary rules
+- agent interpretation guidance
+- serialized contract normalization through `GetContextResponse.bundle`
+- compatibility expectations across MCP and OpenAPI paths
+
+Outcome: external runtimes can treat the current `get_context` response as a
+bounded, explainable project-state view while still respecting lifecycle,
+approval, and filesystem-first truth rules.
+
+## Milestone 10 - Local External Workflow Proof
+
+Goal: prove the shared runtime-facing contract through real local external
+workflow samples without claiming remote product readiness.
+
+Includes:
+
+- Codex-oriented local external workflow guidance
+- ChatGPT-oriented read-only state-view guidance
+- sample scripts for Codex proposal/outcome flow and ChatGPT read-only context
+- runtime-facing prototype tests
+- protocol surface parity and byte-equal state-view compatibility validation
+- remote conversational planning gap analysis
+
+Outcome: Memora can support local external clients through the current shared
+contract, while the docs clearly separate that proof from remote
+conversation-driven planning writes.
+
+## Milestone 11 - IDE Review Boundary
+
+Goal: define the smallest IDE review path for VS Code and Cursor so Memora
+artifact review can happen where development work already happens.
+
+Current captured scope:
+
+- draft sample decision `ADR-010` treats VS Code and Cursor as review surfaces
+- draft sample plan `PLN-003` scopes the M11 IDE review issues
+- the IDE layer must remain a review surface over governed Memora behavior, not
+  a second source of truth
+
+Outcome: the next IDE review work is captured as reviewable project memory, but
+the product does not yet ship a VS Code or Cursor extension.
+
 ## Proposed Follow-On Milestone - Remote Conversational Planning
 
 Goal: define the smallest real remote planning workflow in which an external
@@ -176,13 +226,16 @@ workflow already exists.
 - Milestone 6 - Controlled Automation
 - Milestone 7 - Advanced Retrieval Evolution
 - Milestone 8 - Machina Alignment
+- Milestone 9 - Deterministic Project State View
+- Milestone 10 - Local External Workflow Proof
+- Milestone 11 - IDE Review Boundary
 - Proposed Follow-On Milestone - Remote Conversational Planning
 
 ## Guidance
 
-Milestones 1 through 3 define the real v1 product build.
-
-Later milestones are progression paths, not claims of current capability.
+Milestones describe intended product slices and captured roadmap progression.
+Use `docs/current-state.md` to distinguish implemented behavior from planned or
+sample-captured next work.
 
 Memora must remain filesystem-first, approval-governed, and deterministic at
 its core even as integrations and automation expand.

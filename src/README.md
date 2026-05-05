@@ -27,10 +27,10 @@ Keep module boundaries strict. Do not duplicate domain rules across projects.
 
 ## Entry Points
 
-- `Memora.Core`: domain rules, lifecycle, validation diagnostics, approval queue, diffs, controlled automation policy and safety models, shared agent contracts, and the external runtime contract definition
+- `Memora.Core`: domain rules, lifecycle, validation diagnostics, approval queue and workflow rules, diffs, controlled automation policy and safety models, shared agent contracts, deterministic state-view serialization, and the external runtime contract definition
 - `Memora.Storage`: parsing, markdown writing, file persistence, and workspace discovery
-- `Memora.Index`: SQLite schema plus rebuild logic and diagnostics from filesystem truth
+- `Memora.Index`: SQLite schema, rebuild logic, diagnostics from filesystem truth, relationship indexing, and traceability queries
 - `Memora.Context`: deterministic ranking, inclusion reasoning, derived context package caching, bounded relationship traversal, layered context bundle assembly, and optional future retrieval extension boundaries
-- `Memora.Api`: minimal HTTP host over the shared agent interaction service, plus the guarded file-backed session-summary write prototype and runtime-facing OpenAPI prototype coverage
-- `Memora.Mcp`: thin MCP adapter surface over the same shared contract, with compatibility validation against the companion API path
-- `Memora.Ui`: styled operator shell, review workflow views, context viewer, and understanding outputs
+- `Memora.Api`: minimal HTTP host over the shared agent interaction service, companion OpenAPI document, guarded file-backed session-summary write prototype, and runtime-facing prototype coverage
+- `Memora.Mcp`: thin in-process MCP adapter surface over the same shared contract, with compatibility validation against the companion API path
+- `Memora.Ui`: styled operator shell, review workflow previews, context viewer, and understanding outputs

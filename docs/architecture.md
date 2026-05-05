@@ -34,6 +34,10 @@ Responsibilities:
 - lifecycle model and transitions
 - validation primitives
 - link and relationship definitions
+- approval queue and approval workflow rules
+- planning intake and proposal content contracts
+- controlled automation policy, trigger, and safety models
+- shared external runtime contract definitions
 
 Constraints:
 
@@ -66,6 +70,7 @@ Responsibilities:
 - SQLite schema for projects, artifacts, links, and revisions
 - indexing metadata and relationships
 - rebuild-from-files processing
+- direct, dependency, and impact traceability queries over approved artifacts
 
 Constraints:
 
@@ -78,8 +83,11 @@ Purpose: build deterministic context packages.
 
 Responsibilities:
 
-- layered retrieval
+- layered context assembly
 - deterministic ranking
+- inclusion reasoning
+- bounded relationship traversal
+- derived context package caching
 - context assembly for agents and UI
 
 Constraints:
@@ -93,15 +101,18 @@ Purpose: expose Memora capabilities locally over HTTP.
 
 Responsibilities:
 
-- project and artifact endpoints
-- approval endpoints
-- context endpoints
+- project lookup endpoint
+- context endpoint
+- proposal endpoint
+- update proposal endpoint
+- outcome recording endpoint
 - OpenAPI surface
 
 Constraints:
 
 - delegate to services
 - do not duplicate core rules
+- do not persist approval or rejection decisions outside governed workflows
 
 ### 6. MCP (`Memora.Mcp`)
 
@@ -109,14 +120,15 @@ Purpose: expose Memora through MCP as the primary integration layer.
 
 Responsibilities:
 
-- tools such as context retrieval, proposals, and approvals
-- resources for artifacts and context bundles
-- optional prompt templates
+- tools for context retrieval, artifact proposals, update proposals, and outcome recording
+- resource template for project lookup
+- protocol metadata for request, response, and error contract shapes
 
 Constraints:
 
 - protocol adaptation only
 - no business logic
+- currently thin in-process adapter, not a hosted transport runtime
 
 ### 7. UI (`Memora.Ui`)
 
@@ -126,12 +138,14 @@ Responsibilities:
 
 - project selection
 - artifact browsing and editing
-- approval queue
-- context inspection
+- approval queue and review preview
+- context inspection at `/context-viewer`
+- read-only understanding output at `/understanding`
 
 Constraints:
 
 - no duplication of domain logic
+- current decision controls are intentionally inactive until UI persistence is implemented end to end
 
 ## Workspace Model
 
@@ -183,20 +197,15 @@ Rules:
 
 Layer 1:
 
-- Charter
-- active plan
-- repo snapshot
+- charter, active plan, and repo snapshot anchors when present
 
 Layer 2:
 
-- relevant decisions
-- constraints
-- questions
-- outcomes
+- approved or explicitly allowed supporting artifacts selected by deterministic ranking and focus context
 
 Layer 3:
 
-- deeper history on demand
+- optional supporting history, including session summaries and inactive plans, when requested
 
 ### Deterministic Ranking
 
@@ -204,7 +213,7 @@ Factors:
 
 - artifact type priority
 - canonical status
-- milestone relevance
+- tag/task relevance
 - relationship proximity
 - recency
 - direct match strength
@@ -216,11 +225,16 @@ No semantic or vector retrieval belongs in core v1.
 ### MCP (Primary)
 
 - tools for read and proposal operations
-- resources for artifacts and context
+- project resource lookup
 
 ### OpenAPI (Companion)
 
-- mirrors core operations for local tools and UI
+- exposes the current local HTTP companion routes:
+  - `GET /api/projects/{projectId}`
+  - `POST /api/context`
+  - `POST /api/artifacts/proposals`
+  - `POST /api/artifacts/updates`
+  - `POST /api/outcomes`
 
 Rule:
 

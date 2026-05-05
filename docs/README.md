@@ -13,7 +13,10 @@ Docs must describe current implementation honestly and keep roadmap work clearly
 - `integration-strategy.md` for provider-facing MCP and OpenAPI guidance
 - `external-runtime-contract.md` for the shared runtime-facing contract boundary
 - `machina-interaction-model.md` for the Machina-to-Memora execution boundary
-- `retrieval-evolution.md` for shipped retrieval behavior, current Milestone 7 gains, and deferred retrieval boundaries
+- `project-state-view.md` for the serialized deterministic state view returned by `get_context`
+- `agent-project-state-interpretation.md` for how external agents should read that state view
+- `project-state-boundary-rules.md` for what the state view is and is not allowed to become
+- `retrieval-evolution.md` for shipped retrieval behavior and deferred retrieval boundaries
 - `operator-workflows.md` for current local operator review and recovery workflows
 - `controlled-automation.md` for bounded Milestone 6 automation policy, trigger, prototype, and safety rules
 - `understanding-outputs.md` for the current human-readable output strategy

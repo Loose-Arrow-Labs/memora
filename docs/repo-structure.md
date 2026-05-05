@@ -1,500 +1,235 @@
-Memora Repo Structure
+# Memora Repo Structure
 
+This document describes the current tracked repository layout and the intended
+module boundaries. It is a navigation aid, not a source of canonical project
+memory.
+
+## Current Layout
+
+```text
 memora/
-├─ artifacts/
-│  └─ README.md
-├─ build/
-│  └─ README.md
-├─ docs/
-│  ├─ adr/
-│  │  └─ README.md
-│  ├─ architecture.md
-│  ├─ charter.md
-│  ├─ data-model.md
-│  ├─ delivery-process.md
-│  ├─ feasibility.md
-│  ├─ integration-strategy.md
-│  ├─ interface-spec.md
-│  ├─ memora-vs-strata.md
-│  ├─ milestones.md
-│  ├─ operations.md
-│  ├─ progression-model.md
-│  ├─ quality-attributes.md
-│  ├─ repo-structure.md
-│  ├─ requirements.md
-│  ├─ scope.md
-│  ├─ test-strategy.md
-│  ├─ traceability.md
-│  ├─ use-cases.md
-│  └─ README.md
-├─ samples/
-│  ├─ workspaces/
-│  │  └─ demo-project/
-│  │     ├─ canonical/
-│  │     ├─ drafts/
-│  │     ├─ summaries/
-│  │     └─ project.json
-│  └─ README.md
-├─ src/
-│  ├─ Memora.Core/
-│  │  └─ README.md
-│  ├─ Memora.Storage/
-│  │  └─ README.md
-│  ├─ Memora.Index/
-│  │  └─ README.md
-│  ├─ Memora.Context/
-│  │  └─ README.md
-│  ├─ Memora.Api/
-│  │  └─ README.md
-│  ├─ Memora.Mcp/
-│  │  └─ README.md
-│  ├─ Memora.Ui/
-│  │  └─ README.md
-│  └─ README.md
-├─ tests/
-│  ├─ Memora.Core.Tests/
-│  ├─ Memora.Storage.Tests/
-│  ├─ Memora.Index.Tests/
-│  ├─ Memora.Context.Tests/
-│  ├─ Memora.Api.Tests/
-│  ├─ Memora.Mcp.Tests/
-│  └─ README.md
-├─ .github/
-│  ├─ ISSUE_TEMPLATE/
-│  │  └─ issue-template.md
-│  └─ workflows/
-│     └─ validate-platform-readiness.yml
-├─ .editorconfig
-├─ .gitattributes
-├─ .gitignore
-├─ .env.example
-├─ AGENTS.md
-├─ build.cmd
-├─ build.sh
-├─ CONTRIBUTING.md
-├─ LICENSE
-├─ NuGet.Config
-├─ README.md
-└─ Memora.sln
+  .github/
+    ISSUE_TEMPLATE/
+    workflows/
+  artifacts/
+    README.md
+  build/
+    README.md
+  docs/
+    adr/
+    change_orders/
+    *.md
+  samples/
+    workflows/
+    workspaces/
+      demo-project/
+        canonical/
+        drafts/
+        summaries/
+        project.json
+    README.md
+  src/
+    Memora.Api/
+    Memora.Context/
+    Memora.Core/
+    Memora.Index/
+    Memora.Mcp/
+    Memora.Storage/
+    Memora.Ui/
+    README.md
+  tests/
+    Memora.Api.Tests/
+    Memora.Context.Tests/
+    Memora.Core.Tests/
+    Memora.Index.Tests/
+    Memora.Mcp.Tests/
+    Memora.Storage.Tests/
+    Memora.Ui.Tests/
+    README.md
+  AGENTS.md
+  CONTRIBUTING.md
+  Directory.Build.props
+  Memora.sln
+  README.md
+```
+
+## Top-Level Folder Intent
+
+- `artifacts/`: generated build outputs, packaged deliverables, and temporary validation artifacts. Do not store canonical Memora project memory here.
+- `build/`: repository-level build helpers, validation scripts, and bootstrap support.
+- `docs/`: planning, architecture, scope, current-state, integration, and operational documentation.
+- `samples/`: demo workspaces, fixture artifacts, and local workflow scripts.
+- `src/`: product code split by responsibility.
+- `tests/`: automated tests grouped by module.
+- `.github/`: issue templates and CI workflows.
+
+## Product Projects
+
+### `src/Memora.Core`
+
+Purpose: define Memora's domain rules and shared contracts.
+
+Current responsibilities:
+
+- artifact schemas, enums, links, and typed documents
+- lifecycle validation and transition rules
+- validation diagnostics
+- approval queue and approval workflow logic
+- draft editing and revision diff behavior
+- planning intake models and validation
+- controlled automation policy, trigger, catalog, and safety models
+- shared agent interaction and external runtime contracts
+
+Must not contain:
+
+- file I/O
+- SQLite logic
+- API, MCP, or UI behavior
+- provider-specific runtime code
+
+### `src/Memora.Storage`
+
+Purpose: parse and persist artifact files.
+
+Current responsibilities:
+
+- Markdown plus strict frontmatter parsing
+- markdown section extraction
+- artifact markdown writing
+- canonical, draft, and summary persistence
+- workspace discovery through `project.json`
+
+Must not contain:
+
+- ranking
+- API or MCP logic
+- canonical-truth decisions beyond invoking shared validation behavior
+
+### `src/Memora.Index`
+
+Purpose: maintain the derived SQLite index.
+
+Current responsibilities:
 
+- SQLite schema creation
+- rebuild-from-files indexing
+- rebuild diagnostics
+- relationship persistence and lookup
+- direct, dependency, and impact traceability queries
 
----
+Must not contain:
 
-Top-level folder intent
-
-artifacts/
-
-Generated build outputs, packaged deliverables, and temporary validation outputs.
-
-Do not store canonical Memora project memory here.
-
-build/
-
-Repository-level build helpers, validation scripts, bootstrap scripts, and future build customizations.
-
-docs/
-
-Project truth for planning, architecture, scope, requirements, and operational guidance.
-
-samples/
-
-Example workspaces, fixture artifacts, demo data, and parser/index/rebuild test material.
-
-src/
-
-Product code, split by responsibility.
-
-tests/
-
-Automated tests grouped by module.
-
-.github/
-
-Issue templates and CI workflows.
-
-
----
-
-Module boundaries
-
-src/Memora.Core
-
-Purpose
-
-domain types
-
-artifact schemas
-
-lifecycle rules
-
-validation primitives
-
-
-Must not contain
-
-file I/O
-
-SQLite logic
-
-API controllers
-
-MCP logic
-
-UI logic
-
-
-
----
-
-src/Memora.Storage
-
-Purpose
-
-markdown + frontmatter parsing
-
-filesystem persistence
-
-revision file handling
-
-workspace layout helpers
-
-
-Must not contain
-
-ranking
-
-API logic
-
-MCP logic
-
-
-
----
-
-src/Memora.Index
-
-Purpose
-
-SQLite schema
-
-artifact metadata indexing
-
-link indexing
-
-rebuild-from-files support
-
-
-Must not contain
-
-canonical truth rules
-
-provider-specific logic
-
-
-
----
-
-src/Memora.Context
-
-Purpose
-
-layered retrieval
-
-deterministic ranking
-
-context package assembly
-
-
-Must not contain
-
-persistence
-
-API/controller logic
-
-
-
----
-
-src/Memora.Api
-
-Purpose
-
-OpenAPI surface
-
-project/artifact endpoints
-
-approval endpoints
-
-local service host
-
-
-Must not contain
-
-duplicated lifecycle logic
-
-duplicated ranking logic
-
-
-
----
-
-src/Memora.Mcp
-
-Purpose
-
-MCP server exposure
-
-tools/resources/prompts mapping
-
-provider-facing protocol layer
-
-
-Must not contain
-
-business logic separate from core services
-
-
-
----
-
-src/Memora.Ui
-
-Purpose
-
-local inspection and control UI
-
-project selector
-
-artifact browser
-
-approval queue
-
-context viewer
-
-
-Must not contain
-
-canonical rules duplicated from core
-
-
-
----
-
-Folder README stub templates
-
-src/README.md
-
-# src
-
-## Purpose
-Contains all Memora product code.
-
-## Layout
-- Memora.Core
-- Memora.Storage
-- Memora.Index
-- Memora.Context
-- Memora.Api
-- Memora.Mcp
-- Memora.Ui
-
-## Rule
-Keep module boundaries strict. Do not duplicate domain rules across projects.
-
-src/Memora.Core/README.md
-
-# Memora.Core
-
-## Purpose
-Defines Memora's core domain model and rules.
-
-## Responsibilities
-- artifact schemas
-- lifecycle rules
-- validation primitives
-
-## Does NOT contain
-- storage logic
-- API logic
-- MCP logic
-- indexing
-- UI logic
-
-src/Memora.Storage/README.md
-
-# Memora.Storage
-
-## Purpose
-Handles artifact file parsing and persistence.
-
-## Responsibilities
-- markdown + frontmatter parsing
-- workspace file layout
-- canonical and draft persistence
-- revision file handling
-
-## Does NOT contain
-- lifecycle rules
-- API logic
-- ranking logic
-
-src/Memora.Index/README.md
-
-# Memora.Index
-
-## Purpose
-Maintains the derived SQLite index for Memora artifacts.
-
-## Responsibilities
-- SQLite schema
-- indexing metadata
-- indexing links
-- rebuild from files
-
-## Does NOT contain
 - canonical truth decisions
 - provider-specific integrations
+- lifecycle bypasses
 
-src/Memora.Context/README.md
+### `src/Memora.Context`
 
-# Memora.Context
+Purpose: build deterministic context packages.
 
-## Purpose
-Builds deterministic context packages for agents and workflows.
+Current responsibilities:
 
-## Responsibilities
-- layered retrieval
+- layered context bundle models
 - deterministic ranking
-- context assembly
+- inclusion reasoning
+- bounded relationship traversal for focus proximity
+- derived context package caching
+- disabled-by-default optional retrieval extension boundaries
 
-## Does NOT contain
+Must not contain:
+
 - storage or file parsing
 - API controllers
+- semantic or vector retrieval in core v1
 
-src/Memora.Api/README.md
+### `src/Memora.Api`
 
-# Memora.Api
+Purpose: expose a thin local OpenAPI-compatible companion service.
 
-## Purpose
-Exposes Memora capabilities through a local OpenAPI-compatible service.
+Current responsibilities:
 
-## Responsibilities
-- project endpoints
-- artifact endpoints
-- approval endpoints
-- context endpoints
+- `GET /api/projects/{projectId}`
+- `POST /api/context`
+- `POST /api/artifacts/proposals`
+- `POST /api/artifacts/updates`
+- `POST /api/outcomes`
+- OpenAPI document at `/openapi.json`
+- file-backed agent interaction service when a workspace root is configured
+- guarded non-canonical session-summary write prototype behind policy checks
 
-## Does NOT contain
-- duplicated core rules
+Must not contain:
+
+- duplicated lifecycle rules
 - duplicated ranking logic
+- production deployment assumptions
+- direct canonical write paths for agents
 
-src/Memora.Mcp/README.md
+### `src/Memora.Mcp`
 
-# Memora.Mcp
+Purpose: expose the primary provider-facing MCP adapter surface.
 
-## Purpose
-Exposes Memora through MCP as the primary provider-facing protocol.
+Current responsibilities:
 
-## Responsibilities
-- MCP tools
-- MCP resources
-- MCP prompts
-- mapping protocol calls to Memora services
+- tool definitions for `get_context`, `propose_artifact`, `propose_update`, and `record_outcome`
+- project resource template `memora://projects/{projectId}`
+- request, response, and error contract metadata
+- forwarding to the shared `IAgentInteractionService` boundary
 
-## Does NOT contain
+Must not contain:
+
 - business logic beyond protocol adaptation
+- hosted transport claims that are not implemented
 
-src/Memora.Ui/README.md
+### `src/Memora.Ui`
 
-# Memora.Ui
+Purpose: provide the local operator interface.
 
-## Purpose
-Provides the local operator interface for Memora.
+Current responsibilities:
 
-## Responsibilities
 - project selection
 - artifact browsing
 - draft editing
-- approval queue
-- context inspection
+- approval queue and review preview
+- context viewer route at `/context-viewer`
+- understanding output route at `/understanding`
+- seeded writable sample root when no workspace root is configured
 
-## Does NOT contain
-- lifecycle rules
+Must not contain:
+
+- lifecycle rules duplicated from core
 - indexing logic
+- approval/rejection persistence claims beyond what is implemented
 
-tests/README.md
+## Tests
 
-# tests
+The solution currently includes these test projects:
 
-## Purpose
-Contains automated tests for Memora modules.
+- `tests/Memora.Core.Tests`
+- `tests/Memora.Storage.Tests`
+- `tests/Memora.Index.Tests`
+- `tests/Memora.Context.Tests`
+- `tests/Memora.Api.Tests`
+- `tests/Memora.Mcp.Tests`
+- `tests/Memora.Ui.Tests`
 
-## Testing stance
-- core domain rules should be strongly covered
-- integration layers must include the smallest meaningful validation
-- no feature is complete without appropriate tests or validation
+Use `tests/README.md` for the current validation map.
 
-docs/README.md
+## Workspace Note
 
-# docs
+Actual Memora-managed project workspaces should live outside the product source
+repo by default.
 
-## Purpose
-Contains the planning, design, scope, and operational documentation for Memora.
+Use `samples/workspaces/` only for:
+
+- example data
+- fixture artifacts
+- parser, index, and rebuild testing
+- demos
+- captured sample project memory that illustrates current or planned workflows
 
 ## Rule
-Docs must describe current implementation honestly and keep roadmap work clearly separate from shipped behavior.
 
-samples/README.md
-
-# samples
-
-## Purpose
-Contains sample workspaces, fixture artifacts, and demo data for Memora.
-
-## Rule
-Use samples to validate parsing, indexing, rebuild behavior, and example workflows.
-
-
----
-
-Workspace note
-
-Actual Memora-managed project workspaces should live outside the product source repo by default.
-
-Use samples/workspaces/ only for:
-
-example data
-
-fixture artifacts
-
-parser/index/rebuild testing
-
-demos
-
-
-
----
-
-Recommended immediate scaffold order
-
-1. top-level repo skeleton
-
-
-2. src/ module folders + READMEs
-
-
-3. tests/ folders
-
-
-4. docs/ starter files
-
-
-5. samples/workspaces/demo-project/
-
-
-6. solution and project files
-
-
-7. CI/workflow stubs
-
-
+Keep module boundaries strict. If a behavior belongs to core lifecycle,
+validation, retrieval, storage, protocol adaptation, or UI rendering, keep it
+inside the matching project and reference it from other layers instead of
+duplicating it.

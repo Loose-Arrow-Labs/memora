@@ -33,6 +33,7 @@ Provides the local operator interface for Memora.
 - revision diffs show deterministic areas, display labels, raw paths, and before/after values
 - approval and rejection persistence are intentionally not claimed in this slice
 - understanding outputs remain read-only and are grounded in the shared context builder plus rebuildable traceability queries
+- no IDE review surface is implemented here; the current IDE review boundary only exists as draft/sample planning state
 
 ## Key Areas
 
