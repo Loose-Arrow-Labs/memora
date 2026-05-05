@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Memora.Core.Import;
 using Memora.Core.Projects;
 
 namespace Memora.Storage.Workspaces;
@@ -53,8 +54,9 @@ public sealed class WorkspaceDiscovery
         var projectId = ReadRequiredString(document.RootElement, "projectId", metadataPath);
         var name = ReadRequiredString(document.RootElement, "name", metadataPath);
         var status = ReadOptionalString(document.RootElement, "status", metadataPath);
+        var repositoryAttachments = ReadRepositoryAttachments(document.RootElement, metadataPath, projectId);
 
-        return new ProjectMetadata(projectId, name, status);
+        return new ProjectMetadata(projectId, name, status, repositoryAttachments);
     }
 
     private static string ReadRequiredString(JsonElement element, string propertyName, string metadataPath)
@@ -87,6 +89,68 @@ public sealed class WorkspaceDiscovery
 
         var value = property.GetString()?.Trim();
         return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    private static IReadOnlyList<ProjectRepositoryAttachment> ReadRepositoryAttachments(
+        JsonElement element,
+        string metadataPath,
+        string projectId)
+    {
+        if (!element.TryGetProperty("repositoryAttachments", out var attachmentsProperty) ||
+            attachmentsProperty.ValueKind == JsonValueKind.Null)
+        {
+            return [];
+        }
+
+        if (attachmentsProperty.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"Workspace metadata '{metadataPath}' property 'repositoryAttachments' must be an array.");
+        }
+
+        var attachments = new List<ProjectRepositoryAttachment>();
+        var index = 0;
+
+        foreach (var attachmentElement in attachmentsProperty.EnumerateArray())
+        {
+            if (attachmentElement.ValueKind != JsonValueKind.Object)
+            {
+                throw new InvalidDataException($"Workspace metadata '{metadataPath}' repository attachment at index {index} must be an object.");
+            }
+
+            var kindValue = ReadRequiredString(attachmentElement, "kind", metadataPath);
+            if (!RepositoryAttachmentKindExtensions.TryParseSchemaValue(kindValue, out var kind))
+            {
+                throw new InvalidDataException($"Workspace metadata '{metadataPath}' repository attachment at index {index} has unsupported kind '{kindValue}'.");
+            }
+
+            var attachedAtValue = ReadRequiredString(attachmentElement, "attachedAtUtc", metadataPath);
+            if (!DateTimeOffset.TryParse(attachedAtValue, out var attachedAtUtc))
+            {
+                throw new InvalidDataException($"Workspace metadata '{metadataPath}' repository attachment at index {index} has invalid 'attachedAtUtc'.");
+            }
+
+            var attachmentProjectId = ReadOptionalString(attachmentElement, "projectId", metadataPath) ?? projectId;
+            if (!string.Equals(attachmentProjectId, projectId, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException($"Workspace metadata '{metadataPath}' repository attachment at index {index} belongs to project '{attachmentProjectId}' instead of '{projectId}'.");
+            }
+
+            attachments.Add(
+                new ProjectRepositoryAttachment(
+                    ReadRequiredString(attachmentElement, "attachmentId", metadataPath),
+                    attachmentProjectId,
+                    kind,
+                    ReadRequiredString(attachmentElement, "repositoryIdentity", metadataPath),
+                    ReadOptionalString(attachmentElement, "localPath", metadataPath),
+                    ReadOptionalString(attachmentElement, "remoteUrl", metadataPath),
+                    ReadRequiredString(attachmentElement, "defaultBranch", metadataPath),
+                    ReadOptionalString(attachmentElement, "originRemoteName", metadataPath),
+                    ReadOptionalString(attachmentElement, "originUrl", metadataPath),
+                    attachedAtUtc));
+            index++;
+        }
+
+        return attachments;
     }
 
     private static void EnsureDistinctProjectIds(IReadOnlyList<ProjectWorkspace> workspaces)

@@ -7,13 +7,17 @@ It is intentionally separate from roadmap and milestone planning docs.
 
 ### Foundation
 
-- .NET 10 solution with product projects for Core, Storage, Index, Context, API, MCP, and UI
+- .NET 10 solution with product projects for Core, Import, Storage, Index, Context, API, MCP, and UI
 - typed artifact models, enums, and lifecycle rules in `Memora.Core`
 - artifact validation, diagnostic formatting, planning intake, draft editing, approval queue building, and revision diffs
 - revision diffs include deterministic change areas, display labels, and raw paths
 - markdown plus frontmatter parsing in `Memora.Storage`
 - filesystem persistence for canonical, draft, and summary artifacts
 - workspace discovery through `project.json`
+- first-run import foundation with provider-agnostic import modes and
+  repository attachment metadata
+- shared repository attachment service for local Git and GitHub source
+  references that keeps Memora workspaces app-managed by default
 - SQLite schema plus rebuild-from-files indexing in `Memora.Index`
 - typed relationship indexing and direct, dependency, and impact traceability queries over approved artifacts
 - rebuild diagnostics distinguish filesystem truth from derived SQLite index state
@@ -84,6 +88,9 @@ It is intentionally separate from roadmap and milestone planning docs.
 - rebuild diagnostics identify filesystem issues, but they do not auto-repair artifacts or indexes
 - controlled automation does not provide a general direct-write path and does not write canonical artifacts
 - IDE review is captured as draft/sample planning state, not implemented product behavior
+- first-run import currently attaches repositories only; local Git history
+  import, GitHub evidence import, secret filtering, generated candidates,
+  readiness reporting, and UI review remain M10 follow-up slices
 
 ## Where To Look In Code
 
@@ -97,6 +104,12 @@ It is intentionally separate from roadmap and milestone planning docs.
 - `src/Memora.Core/AgentInteraction/AgentInteractionContract.cs`
 - `src/Memora.Core/AgentInteraction/ExternalRuntimeContract.cs`
 - `src/Memora.Core/AgentInteraction/ProjectStateViewSerializer.cs`
+- `src/Memora.Core/Import/`
+
+### Import
+
+- `src/Memora.Import/Attachment/RepositoryAttachmentService.cs`
+- `src/Memora.Import/Git/ProcessGitRepositoryInspector.cs`
 
 ### Storage
 

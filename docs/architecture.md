@@ -18,6 +18,7 @@ Core tenets:
 Clients and runtimes (Claude, ChatGPT, Codex, UI)
 -> `Memora.Api` / `Memora.Mcp`
 -> application services that orchestrate use cases
+-> first-run import services for repository attachment and evidence intake
 -> core domain rules and schemas
 -> storage and index layers
 -> project workspaces and artifacts
@@ -61,7 +62,24 @@ Constraints:
 - no business rules beyond validation hooks
 - no ranking or retrieval logic
 
-### 3. Index (`Memora.Index`)
+### 3. Import (`Memora.Import`)
+
+Purpose: coordinate first-run import use cases below protocol and UI layers.
+
+Responsibilities:
+
+- repository attachment services
+- source repository inspection boundaries
+- import-mode-aware evidence intake and placement decisions
+- first-run candidate and readiness generation in later M10 slices
+
+Constraints:
+
+- no canonical lifecycle bypasses
+- no provider-specific business rules in domain models
+- no MCP, OpenAPI, or UI protocol handling
+
+### 4. Index (`Memora.Index`)
 
 Purpose: provide fast lookup over canonical data.
 
@@ -77,7 +95,7 @@ Constraints:
 - must be fully rebuildable from the filesystem
 - must not make source-of-truth decisions
 
-### 4. Context (`Memora.Context`)
+### 5. Context (`Memora.Context`)
 
 Purpose: build deterministic context packages.
 
@@ -95,7 +113,7 @@ Constraints:
 - no persistence
 - no API controllers
 
-### 5. API (`Memora.Api`)
+### 6. API (`Memora.Api`)
 
 Purpose: expose Memora capabilities locally over HTTP.
 
@@ -114,7 +132,7 @@ Constraints:
 - do not duplicate core rules
 - do not persist approval or rejection decisions outside governed workflows
 
-### 6. MCP (`Memora.Mcp`)
+### 7. MCP (`Memora.Mcp`)
 
 Purpose: expose Memora through MCP as the primary integration layer.
 
@@ -130,7 +148,7 @@ Constraints:
 - no business logic
 - currently thin in-process adapter, not a hosted transport runtime
 
-### 7. UI (`Memora.Ui`)
+### 8. UI (`Memora.Ui`)
 
 Purpose: provide a local operator interface.
 

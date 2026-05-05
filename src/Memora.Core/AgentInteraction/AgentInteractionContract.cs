@@ -1,5 +1,6 @@
 using Memora.Core.Artifacts;
 using Memora.Core.Automation;
+using Memora.Core.Import;
 
 namespace Memora.Core.AgentInteraction;
 
@@ -113,16 +114,29 @@ public sealed record AgentContextBundle(
 public sealed record GetContextResponse(AgentContextBundle? Bundle, IReadOnlyList<AgentInteractionError> Errors)
     : AgentInteractionResponse(Errors);
 
-public sealed record ProjectLookupResponse(
-    string ProjectId,
-    string? Name,
-    string? Status,
-    IReadOnlyList<AgentInteractionError> Errors)
-    : AgentInteractionResponse(Errors)
+public sealed record ProjectLookupResponse : AgentInteractionResponse
 {
-    public string ProjectId { get; } = AgentInteractionContractHelpers.RequireValue(ProjectId, nameof(ProjectId), "Project id is required.");
-    public string? Name { get; } = string.IsNullOrWhiteSpace(Name) ? null : Name.Trim();
-    public string? Status { get; } = string.IsNullOrWhiteSpace(Status) ? null : Status.Trim();
+    public ProjectLookupResponse(
+        string projectId,
+        string? name,
+        string? status,
+        IReadOnlyList<AgentInteractionError> errors,
+        IReadOnlyList<ProjectRepositoryAttachment>? repositoryAttachments = null)
+        : base(errors)
+    {
+        ProjectId = AgentInteractionContractHelpers.RequireValue(projectId, nameof(projectId), "Project id is required.");
+        Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        Status = string.IsNullOrWhiteSpace(status) ? null : status.Trim();
+        RepositoryAttachments = repositoryAttachments?.ToArray() ?? [];
+    }
+
+    public string ProjectId { get; }
+
+    public string? Name { get; }
+
+    public string? Status { get; }
+
+    public IReadOnlyList<ProjectRepositoryAttachment> RepositoryAttachments { get; }
 }
 
 public sealed record ArtifactProposalContent
