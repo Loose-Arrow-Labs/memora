@@ -23,5 +23,7 @@ repository inspection, evidence intake, safety filtering, and readiness output.
 - GitHub evidence import normalizes issues, pull requests, reviews, review
   comments, commits, releases, and available discussion metadata into the same
   evidence store
-- later M10 slices build safety filtering, candidate memory, and readiness
-  reporting on this shared layer
+- import safety filtering redacts common tokens and blocks unsafe private key
+  material before local Git or GitHub evidence is persisted
+- later M10 slices build candidate memory and readiness reporting on this shared
+  layer

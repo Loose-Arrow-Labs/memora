@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Memora.Core.Import;
 using Memora.Import.Evidence;
+using Memora.Import.Safety;
 using Memora.Storage.Workspaces;
 
 namespace Memora.Import.GitHub;
@@ -12,6 +13,7 @@ public sealed class GitHubEvidenceImporter
     private readonly WorkspaceDiscovery _workspaceDiscovery;
     private readonly IGitHubEvidenceClient _client;
     private readonly IImportedEvidenceStore _evidenceStore;
+    private readonly ImportContentSafetyFilter _safetyFilter;
 
     public GitHubEvidenceImporter(
         string workspacesRootPath,
@@ -28,7 +30,8 @@ public sealed class GitHubEvidenceImporter
         string workspacesRootPath,
         WorkspaceDiscovery workspaceDiscovery,
         IGitHubEvidenceClient client,
-        IImportedEvidenceStore evidenceStore)
+        IImportedEvidenceStore evidenceStore,
+        ImportContentSafetyFilter? safetyFilter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workspacesRootPath);
 
@@ -36,6 +39,7 @@ public sealed class GitHubEvidenceImporter
         _workspaceDiscovery = workspaceDiscovery ?? throw new ArgumentNullException(nameof(workspaceDiscovery));
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _evidenceStore = evidenceStore ?? throw new ArgumentNullException(nameof(evidenceStore));
+        _safetyFilter = safetyFilter ?? new ImportContentSafetyFilter();
     }
 
     public GitHubEvidenceImportResult Import(GitHubEvidenceImportRequest request)
@@ -76,16 +80,37 @@ public sealed class GitHubEvidenceImporter
         var importedAtUtc = DateTimeOffset.UtcNow;
         var trustState = ImportModeTrustPolicy.GetEvidenceTrustState(request.ImportMode);
         var records = BuildEvidenceRecords(workspace.ProjectId, attachment, clientResult.Snapshot, importedAtUtc, trustState);
-        var persistence = _evidenceStore.Save(new ProjectEvidenceWriteRequest(workspace.RootPath, records));
         var diagnostics = clientResult.Diagnostics.ToList();
+        var safetyResult = _safetyFilter.Filter(records);
+        diagnostics.AddRange(safetyResult.Diagnostics.Select(MapSafetyDiagnostic));
+
+        if (safetyResult.BlocksPersistence)
+        {
+            return new GitHubEvidenceImportResult(
+                [],
+                new GitHubEvidenceImportProgress(
+                    records.Count,
+                    0,
+                    0,
+                    clientResult.Snapshot.Issues.Count,
+                    clientResult.Snapshot.PullRequests.Count,
+                    clientResult.Snapshot.Reviews.Count,
+                    clientResult.Snapshot.ReviewComments.Count,
+                    clientResult.Snapshot.Commits.Count,
+                    clientResult.Snapshot.Releases.Count,
+                    clientResult.Snapshot.Discussions.Count),
+                diagnostics);
+        }
+
+        var persistence = _evidenceStore.Save(new ProjectEvidenceWriteRequest(workspace.RootPath, safetyResult.Records));
         diagnostics.Add(
             GitHubImportDiagnostic.Info(
                 "github.import.completed",
-                $"Imported {records.Count} GitHub evidence record(s). {persistence.CreatedCount} new, {persistence.ExistingCount} already present.",
+                $"Imported {safetyResult.Records.Count} GitHub evidence record(s). {persistence.CreatedCount} new, {persistence.ExistingCount} already present.",
                 "evidence"));
 
         return new GitHubEvidenceImportResult(
-            records,
+            safetyResult.Records,
             new GitHubEvidenceImportProgress(
                 records.Count,
                 persistence.CreatedCount,
@@ -397,6 +422,15 @@ public sealed class GitHubEvidenceImporter
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return $"EVD-{Convert.ToHexString(hash)[..16]}";
     }
+
+    private static GitHubImportDiagnostic MapSafetyDiagnostic(ImportSafetyDiagnostic diagnostic) =>
+        new(
+            diagnostic.Code,
+            diagnostic.Message,
+            diagnostic.Severity == ImportSafetyDiagnosticSeverity.Error
+                ? GitHubImportDiagnosticSeverity.Error
+                : GitHubImportDiagnosticSeverity.Warning,
+            $"{diagnostic.StableEvidenceId}:{diagnostic.Field}");
 
     private static GitHubEvidenceImportResult Failed(params GitHubImportDiagnostic[] diagnostics) =>
         new(
