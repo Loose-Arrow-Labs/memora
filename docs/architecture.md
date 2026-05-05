@@ -226,6 +226,19 @@ Rules:
 
 ## Retrieval Model (v1)
 
+Memora uses hybrid retrieval at the product boundary and deterministic
+assembly at the governed memory boundary.
+
+The hybrid side may include imported evidence, local repository scans, GitHub
+signals, runtime evidence, or later advisory retrieval providers that discover
+candidate material. Those sources can propose evidence or candidate memory, but
+they do not become canonical truth and they do not replace the deterministic
+context assembly path.
+
+The governed side assembles final context from approved artifacts and
+explicitly allowed supporting artifacts with stable ordering and explainable
+inclusion reasons.
+
 ### Layered Context
 
 Layer 1:
@@ -252,6 +265,10 @@ Factors:
 - direct match strength
 
 No semantic or vector retrieval belongs in core v1.
+
+Hybrid retrieval does not change that rule. It means advisory candidate
+discovery can sit beside Memora core, with provenance and review state, while
+core Memora remains deterministic and lifecycle-governed.
 
 ## Integration Model
 
@@ -304,6 +321,8 @@ External retrieval is never truth unless it is promoted and approved in Memora.
 ## Non-Goals (v1)
 
 - semantic or vector search
+- advisory discovery results treated as final context without approval or
+  explicit allowance
 - probabilistic ranking
 - direct agent writes to canonical state
 - tight coupling to any provider SDK

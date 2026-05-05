@@ -7,7 +7,10 @@ It is built around a few non-negotiable rules:
 
 - filesystem is the canonical source of truth
 - SQLite is derived and rebuildable
-- retrieval is deterministic and explainable
+- grounded context assembly is deterministic and explainable
+- retrieval is hybrid at the discovery boundary: external or advisory sources
+  may suggest candidates, but governed Memora output is assembled from
+  approved or explicitly allowed artifacts
 - agents may propose changes in v1, but they do not directly write canonical truth
 - lifecycle and approval rules are enforced in core
 
@@ -20,7 +23,7 @@ This checkout includes working slices across:
 - validation diagnostics that surface code and path context for operators and integrations
 - filesystem parsing and persistence for canonical, draft, and summary artifacts
 - SQLite rebuild-from-files indexing, relationship indexing, traceability queries, and filesystem-first rebuild diagnostics
-- deterministic context ranking, cached context packages, bounded relationship traversal, inclusion reasoning, and layered context assembly
+- deterministic context ranking, cached context packages, bounded relationship traversal, inclusion reasoning, layered context assembly, and a hybrid retrieval boundary for advisory candidate discovery
 - deterministic serialized project-state views through the shared `GetContextResponse.bundle` contract
 - a provider-agnostic external runtime contract reused by MCP and OpenAPI
 - a minimal local HTTP API for project lookup, context assembly, proposals, updates, and outcomes
@@ -37,7 +40,7 @@ Important limits still apply:
 
 - canonical truth remains filesystem-first and approval-governed
 - controlled automation is limited to explicit policy checks and non-canonical session-summary writes
-- no semantic or vector retrieval executes in core v1; optional future extension contracts are advisory and disabled by default
+- no semantic or vector retrieval executes in core v1; hybrid retrieval means advisory discovery plus deterministic governed assembly, not probabilistic core truth
 - the UI shows review previews and inactive approval decision controls, but it does not persist approval or rejection decisions
 - the MCP layer is currently a thin in-process adapter surface, not a production transport host
 - provider-facing runtime alignment is shared-contract based; hosted transport, remote reachability, authentication, and provider-specific attachment work remain follow-up scope
