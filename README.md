@@ -59,6 +59,10 @@ For runtime-facing state view details, read
 [docs/project-state-view.md](docs/project-state-view.md) and
 [docs/agent-project-state-interpretation.md](docs/agent-project-state-interpretation.md).
 
+For runtime-facing state view details, read
+[docs/project-state-view.md](docs/project-state-view.md) and
+[docs/agent-project-state-interpretation.md](docs/agent-project-state-interpretation.md).
+
 ## Local Run
 
 Build everything:
