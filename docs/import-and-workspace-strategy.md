@@ -55,6 +55,17 @@ That pointer should only identify the Memora project/workspace. It should not
 become the canonical artifact store unless the operator explicitly chooses a
 repo-local mode.
 
+Placement rules:
+
+- default workspace placement is app-managed under the Memora workspace root
+- attached source repositories are scanned as evidence sources
+- imported evidence, generated candidates, review state, and derived indexes
+  live in the Memora workspace, not in the source checkout
+- repo-local files may only point to an existing Memora project; they must not
+  become a second canonical store
+- a source repository can be detached or moved without changing the canonical
+  Memora workspace identity
+
 ## Multi-Project Model
 
 Memora should use:
@@ -67,6 +78,17 @@ Memora should use:
 
 Agents must identify or resolve the target project before calling context,
 proposal, update, outcome, replay, or evidence tools.
+
+Project resolution expectations:
+
+- integrations list or resolve Memora projects by workspace-backed project id
+- an attached source repository is one resolution hint, not the project itself
+- if more than one Memora project points at the same source remote or local
+  path, the operator or agent must choose the project explicitly
+- MCP and OpenAPI must expose the same project identity and import/readiness
+  state through shared contracts
+- proposal and write paths remain scoped to the resolved Memora project and
+  continue to obey lifecycle and approval rules
 
 ## Import Sources
 
@@ -82,6 +104,24 @@ The first-run import flow should support:
 
 Imported source material is evidence. Derived project meaning is generated from
 that evidence and must follow the selected import mode.
+
+## Evidence And Meaning Classes
+
+M10 import uses three trust classes:
+
+- baseline evidence: directly observed project facts such as commits, tags,
+  issue metadata, PR metadata, files, and release records that may be trusted
+  according to the selected import mode
+- baseline memory: deterministic project facts derived from direct observation,
+  such as repository structure, detected build commands, or detected test
+  commands, when the selected mode permits baseline promotion
+- reviewable inferred meaning: decisions, constraints, contribution style,
+  risks, bug patterns, ownership claims, and open questions that require review
+  unless a later approved bulk policy explicitly promotes them
+
+The boundary is intentionally conservative. Evidence says what was observed.
+Memory says what Memora is allowed to preserve as project understanding.
+Inferred meaning stays visible, provenance-backed, and reviewable.
 
 ## GitHub Import Risks
 
@@ -117,6 +157,12 @@ Default for most legacy onboarding.
 Use this when the codebase has already lived with years of decisions and the
 goal is to get useful agent context quickly.
 
+Promotion behavior:
+
+- baseline evidence may be stored as canonical evidence after safety filtering
+- deterministic baseline memory may be eligible for approved baseline status
+- inferred meaning is generated as reviewable candidate memory
+
 ### Strict Governance
 
 Use for regulated or high-risk projects.
@@ -124,6 +170,12 @@ Use for regulated or high-risk projects.
 - all imported evidence and derived memory enters as proposed or draft
 - no automatic canonical baseline is created
 - the operator explicitly approves durable truth
+
+Promotion behavior:
+
+- baseline evidence remains reviewable until approval
+- baseline memory remains proposed or draft
+- inferred meaning remains reviewable candidate memory
 
 ### Evidence Canonical
 
@@ -134,6 +186,13 @@ Use when raw project history should be trusted but interpretations should not.
 - derived decisions, constraints, outcomes, and contribution-style rules remain
   proposed until reviewed
 
+Promotion behavior:
+
+- baseline evidence may become canonical evidence after safety filtering
+- directly observed memory candidates remain reviewable unless they are
+  represented as evidence records
+- inferred meaning remains reviewable candidate memory
+
 ### Bulk Approval
 
 Use for practical review after import.
@@ -142,6 +201,14 @@ Use for practical review after import.
 - the operator approves batches such as repo structure, test commands,
   dependency inventory, merged PR outcomes, or CODEOWNERS-derived ownership
 - the approval target is the batch policy and candidate class, not each row
+
+Promotion behavior:
+
+- baseline evidence is grouped for trust review
+- baseline memory and inferred meaning are grouped by source, confidence, and
+  risk
+- approval applies to the selected batch and candidate class only, preserving
+  provenance for every promoted item
 
 ## Trust Boundary
 
@@ -194,6 +261,24 @@ all legacy edge cases:
 - candidate memory generation
 - readiness report
 - MCP/OpenAPI exposure that respects import mode and lifecycle rules
+
+Happy-path sequence:
+
+1. create or select an app-managed Memora workspace
+2. attach one local Git repository or one GitHub repository as a source
+3. choose Fast Baseline, Strict Governance, Evidence Canonical, or Bulk
+   Approval before promotion behavior runs
+4. run a bounded import with progress, evidence counts, and safety diagnostics
+5. persist safe evidence according to the selected import mode
+6. generate deterministic candidate memory and an agent readiness report
+7. show baseline evidence, baseline memory, and review-needed candidates
+   separately
+8. expose the imported project through MCP and OpenAPI project resolution and
+   deterministic context retrieval
+
+Runtime evidence remains inside this import boundary. Memora may ingest
+observed runtime records later, but it must not host agents, orchestrate their
+execution loops, or replay runtime behavior by re-executing it.
 
 ## Future Packaging Note
 
