@@ -1,5 +1,7 @@
 namespace Memora.Ui.ContextViewer;
 
+using Memora.Core.AgentInteraction;
+
 public sealed record ContextViewerRequest(
     string ProjectId,
     string TaskDescription,
@@ -12,15 +14,5 @@ public sealed record ContextViewerPageModel(
     bool IncludeDraftArtifacts,
     bool IncludeLayer3History,
     string? ErrorMessage,
-    IReadOnlyList<ContextViewerLayer> Layers);
-
-public sealed record ContextViewerLayer(
-    string Name,
-    IReadOnlyList<ContextViewerArtifact> Artifacts);
-
-public sealed record ContextViewerArtifact(
-    string Id,
-    string Title,
-    string Type,
-    string Status,
-    IReadOnlyList<string> InclusionReasons);
+    AgentContextBundle? Bundle,
+    IReadOnlyList<AgentInteractionError> Errors);

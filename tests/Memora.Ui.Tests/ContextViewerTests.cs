@@ -40,7 +40,9 @@ public sealed class ContextViewerTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var html = await response.Content.ReadAsStringAsync();
         Assert.Contains("Context Viewer", html, StringComparison.Ordinal);
+        Assert.Contains("GetContextResponse.bundle", html, StringComparison.Ordinal);
         Assert.Contains("Layer1", html, StringComparison.Ordinal);
+        Assert.Contains("artifact.status: approved", html, StringComparison.Ordinal);
         Assert.Contains("CHR-001 - Memora charter", html, StringComparison.Ordinal);
         Assert.Contains("PLN-001 - Active plan", html, StringComparison.Ordinal);
         Assert.Contains("approved artifacts are the default context grounding", html, StringComparison.Ordinal);

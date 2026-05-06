@@ -50,7 +50,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - explicit inclusion reasoning for selected artifacts, including traversed relationship paths
 - layered bundle assembly in `Memora.Context`
 - a normalized runtime-facing state view exposed as `GetContextResponse.bundle`
-- context viewer UI route at `/context-viewer`
+- context viewer UI route at `/context-viewer` rendering the shared
+  `GetContextResponse.bundle` deterministic state-view contract
 - optional retrieval extension contracts exist for future advisory candidate discovery, but they are disabled by default and do not execute semantic retrieval in core v1
 - hybrid retrieval is represented as a boundary: advisory discovery may produce
   reviewable candidates later, while final context assembly remains
@@ -95,7 +96,7 @@ It is intentionally separate from roadmap and milestone planning docs.
 - first-run import status page showing attached repository identity, selected
   import mode, progress, evidence counts, warnings, candidate source and
   disposition, readiness report details, and next actions
-- context viewer page backed by the shared context builder
+- context viewer page backed by the shared deterministic state-view contract
 - understanding output page with context, traceability, and component views
 
 ### Operator Guidance
