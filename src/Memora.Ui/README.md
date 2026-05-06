@@ -43,6 +43,8 @@ Provides the local operator interface for Memora.
 - `Operator/LocalOperatorWorkspaceService.cs`: project, artifact, queue, edit, and review models for the operator shell
 - `FirstRunImport/FileSystemFirstRunImportStatusService.cs`: filesystem-backed first-run import status and readiness page model
 - `Rendering/OperatorShellPageRenderer.cs`: styled operator shell HTML rendering
+- `Rendering/ReviewUiComponents.cs`: minimal reusable review panels, metadata
+  grids, lifecycle badges, and action groups
 - `ContextViewer/FileSystemContextViewerService.cs`: shared context-builder-backed viewer at `/context-viewer`
 - `Understanding/FileSystemUnderstandingOutputService.cs`: read-only understanding page at `/understanding`
 

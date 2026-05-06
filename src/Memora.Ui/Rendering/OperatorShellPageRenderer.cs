@@ -272,39 +272,42 @@ internal static class OperatorShellPageRenderer
         body.AppendLine($"<p class=\"lede\">{Encode(snapshot.PendingItems.Count.ToString(CultureInfo.InvariantCulture))} pending review item(s) from the core queue model, ready for operator inspection.</p>");
         body.AppendLine("</section>");
 
-        body.AppendLine("<section class=\"panel\">");
-        body.AppendLine("<div class=\"panel-header\"><h2>Pending Items</h2><p class=\"muted\">Queue ordering comes from <code>ApprovalQueueBuilder</code>.</p></div>");
-
-        if (snapshot.PendingItems.Count == 0)
-        {
-            body.AppendLine("<p>No draft or proposed artifacts are queued.</p>");
-        }
-        else
-        {
-            body.AppendLine("<div class=\"table-scroll\">");
-            body.AppendLine("<table><thead><tr><th>Position</th><th>Title</th><th>Status</th><th>Type</th><th>Pending Since</th><th>Review</th></tr></thead><tbody>");
-            for (var index = 0; index < snapshot.PendingItems.Count; index++)
-            {
-                var item = snapshot.PendingItems[index];
-                var reviewLink = BuildReviewLink(snapshot.Workspace.ProjectId, item.Record.RelativePath);
-                body.AppendLine("<tr>");
-                body.AppendLine($"<td>{Encode((index + 1).ToString(CultureInfo.InvariantCulture))} of {Encode(snapshot.PendingItems.Count.ToString(CultureInfo.InvariantCulture))}</td>");
-                body.AppendLine($"<td>{Encode(item.QueueItem.Title)}</td>");
-                body.AppendLine($"<td>{RenderStatusBadge(item.QueueItem.PendingStatus)}</td>");
-                body.AppendLine($"<td>{Encode(item.QueueItem.ArtifactType.ToSchemaValue())}</td>");
-                body.AppendLine($"<td>{Encode(item.QueueItem.PendingSinceUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture))}</td>");
-                body.AppendLine($"<td><a href=\"{reviewLink}\">Review revision</a></td>");
-                body.AppendLine("</tr>");
-            }
-
-            body.AppendLine("</tbody></table>");
-            body.AppendLine("</div>");
-        }
-
-        body.AppendLine("</section>");
+        body.AppendLine(ReviewUiComponents.RenderPanel(
+            "Pending Items",
+            "Queue ordering comes from ApprovalQueueBuilder.",
+            RenderPendingReviewItems(snapshot)));
         body.AppendLine(RenderScopeNote(options));
 
         return RenderLayout($"{snapshot.Workspace.Metadata.Name} queue", options, projects, snapshot.Workspace.ProjectId, body.ToString());
+    }
+
+    private static string RenderPendingReviewItems(OperatorProjectSnapshot snapshot)
+    {
+        if (snapshot.PendingItems.Count == 0)
+        {
+            return "<p>No draft or proposed artifacts are queued.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"table-scroll\">");
+        html.AppendLine("<table><thead><tr><th>Position</th><th>Title</th><th>Status</th><th>Type</th><th>Pending Since</th><th>Review</th></tr></thead><tbody>");
+        for (var index = 0; index < snapshot.PendingItems.Count; index++)
+        {
+            var item = snapshot.PendingItems[index];
+            var reviewLink = BuildReviewLink(snapshot.Workspace.ProjectId, item.Record.RelativePath);
+            html.AppendLine("<tr>");
+            html.AppendLine($"<td>{Encode((index + 1).ToString(CultureInfo.InvariantCulture))} of {Encode(snapshot.PendingItems.Count.ToString(CultureInfo.InvariantCulture))}</td>");
+            html.AppendLine($"<td>{Encode(item.QueueItem.Title)}</td>");
+            html.AppendLine($"<td>{RenderStatusBadge(item.QueueItem.PendingStatus)}</td>");
+            html.AppendLine($"<td>{Encode(item.QueueItem.ArtifactType.ToSchemaValue())}</td>");
+            html.AppendLine($"<td>{Encode(item.QueueItem.PendingSinceUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture))}</td>");
+            html.AppendLine($"<td><a href=\"{reviewLink}\">Review revision</a></td>");
+            html.AppendLine("</tr>");
+        }
+
+        html.AppendLine("</tbody></table>");
+        html.AppendLine("</div>");
+        return html.ToString();
     }
 
     public static string RenderReview(
@@ -328,24 +331,18 @@ internal static class OperatorShellPageRenderer
         body.AppendLine(RenderReviewNavigation(view));
 
         body.AppendLine("<section class=\"two-up\">");
-        body.AppendLine("<article class=\"panel\">");
-        body.AppendLine("<div class=\"panel-header\"><h2>Pending Revision</h2><p class=\"muted\">Current draft or proposed artifact under review.</p></div>");
-        body.AppendLine(RenderArtifactSummary(view));
-        body.AppendLine($"<p><a class=\"button ghost\" href=\"{BuildArtifactLink(view.Project.Workspace.ProjectId, view.SelectedArtifact.RelativePath)}\">Open artifact detail</a></p>");
-        body.AppendLine("</article>");
+        body.AppendLine(ReviewUiComponents.RenderArticlePanel(
+            "Pending Revision",
+            "Current draft or proposed artifact under review.",
+            RenderArtifactSummary(view) +
+            $"<p><a class=\"button ghost\" href=\"{BuildArtifactLink(view.Project.Workspace.ProjectId, view.SelectedArtifact.RelativePath)}\">Open artifact detail</a></p>"));
 
-        body.AppendLine("<article class=\"panel\">");
-        body.AppendLine("<div class=\"panel-header\"><h2>Current Approved Revision</h2><p class=\"muted\">Used for diff previews when one exists.</p></div>");
-        if (view.CurrentApprovedArtifact is null)
-        {
-            body.AppendLine("<p>No approved artifact exists for this id yet, so this review is for a net-new artifact.</p>");
-        }
-        else
-        {
-            body.AppendLine(RenderApprovedSummary(view.CurrentApprovedArtifact));
-        }
-
-        body.AppendLine("</article>");
+        body.AppendLine(ReviewUiComponents.RenderArticlePanel(
+            "Current Approved Revision",
+            "Used for diff previews when one exists.",
+            view.CurrentApprovedArtifact is null
+                ? "<p>No approved artifact exists for this id yet, so this review is for a net-new artifact.</p>"
+                : RenderApprovedSummary(view.CurrentApprovedArtifact)));
         body.AppendLine("</section>");
 
         body.AppendLine("<section class=\"panel\">");
@@ -725,30 +722,30 @@ internal static class OperatorShellPageRenderer
     {
         var artifact = view.SelectedArtifact.Artifact;
         var html = new StringBuilder();
-        html.AppendLine("<dl class=\"meta-grid\">");
-        html.AppendLine($"<div><dt>Id</dt><dd><code>{Encode(artifact.Id)}</code></dd></div>");
-        html.AppendLine($"<div><dt>Status</dt><dd>{RenderStatusBadge(artifact.Status)}</dd></div>");
-        html.AppendLine($"<div><dt>Revision</dt><dd>{Encode(artifact.Revision.ToString(CultureInfo.InvariantCulture))}</dd></div>");
-        html.AppendLine($"<div><dt>Updated</dt><dd>{Encode(artifact.UpdatedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture))}</dd></div>");
-        html.AppendLine($"<div><dt>Provenance</dt><dd>{Encode(artifact.Provenance)}</dd></div>");
-        html.AppendLine($"<div><dt>Reason</dt><dd>{Encode(artifact.Reason)}</dd></div>");
-        html.AppendLine($"<div><dt>Tags</dt><dd>{Encode(string.Join(", ", artifact.Tags))}</dd></div>");
-        html.AppendLine($"<div><dt>File</dt><dd><code>{Encode(view.SelectedArtifact.RelativePath)}</code></dd></div>");
-        html.AppendLine("</dl>");
+        html.AppendLine(ReviewUiComponents.RenderMetadataGrid(
+        [
+            new("Id", artifact.Id, TreatAsCode: true),
+            new("Status", RenderStatusBadge(artifact.Status), IsHtml: true),
+            new("Revision", artifact.Revision.ToString(CultureInfo.InvariantCulture)),
+            new("Updated", artifact.UpdatedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture)),
+            new("Provenance", artifact.Provenance),
+            new("Reason", artifact.Reason),
+            new("Tags", string.Join(", ", artifact.Tags)),
+            new("File", view.SelectedArtifact.RelativePath, TreatAsCode: true)
+        ]));
         html.AppendLine($"<div class=\"body-card\"><h3>Body</h3><pre>{Encode(artifact.Body)}</pre></div>");
         return html.ToString();
     }
 
     private static string RenderApprovedSummary(ArtifactDocument artifact)
     {
-        var html = new StringBuilder();
-        html.AppendLine("<dl class=\"meta-grid\">");
-        html.AppendLine($"<div><dt>Id</dt><dd><code>{Encode(artifact.Id)}</code></dd></div>");
-        html.AppendLine($"<div><dt>Status</dt><dd>{RenderStatusBadge(artifact.Status)}</dd></div>");
-        html.AppendLine($"<div><dt>Revision</dt><dd>{Encode(artifact.Revision.ToString(CultureInfo.InvariantCulture))}</dd></div>");
-        html.AppendLine($"<div><dt>Updated</dt><dd>{Encode(artifact.UpdatedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture))}</dd></div>");
-        html.AppendLine("</dl>");
-        return html.ToString();
+        return ReviewUiComponents.RenderMetadataGrid(
+        [
+            new("Id", artifact.Id, TreatAsCode: true),
+            new("Status", RenderStatusBadge(artifact.Status), IsHtml: true),
+            new("Revision", artifact.Revision.ToString(CultureInfo.InvariantCulture)),
+            new("Updated", artifact.UpdatedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture))
+        ]);
     }
 
     private static string RenderSections(IReadOnlyDictionary<string, string> sections)
@@ -855,17 +852,19 @@ internal static class OperatorShellPageRenderer
         var html = new StringBuilder();
         html.AppendLine("<section class=\"panel decision-panel\">");
         html.AppendLine("<div class=\"panel-header\"><h2>Decision Readiness</h2><p class=\"muted\">Core workflow alignment for this pending artifact.</p></div>");
-        html.AppendLine("<dl class=\"meta-grid\">");
-        html.AppendLine($"<div><dt>Pending status</dt><dd>{RenderStatusBadge(artifact.Status)}</dd></div>");
-        html.AppendLine($"<div><dt>Candidate revision</dt><dd>{Encode(artifact.Revision.ToString(CultureInfo.InvariantCulture))}</dd></div>");
-        html.AppendLine($"<div><dt>Approved baseline</dt><dd>{Encode(view.CurrentApprovedArtifact is null ? "none" : "revision " + view.CurrentApprovedArtifact.Revision.ToString(CultureInfo.InvariantCulture))}</dd></div>");
-        html.AppendLine($"<div><dt>Diff status</dt><dd>{Encode(view.DiffIssues.Count > 0 ? "needs attention" : view.RevisionDiff is null ? "net new or unavailable" : "ready to inspect")}</dd></div>");
-        html.AppendLine("</dl>");
-        html.AppendLine("<div class=\"decision-actions\">");
-        html.AppendLine("<span class=\"button disabled\">Approve</span>");
-        html.AppendLine("<span class=\"button disabled danger\">Reject</span>");
-        html.AppendLine("<a class=\"button ghost\" href=\"/projects/" + Encode(view.Project.Workspace.ProjectId) + "/queue\">Return to queue</a>");
-        html.AppendLine("</div>");
+        html.AppendLine(ReviewUiComponents.RenderMetadataGrid(
+        [
+            new("Pending status", RenderStatusBadge(artifact.Status), IsHtml: true),
+            new("Candidate revision", artifact.Revision.ToString(CultureInfo.InvariantCulture)),
+            new("Approved baseline", view.CurrentApprovedArtifact is null ? "none" : "revision " + view.CurrentApprovedArtifact.Revision.ToString(CultureInfo.InvariantCulture)),
+            new("Diff status", view.DiffIssues.Count > 0 ? "needs attention" : view.RevisionDiff is null ? "net new or unavailable" : "ready to inspect")
+        ]));
+        html.AppendLine(ReviewUiComponents.RenderActionGroup(
+        [
+            "<span class=\"button disabled\">Approve</span>",
+            "<span class=\"button disabled danger\">Reject</span>",
+            "<a class=\"button ghost\" href=\"/projects/" + Encode(view.Project.Workspace.ProjectId) + "/queue\">Return to queue</a>"
+        ]));
         html.AppendLine("<p class=\"muted\">The visible decision controls are intentionally inactive until UI persistence can apply the existing core approval workflow without bypassing filesystem-first governance.</p>");
         html.AppendLine("</section>");
         return html.ToString();
@@ -881,7 +880,7 @@ internal static class OperatorShellPageRenderer
     }
 
     private static string RenderStatusBadge(ArtifactStatus status) =>
-        $"<span class=\"badge badge-{status.ToSchemaValue()}\">{Encode(status.ToSchemaValue())}</span>";
+        ReviewUiComponents.RenderStatusBadge(status);
 
     private static string FormatImportMode(ImportMode mode) =>
         mode switch
