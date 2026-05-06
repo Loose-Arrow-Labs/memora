@@ -160,7 +160,7 @@ app.MapGet(
 
         if (string.IsNullOrWhiteSpace(projectId) || string.IsNullOrWhiteSpace(taskDescription))
         {
-            var emptyPage = new ContextViewerPageModel(projectId, taskDescription, includeDraftArtifacts, includeLayer3History, null, []);
+            var emptyPage = new ContextViewerPageModel(projectId, taskDescription, includeDraftArtifacts, includeLayer3History, null, null, []);
             return Results.Content(service.RenderPage(emptyPage), "text/html");
         }
 
