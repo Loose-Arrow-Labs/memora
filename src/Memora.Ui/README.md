@@ -28,6 +28,8 @@ Provides the local operator interface for Memora.
   available so operators can separate direct evidence from inferred meaning
 - trust dashboard summarizes review pressure, stale drafts, rebuild diagnostics,
   missing memory, and import warnings from shared filesystem-derived services
+- navigation groups granular routes under review, observe, trust, and configure
+  boundaries so evidence views do not look like truth editors
 
 ## Design Guidance
 - future UI work should follow the shared component-system guidance in `../../docs/ui-design-system.md`
