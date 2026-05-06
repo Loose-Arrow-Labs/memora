@@ -96,6 +96,8 @@ It is intentionally separate from roadmap and milestone planning docs.
   evidence provenance inspection, and decision-readiness context
 - UI approval and rejection actions routed through the existing governed
   approval workflow with filesystem-backed persistence
+- trust dashboard summary for pending proposals, stale drafts, relationship and
+  rebuild diagnostics, missing project memory, and import warnings
 - first-run import status page showing attached repository identity, selected
   import mode, progress, evidence counts, warnings, candidate source and
   disposition, readiness report details, and next actions

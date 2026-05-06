@@ -26,6 +26,8 @@ Provides the local operator interface for Memora.
   links each item into the shared revision review surface
 - review pages resolve imported evidence and first-run candidate metadata where
   available so operators can separate direct evidence from inferred meaning
+- trust dashboard summarizes review pressure, stale drafts, rebuild diagnostics,
+  missing memory, and import warnings from shared filesystem-derived services
 
 ## Design Guidance
 - future UI work should follow the shared component-system guidance in `../../docs/ui-design-system.md`

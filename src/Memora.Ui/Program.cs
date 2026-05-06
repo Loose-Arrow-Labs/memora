@@ -131,6 +131,20 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/projects/{projectId}/trust",
+    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    {
+        var dashboard = service.TryBuildTrustDashboard(projectId);
+        if (dashboard is null)
+        {
+            return Results.NotFound();
+        }
+
+        var html = OperatorShellPageRenderer.RenderTrustDashboard(options, service.GetProjects(), dashboard);
+        return Results.Content(html, "text/html");
+    });
+
+app.MapGet(
     "/projects/{projectId}/first-run-import",
     (string projectId, string? importMode, FileSystemFirstRunImportStatusService importStatusService, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
     {

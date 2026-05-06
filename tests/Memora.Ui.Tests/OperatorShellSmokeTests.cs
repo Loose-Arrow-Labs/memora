@@ -188,6 +188,24 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
+    public async Task Trust_dashboard_renders_review_and_diagnostic_summary()
+    {
+        using var client = _factory.CreateClient();
+
+        var html = await client.GetStringAsync("/projects/demo-project/trust");
+
+        Assert.Contains("Trust Dashboard", html, StringComparison.Ordinal);
+        Assert.Contains("Pending proposals", html, StringComparison.Ordinal);
+        Assert.Contains("Stale drafts", html, StringComparison.Ordinal);
+        Assert.Contains("Broken relationships", html, StringComparison.Ordinal);
+        Assert.Contains("Rebuild diagnostics", html, StringComparison.Ordinal);
+        Assert.Contains("Missing project memory", html, StringComparison.Ordinal);
+        Assert.Contains("Recent import warnings", html, StringComparison.Ordinal);
+        Assert.Contains("/projects/demo-project/proposals", html, StringComparison.Ordinal);
+        Assert.Contains("/understanding?projectId=demo-project", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Review_approve_draft_persists_approved_revision_through_workflow()
     {
         using var factory = new OperatorShellFactory();
