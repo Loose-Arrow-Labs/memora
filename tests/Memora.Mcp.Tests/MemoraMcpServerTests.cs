@@ -47,6 +47,24 @@ public sealed class MemoraMcpServerTests
     }
 
     [Fact]
+    public void ReadResource_ForImportedProject_IncludesHybridReadinessStatus()
+    {
+        var server = new MemoraMcpServer(new TestAgentInteractionService());
+
+        var result = server.ReadResource("memora://projects/memora");
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Payload);
+        var readiness = Assert.IsType<ImportedProjectReadinessState>(result.Payload.ImportReadiness);
+        Assert.True(readiness.GroundedContextReady);
+        Assert.Equal(1, readiness.EvidenceDerivedCandidateCount);
+        Assert.Equal(1, readiness.InferredCandidateCount);
+        Assert.Equal(1, readiness.AdvisoryCandidateCount);
+        Assert.Equal(1, readiness.FutureAdvisoryGapCount);
+        Assert.Contains("Advisory discovery can inspect CI after governed setup.", readiness.AdvisoryDiscoveryGaps);
+    }
+
+    [Fact]
     public void ReadResource_ForInvalidUri_ReturnsExplicitContractError()
     {
         var server = new MemoraMcpServer(new TestAgentInteractionService());
@@ -202,7 +220,12 @@ public sealed class MemoraMcpServerTests
     private sealed class TestAgentInteractionService : IAgentInteractionService
     {
         public ProjectLookupResponse GetProject(string projectId) =>
-            new(projectId, "Memora", "active", []);
+            new(
+                projectId,
+                "Memora",
+                "active",
+                [],
+                importReadiness: CreateImportReadiness());
 
         public GetContextResponse GetContext(GetContextRequest request) =>
             new(
@@ -223,6 +246,26 @@ public sealed class MemoraMcpServerTests
 
         public OutcomeResponse RecordOutcome(RecordOutcomeRequest request) =>
             new(request.ProjectId, request.ArtifactId, ArtifactStatus.Proposed, 1, OutcomeKind.Success, []);
+
+        private static ImportedProjectReadinessState CreateImportReadiness() =>
+            new(
+                "summaries/first-run-readiness.json",
+                HasReadinessReport: true,
+                GroundedContextReady: true,
+                EvidenceRecordCount: 3,
+                CandidateCount: 3,
+                BaselineEvidenceCount: 1,
+                CanonicalEvidenceCount: 1,
+                ReviewableEvidenceCount: 1,
+                EvidenceDerivedCandidateCount: 1,
+                InferredCandidateCount: 1,
+                AdvisoryCandidateCount: 1,
+                FutureAdvisoryGapCount: 1,
+                AdvisoryDiscoveryGaps: ["Advisory discovery can inspect CI after governed setup."],
+                MissingContext: [],
+                MissingTests: [],
+                RiskyModules: [],
+                NextReviewSteps: ["Review inferred and advisory candidates before promotion."]);
 
         private static AgentContextArtifact CreateArtifact(string id) =>
             new(

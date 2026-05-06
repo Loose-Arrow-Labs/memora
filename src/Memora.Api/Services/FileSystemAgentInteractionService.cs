@@ -5,7 +5,10 @@ using Memora.Context.Models;
 using Memora.Core.AgentInteraction;
 using Memora.Core.Artifacts;
 using Memora.Core.Automation;
+using Memora.Core.Import;
 using Memora.Core.Validation;
+using Memora.Import.Evidence;
+using Memora.Import.Readiness;
 using Memora.Storage.Parsing;
 using Memora.Storage.Persistence;
 using Memora.Storage.Workspaces;
@@ -22,6 +25,8 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
     private readonly ContextBundleBuilder _contextBundleBuilder = new();
     private readonly ContextPackageCache _contextPackageCache = new();
     private readonly PolicyGovernedWriteSafetyValidator _writeSafetyValidator = new();
+    private readonly FileBackedImportedEvidenceStore _evidenceStore = new();
+    private readonly FileBackedFirstRunReportStore _firstRunReportStore = new();
 
     public FileSystemAgentInteractionService(string workspacesRootPath)
     {
@@ -42,7 +47,8 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
                 workspace.Metadata.Name,
                 workspace.Metadata.Status,
                 [],
-                workspace.Metadata.RepositoryAttachments);
+                workspace.Metadata.RepositoryAttachments,
+                BuildImportReadinessState(workspace));
     }
 
     public GetContextResponse GetContext(GetContextRequest request)
@@ -308,6 +314,71 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
         return _workspaceDiscovery
             .Discover(_workspacesRootPath)
             .SingleOrDefault(workspace => string.Equals(workspace.ProjectId, projectId, StringComparison.Ordinal));
+    }
+
+    private ImportedProjectReadinessState BuildImportReadinessState(ProjectWorkspace workspace)
+    {
+        var diagnostics = new List<ImportedProjectReadinessDiagnostic>();
+        var evidenceRecords = ReadEvidence(workspace, diagnostics);
+        var firstRunReport = ReadFirstRunReport(workspace, diagnostics);
+        IReadOnlyList<CandidateMemoryRecord> candidates = firstRunReport?.Candidates ?? Array.Empty<CandidateMemoryRecord>();
+        var readinessReport = firstRunReport?.ReadinessReport;
+
+        return new ImportedProjectReadinessState(
+            readinessReport is null ? null : "summaries/first-run-readiness.json",
+            HasReadinessReport: readinessReport is not null,
+            GroundedContextReady: readinessReport?.ReadyForAgentUse ?? false,
+            EvidenceRecordCount: evidenceRecords.Count,
+            CandidateCount: candidates.Count,
+            BaselineEvidenceCount: evidenceRecords.Count(record => record.TrustState == ImportedEvidenceTrustState.BaselineEvidence),
+            CanonicalEvidenceCount: evidenceRecords.Count(record => record.TrustState == ImportedEvidenceTrustState.CanonicalEvidence),
+            ReviewableEvidenceCount: evidenceRecords.Count(record => record.TrustState == ImportedEvidenceTrustState.ReviewableEvidence),
+            EvidenceDerivedCandidateCount: candidates.Count(candidate => candidate.Source == CandidateMemorySource.EvidenceDerived),
+            InferredCandidateCount: candidates.Count(candidate => candidate.Source == CandidateMemorySource.Inferred),
+            AdvisoryCandidateCount: candidates.Count(candidate => candidate.Source == CandidateMemorySource.Advisory),
+            FutureAdvisoryGapCount: readinessReport?.AdvisoryDiscoveryGaps.Count ?? 0,
+            readinessReport?.AdvisoryDiscoveryGaps ?? [],
+            readinessReport?.MissingContext ?? [],
+            readinessReport?.MissingTests ?? [],
+            readinessReport?.RiskyModules ?? [],
+            readinessReport?.NextReviewSteps ?? [],
+            diagnostics);
+    }
+
+    private IReadOnlyList<ImportedEvidenceRecord> ReadEvidence(
+        ProjectWorkspace workspace,
+        ICollection<ImportedProjectReadinessDiagnostic> diagnostics)
+    {
+        try
+        {
+            return _evidenceStore.ReadAll(workspace.RootPath);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            diagnostics.Add(new ImportedProjectReadinessDiagnostic(
+                "import.evidence.load_failed",
+                $"Imported evidence could not be loaded: {exception.Message}",
+                "evidence"));
+            return [];
+        }
+    }
+
+    private FirstRunMemoryGenerationResult? ReadFirstRunReport(
+        ProjectWorkspace workspace,
+        ICollection<ImportedProjectReadinessDiagnostic> diagnostics)
+    {
+        try
+        {
+            return _firstRunReportStore.Load(workspace.RootPath);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            diagnostics.Add(new ImportedProjectReadinessDiagnostic(
+                "import.readiness.load_failed",
+                $"First-run readiness report could not be loaded: {exception.Message}",
+                "summaries/first-run-readiness.json"));
+            return null;
+        }
     }
 
     private IReadOnlyList<ArtifactDocument> LoadArtifacts(

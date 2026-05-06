@@ -66,14 +66,14 @@ public static class ExternalRuntimeContract
                 new(
                     "project_lookup",
                     ExternalRuntimeOperationKind.Read,
-                    "Resolve a project identity before runtime-facing context or proposal flows begin.",
+                    "Resolve a project identity and imported readiness state before runtime-facing context or proposal flows begin.",
                     "projectId",
                     nameof(ProjectLookupResponse),
                     [ExternalRuntimeContractSurface.Mcp, ExternalRuntimeContractSurface.OpenApi]),
                 new(
                     "get_context",
                     ExternalRuntimeOperationKind.Read,
-                    "Retrieve deterministic project context with explainable inclusion reasoning.",
+                    "Retrieve governed project context through deterministic assembly with explainable inclusion reasoning.",
                     nameof(GetContextRequest),
                     nameof(GetContextResponse),
                     [ExternalRuntimeContractSurface.Mcp, ExternalRuntimeContractSurface.OpenApi]),
@@ -104,7 +104,7 @@ public static class ExternalRuntimeContract
                 new("index.derived", "SQLite remains derived and rebuildable rather than canonical."),
                 new("writes.proposal_only", "External runtimes may create reviewable proposals but may not directly write canonical artifacts."),
                 new("approval.required", "Canonical state changes still require the normal approval-governed lifecycle."),
-                new("retrieval.deterministic", "Context retrieval stays deterministic, explainable, and non-semantic in core v1."),
+                new("retrieval.hybrid_boundary", "Advisory discovery may expose candidates, while grounded context assembly stays deterministic, explainable, lifecycle-aware, and non-semantic in core v1."),
                 new("provider.agnostic", "Core behavior stays provider-agnostic and runtime-agnostic across external callers."),
                 new("boundary.no_runtime_host", "Memora remains structured memory and governance rather than becoming an execution runtime.")
             ]);

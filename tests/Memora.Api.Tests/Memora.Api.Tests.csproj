@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Memora.Api\Memora.Api.csproj" />
+    <ProjectReference Include="..\..\src\Memora.Import\Memora.Import.csproj" />
     <ProjectReference Include="..\..\src\Memora.Mcp\Memora.Mcp.csproj" />
   </ItemGroup>
 

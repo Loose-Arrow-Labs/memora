@@ -46,14 +46,24 @@ not about any specific provider integration.
 - response contract: `ProjectLookupResponse`
 - behavior: read-only
 
-### Deterministic Context Retrieval
+Project lookup also carries imported project readiness when available:
+
+- repository attachments for local Git or GitHub source evidence
+- first-run readiness report path
+- baseline, canonical, and reviewable evidence counts
+- evidence-derived, inferred, advisory, and future-advisory candidate counts
+- missing context, missing tests, risky modules, advisory discovery gaps, and
+  next review steps
+- whether grounded context is ready for agent setup
+
+### Grounded Context Retrieval
 
 - request contract: `GetContextRequest`
 - response contract: `GetContextResponse`
 - MCP tool: `get_context`
 - OpenAPI route: `POST /api/context`
-- behavior: read-only deterministic context assembly with explainable inclusion
-  reasoning
+- behavior: read-only governed context assembled deterministically with
+  explainable inclusion reasoning
 
 #### Project-State View Fit
 
@@ -106,8 +116,9 @@ Every external runtime integration must preserve these rules:
 - external runtimes may create reviewable proposals, but they do not directly
   write canonical artifacts
 - approval-governed lifecycle rules remain in force after runtime-facing calls
-- context retrieval remains deterministic, explainable, and non-semantic in
-  core v1
+- imported or advisory discovery can expose candidate status, but grounded
+  context retrieval remains deterministic, explainable, lifecycle-aware, and
+  non-semantic in core v1
 - Memora remains structured memory and governance, not an execution runtime
 - provider-specific behavior must stay outside Memora core services
 
@@ -126,7 +137,7 @@ This contract does not mean:
 When an external runtime needs Memora:
 
 1. Resolve the target project.
-2. Request deterministic context through the shared contract.
+2. Request grounded context through the shared contract.
 3. Produce a reviewable proposal or outcome through the shared contract when
    needed.
 4. Leave canonical truth unchanged until a human approval flow accepts the

@@ -32,7 +32,8 @@ and currently exposes:
 - tool: `propose_artifact`
 - tool: `propose_update`
 - tool: `record_outcome`
-- resource: `memora://projects/{projectId}`
+- resource: `memora://projects/{projectId}` with repository attachment and
+  imported readiness state
 
 MCP is the preferred path for provider workflows that can use Memora's
 provider-facing protocol directly.
@@ -64,8 +65,8 @@ The current external runtime boundary is summarized in
 
 That contract defines:
 
-- project lookup responses
-- deterministic context bundle requests and responses
+- project lookup responses, including imported project readiness summaries
+- governed context bundle requests and responses
 - proposal requests for new artifacts
 - proposal requests for updates
 - outcome recording requests
@@ -97,6 +98,9 @@ Provider-facing integrations must also preserve Memora's retrieval model.
 - inclusion reasoning must remain explainable
 - no semantic or vector retrieval belongs in core v1
 - protocol layers must not inject provider-specific ranking behavior
+- imported readiness may expose hybrid discovery status, including
+  evidence-derived, inferred, advisory, and future-advisory candidate counts,
+  but it does not promote those candidates into grounded context
 
 Human-readable understanding outputs can build on these grounded context and
 relationship foundations, but they must remain downstream of shared Memora

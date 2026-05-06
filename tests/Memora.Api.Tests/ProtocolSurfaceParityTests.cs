@@ -24,9 +24,17 @@ public sealed class ProtocolSurfaceParityTests
         Assert.Equal(mcpResponse.ProjectId, apiResponse.ProjectId);
         Assert.Equal(mcpResponse.Name, apiResponse.Name);
         Assert.Equal(mcpResponse.Status, apiResponse.Status);
+        Assert.NotNull(apiResponse.ImportReadiness);
+        Assert.NotNull(mcpResponse.ImportReadiness);
+        Assert.Equal(mcpResponse.ImportReadiness.GroundedContextReady, apiResponse.ImportReadiness.GroundedContextReady);
+        Assert.Equal(mcpResponse.ImportReadiness.EvidenceDerivedCandidateCount, apiResponse.ImportReadiness.EvidenceDerivedCandidateCount);
+        Assert.Equal(mcpResponse.ImportReadiness.InferredCandidateCount, apiResponse.ImportReadiness.InferredCandidateCount);
+        Assert.Equal(mcpResponse.ImportReadiness.AdvisoryCandidateCount, apiResponse.ImportReadiness.AdvisoryCandidateCount);
+        Assert.Equal(mcpResponse.ImportReadiness.FutureAdvisoryGapCount, apiResponse.ImportReadiness.FutureAdvisoryGapCount);
         Assert.True(mcpResourceResponse.IsSuccess);
         Assert.NotNull(mcpResourceResponse.Payload);
         Assert.Equal(apiResponse.ProjectId, mcpResourceResponse.Payload.ProjectId);
+        Assert.Equal(apiResponse.ImportReadiness.GroundedContextReady, mcpResourceResponse.Payload.ImportReadiness?.GroundedContextReady);
     }
 
     [Fact]
@@ -128,7 +136,29 @@ public sealed class ProtocolSurfaceParityTests
     private sealed class SharedAgentInteractionService : IAgentInteractionService
     {
         public ProjectLookupResponse GetProject(string projectId) =>
-            new(projectId, "Memora", "active", []);
+            new(
+                projectId,
+                "Memora",
+                "active",
+                [],
+                importReadiness: new ImportedProjectReadinessState(
+                    "summaries/first-run-readiness.json",
+                    HasReadinessReport: true,
+                    GroundedContextReady: true,
+                    EvidenceRecordCount: 2,
+                    CandidateCount: 3,
+                    BaselineEvidenceCount: 1,
+                    CanonicalEvidenceCount: 0,
+                    ReviewableEvidenceCount: 1,
+                    EvidenceDerivedCandidateCount: 1,
+                    InferredCandidateCount: 1,
+                    AdvisoryCandidateCount: 1,
+                    FutureAdvisoryGapCount: 1,
+                    AdvisoryDiscoveryGaps: ["Advisory discovery can inspect CI after governed setup."],
+                    MissingContext: [],
+                    MissingTests: [],
+                    RiskyModules: [],
+                    NextReviewSteps: ["Review imported candidate memory."]));
 
         public GetContextResponse GetContext(GetContextRequest request) =>
             new(
