@@ -16,8 +16,11 @@ public sealed class ArtifactMarkdownParserTests
     [InlineData("samples/workspaces/demo-project/drafts/constraint/CNS-005.r0001.md", ArtifactType.Constraint, ArtifactStatus.Draft)]
     [InlineData("samples/workspaces/demo-project/drafts/constraint/CNS-008.r0001.md", ArtifactType.Constraint, ArtifactStatus.Draft)]
     [InlineData("samples/workspaces/demo-project/drafts/outcome/OUT-001.r0001.md", ArtifactType.Outcome, ArtifactStatus.Draft)]
+    [InlineData("samples/workspaces/demo-project/drafts/outcome/OUT-002.r0001.md", ArtifactType.Outcome, ArtifactStatus.Draft)]
     [InlineData("samples/workspaces/demo-project/drafts/plan/PLN-003.r0001.md", ArtifactType.Plan, ArtifactStatus.Draft)]
+    [InlineData("samples/workspaces/demo-project/drafts/plan/PLN-004.r0001.md", ArtifactType.Plan, ArtifactStatus.Draft)]
     [InlineData("samples/workspaces/demo-project/drafts/question/QST-004.r0001.md", ArtifactType.Question, ArtifactStatus.Draft)]
+    [InlineData("samples/workspaces/demo-project/drafts/question/QST-007.r0001.md", ArtifactType.Question, ArtifactStatus.Draft)]
     public void DemoProjectDraftArtifacts_ParseAndValidate(string relativePath, ArtifactType expectedType, ArtifactStatus expectedStatus)
     {
         var markdown = File.ReadAllText(GetRepositoryPath(relativePath));
