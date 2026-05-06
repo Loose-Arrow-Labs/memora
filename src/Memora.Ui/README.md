@@ -24,6 +24,8 @@ Provides the local operator interface for Memora.
 - supports project selection, artifact browsing, draft editing, approval review previews, queue navigation, first-run import status, decision-readiness context, a context viewer route, and an understanding-output route
 - proposal review lists proposed artifacts separately from approved truth and
   links each item into the shared revision review surface
+- review pages resolve imported evidence and first-run candidate metadata where
+  available so operators can separate direct evidence from inferred meaning
 
 ## Design Guidance
 - future UI work should follow the shared component-system guidance in `../../docs/ui-design-system.md`

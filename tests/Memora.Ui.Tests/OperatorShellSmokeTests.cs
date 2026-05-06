@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Memora.Core.Import;
+using Memora.Import.Evidence;
+using Memora.Import.Readiness;
 
 namespace Memora.Ui.Tests;
 
@@ -133,6 +136,55 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
         Assert.Contains("Non-canonical", html, StringComparison.Ordinal);
         Assert.Contains("Inspect proposal details and diff", html, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task Proposal_review_renders_evidence_provenance_and_candidate_notes()
+    {
+        using var factory = new OperatorShellFactory();
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        var evidenceId = "local-commit-999";
+        OperatorShellFactory.SeedImportedEvidence(workspaceRoot, evidenceId);
+        OperatorShellFactory.SeedReadinessReport(workspaceRoot, evidenceId);
+        await OperatorShellFactory.WriteProposedPlanAsync(
+            workspaceRoot,
+            "PLN-998",
+            "Proposal with resolved provenance",
+            $"candidate-provenance evidence:{evidenceId}",
+            evidenceId);
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync("/projects/demo-project/review?path=drafts%2Fplan%2FPLN-998.r0001.md");
+
+        Assert.Contains("Evidence Provenance", html, StringComparison.Ordinal);
+        Assert.Contains("Directly Observed Evidence", html, StringComparison.Ordinal);
+        Assert.Contains("local_git_commit", html, StringComparison.Ordinal);
+        Assert.Contains("abc1234", html, StringComparison.Ordinal);
+        Assert.Contains("Inferred Meaning And Candidate Notes", html, StringComparison.Ordinal);
+        Assert.Contains("Matched commit title pattern.", html, StringComparison.Ordinal);
+        Assert.Contains("Approval readiness", html, StringComparison.Ordinal);
+        Assert.Contains(">ready<", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Proposal_review_blocks_readiness_when_required_provenance_is_missing()
+    {
+        using var factory = new OperatorShellFactory();
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        await OperatorShellFactory.WriteProposedPlanAsync(
+            workspaceRoot,
+            "PLN-997",
+            "Proposal with missing provenance",
+            "evidence:missing-evidence",
+            "missing-evidence");
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync("/projects/demo-project/review?path=drafts%2Fplan%2FPLN-997.r0001.md");
+
+        Assert.Contains("Approval readiness", html, StringComparison.Ordinal);
+        Assert.Contains(">blocked<", html, StringComparison.Ordinal);
+        Assert.Contains("Missing Or Invalid Provenance", html, StringComparison.Ordinal);
+        Assert.Contains("missing-evidence", html, StringComparison.Ordinal);
+    }
 }
 
 public sealed class OperatorShellFactory : WebApplicationFactory<Program>
@@ -202,5 +254,103 @@ public sealed class OperatorShellFactory : WebApplicationFactory<Program>
                 directoryPath,
                 Path.Combine(targetDirectory, Path.GetFileName(directoryPath)));
         }
+    }
+
+    public static async Task WriteProposedPlanAsync(
+        string workspaceRoot,
+        string artifactId,
+        string title,
+        string provenance,
+        string evidenceId)
+    {
+        var proposalDirectory = Path.Combine(workspaceRoot, "drafts", "plan");
+        Directory.CreateDirectory(proposalDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(proposalDirectory, $"{artifactId}.r0001.md"),
+            $$"""
+            ---
+            id: {{artifactId}}
+            project_id: demo-project
+            type: plan
+            status: proposed
+            title: {{title}}
+            created_at: 2026-05-06T10:00:00Z
+            updated_at: 2026-05-06T10:00:00Z
+            revision: 1
+            tags:
+              - review
+            provenance: {{provenance}}
+            reason: show evidence provenance in proposal review
+            links:
+              depends_on: []
+              affects: []
+              derived_from: []
+              supersedes: []
+            priority: normal
+            active: false
+            ---
+            ## Goal
+            Show proposal provenance.
+
+            ## Scope
+            Keep proposal review separate from approved truth.
+
+            ## Acceptance Criteria
+            - provenance is visible
+
+            ## Notes
+            This is review-only input.
+            """);
+    }
+
+    public static void SeedImportedEvidence(string workspaceRoot, string evidenceId)
+    {
+        var importedAtUtc = new DateTimeOffset(2026, 5, 6, 10, 0, 0, TimeSpan.Zero);
+        var record = new ImportedEvidenceRecord(
+            evidenceId,
+            "demo-project",
+            ImportedEvidenceSourceType.LocalGitCommit,
+            "ATT-999",
+            "local:demo",
+            "abc1234",
+            "feat(ui): add review",
+            "Changed review UI files.",
+            importedAtUtc.AddMinutes(-10),
+            importedAtUtc,
+            "git commit abc1234",
+            ImportedEvidenceTrustState.ReviewableEvidence);
+
+        new FileBackedImportedEvidenceStore()
+            .Save(new ProjectEvidenceWriteRequest(workspaceRoot, [record]));
+    }
+
+    public static void SeedReadinessReport(string workspaceRoot, string evidenceId)
+    {
+        var generatedAtUtc = new DateTimeOffset(2026, 5, 6, 10, 5, 0, TimeSpan.Zero);
+        var candidate = new CandidateMemoryRecord(
+            "candidate-provenance",
+            CandidateMemoryKind.ContributionStyle,
+            CandidateMemorySource.Inferred,
+            "Use review prefixes",
+            "Commit titles suggest review UI conventions.",
+            0.72,
+            "Style inference needs review.",
+            "Matched commit title pattern.",
+            CandidateMemoryDisposition.ReviewRequired,
+            [evidenceId]);
+        var report = new AgentReadinessReport(
+            "demo-project",
+            generatedAtUtc,
+            1,
+            1,
+            ReadyForAgentUse: false,
+            MissingContext: [],
+            MissingTests: [],
+            RiskyModules: [],
+            AdvisoryDiscoveryGaps: [],
+            NextReviewSteps: ["Review inferred candidate before promotion."]);
+
+        new FileBackedFirstRunReportStore()
+            .Save(workspaceRoot, new FirstRunMemoryGenerationResult([candidate], report));
     }
 }
