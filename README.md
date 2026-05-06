@@ -1,58 +1,125 @@
 # Memora
 
-Memora helps teams use AI agents on legacy codebases without turning tribal
+Governed project memory for AI-assisted legacy codebases.
+
+`local-first` · `filesystem truth` · `MCP + OpenAPI` · `.NET 10` · `no vector DB in core`
+
+Memora helps teams use AI agents on existing software without turning tribal
 knowledge, stale docs, and runtime guesses into unreviewed truth.
 
-The wedge is simple: point Memora at an existing local or GitHub repository,
-import bounded project evidence, generate reviewable project memory, and give
-agents governed context they can cite instead of whatever they happen to infer
-from the current prompt.
+Point Memora at a local or GitHub repository, import bounded project evidence,
+generate reviewable project memory, and give agents governed context they can
+cite instead of whatever they happen to infer from the current prompt.
 
-Memora is local-first structured memory and governance for AI-assisted software
-development. It is not a chat-history store, vector database, generic knowledge
-base, or agent execution runtime.
+## Quick Start
 
-## Why Try It
+```powershell
+git clone https://github.com/alucero270/memora.git
+cd memora
+dotnet build Memora.sln
+```
+
+Run the operator UI:
+
+```powershell
+dotnet run --project src/Memora.Ui
+```
+
+Open `http://127.0.0.1:5080`.
+
+Run the companion API in a second terminal:
+
+```powershell
+dotnet run --project src/Memora.Api
+```
+
+Open `http://127.0.0.1:5081/openapi.json`.
+
+When no workspace root is configured, the UI uses a writable local copy of
+`samples/workspaces` so you can inspect the demo project immediately.
+
+## Why Memora Exists
 
 Legacy codebases are hard for agents because the useful context usually lives
-between commits, PRs, issues, conventions, old decisions, test scars, and
-half-remembered constraints. Generic agent memory tends to blur those signals
-together.
+between commits, pull requests, issues, conventions, old decisions, test scars,
+and half-remembered constraints. Generic agent memory tends to blur those
+signals together.
 
 Memora keeps the boundary sharper:
 
-- evidence is imported with provenance
-- meaning is generated as baseline or reviewable candidate memory
-- approved artifacts remain canonical project truth
-- agents can retrieve grounded context and submit proposals
-- lifecycle and approval rules stay below every UI, MCP, and OpenAPI surface
+| Generic agent memory | Memora |
+| --- | --- |
+| Remembers whatever the agent or chat captured | Preserves structured project state with lifecycle rules |
+| Can mix facts, guesses, and preferences | Separates evidence, inferred meaning, and approved truth |
+| Often opaque or ranking-driven | Keeps grounded context deterministic and explainable |
+| Usually tied to one agent/runtime | Exposes shared MCP and OpenAPI contract surfaces |
+| May become stale silently | Keeps provenance, review state, and approval status visible |
 
 The goal is not to make agents "remember more." The goal is to make project
 understanding durable, inspectable, and governed enough that agent work becomes
 easier to trust.
 
-## First-Run Promise
+## First Ten Minutes
 
-The M10 first-run path is aimed at the first ten minutes with an existing repo,
-using the local .NET app path rather than requiring Docker:
+The current M10 first-run path is aimed at a narrow but useful legacy-repo
+onboarding loop:
 
 1. create or select an app-managed Memora workspace
 2. attach one local Git or GitHub repository as a source
 3. choose an import mode before promotion behavior matters
-4. import bounded evidence with secret/privacy filtering
+4. import bounded evidence with secret and privacy filtering
 5. generate candidate memory and an agent readiness report
 6. inspect baseline evidence, baseline memory, and review-needed candidates
 7. expose project identity, readiness, and grounded context through MCP/OpenAPI
 
-This checkout contains the narrow M10 implementation slices for that path. The
-deeper legacy understanding story remains roadmap work: large-scale imports,
-approval persistence in the UI, provider setup packs, hosted transports,
-observability/replay, and richer candidate conversion still belong to later
-milestones. Use [docs/current-state.md](docs/current-state.md) for the exact
-implemented state and [docs/milestones.md](docs/milestones.md) for roadmap
-intent.
+Try the current demo status page:
 
-## Retrieval In Plain English
+```text
+http://127.0.0.1:5080/projects/demo-project/first-run-import?importMode=fast_baseline
+```
+
+The deeper legacy understanding story remains roadmap work: large-scale
+imports, approval persistence in the UI, provider setup packs, hosted
+transports, observability/replay, and richer candidate conversion belong to
+later milestones. Use [docs/current-state.md](docs/current-state.md) for the
+exact implemented state and [docs/milestones.md](docs/milestones.md) for
+roadmap intent.
+
+## How It Works
+
+Memora is a local app and governance layer, not an agent runtime.
+
+```text
+source repo / GitHub evidence
+          |
+          v
+ app-managed Memora workspace
+          |
+          +-- canonical/   approved artifacts only
+          +-- drafts/      proposals and reviewable work
+          +-- evidence/    imported source material
+          +-- summaries/   derived reports
+          +-- indexes/     rebuildable SQLite state
+          |
+          v
+ deterministic context + readiness state
+          |
+          v
+ MCP / OpenAPI / operator UI
+```
+
+Core rules:
+
+- filesystem is the canonical source of truth
+- SQLite is derived and rebuildable
+- approved artifacts are canonical truth
+- drafts, proposals, imported evidence, and generated candidates are not
+  approved truth
+- lifecycle and approval rules are enforced below UI, MCP, and OpenAPI
+- agents may propose changes in v1, but they do not directly write canonical
+  truth
+
+## Retrieval Model
 
 Memora uses hybrid retrieval at the discovery boundary and governed assembly at
 the agent-context boundary.
@@ -66,54 +133,67 @@ assembled from approved or explicitly allowed artifacts. Advisory discovery may
 suggest what to review next; it cannot bypass import modes, provenance, safety
 filtering, approval, or governed context assembly.
 
-## Non-Negotiable Rules
-
-- filesystem is the canonical source of truth
-- SQLite is derived and rebuildable
-- grounded context assembly is deterministic and explainable
-- retrieval is hybrid at the discovery boundary
-- agents may propose changes in v1, but they do not directly write canonical truth
-- lifecycle and approval rules are enforced in core
-
 ## What This Checkout Contains
 
-This checkout includes working slices across:
+Implemented slices include:
 
-- .NET 10 solution and project structure for Core, Storage, Index, Context, API, MCP, and UI
-- core artifact schemas, lifecycle rules, validation, editing, approval queue, and diffs
-- validation diagnostics that surface code and path context for operators and integrations
-- filesystem parsing and persistence for canonical, draft, and summary artifacts
-- SQLite rebuild-from-files indexing, relationship indexing, traceability queries, and filesystem-first rebuild diagnostics
-- first-run import modes, app-managed workspace placement, and local/GitHub repository attachment metadata
-- local Git and GitHub evidence import with stable provenance and idempotent filesystem storage
+- Core, Import, Storage, Index, Context, API, MCP, and UI projects
+- strongly typed artifact schemas, lifecycle rules, validation, approval queue,
+  revision diffs, and diagnostics
+- filesystem parsing and persistence for canonical, draft, summary, and
+  evidence artifacts
+- SQLite rebuild-from-files indexing, relationship indexing, and traceability
+  queries
+- first-run import modes, app-managed workspace placement, and local/GitHub
+  repository attachment metadata
+- local Git and GitHub evidence import with stable provenance and idempotent
+  filesystem storage
 - secret and privacy filtering before imported evidence persistence
-- candidate memory and readiness report generation from imported evidence, with evidence-derived, inferred, and advisory/future-advisory source separation
-- deterministic context ranking, cached context packages, bounded relationship traversal, inclusion reasoning, layered context assembly, and a hybrid retrieval boundary for advisory candidate discovery
-- serialized project-state views through the shared `GetContextResponse.bundle` contract
-- a provider-agnostic external runtime contract reused by MCP and OpenAPI
-- a minimal local HTTP API for project lookup, imported readiness, context assembly, proposals, updates, and outcomes
-- a thin MCP surface over the shared agent interaction contract, including imported readiness on project resolution
-- Machina-to-Memora interaction guidance that keeps runtime execution outside Memora
-- Codex and ChatGPT-oriented local workflow samples over the current companion API path
-- runtime-facing prototype and compatibility validation for context, proposal, update, and outcome flows across MCP and OpenAPI
-- controlled automation policy models, safe trigger evaluation, and a guarded session-summary direct-write prototype
-- a styled local operator UI with approval review navigation, first-run import status, clearer revision diffs, a context viewer route, and an understanding-output route
-- operator workflow guidance for review, draft editing, diff inspection, and rebuild recovery
-- sample workspace artifacts that capture the next IDE review boundary work as draft project memory
+- candidate memory and readiness report generation from imported evidence, with
+  evidence-derived, inferred, and advisory/future-advisory source separation
+- deterministic context ranking, inclusion reasoning, bounded relationship
+  traversal, layered context assembly, and cached derived context packages
+- runtime-facing project-state serialization through the shared
+  `GetContextResponse.bundle` contract
+- local HTTP endpoints for project lookup, imported readiness, context
+  assembly, proposals, updates, and outcomes
+- a thin MCP adapter over the shared agent interaction contract, including
+  imported readiness on project resolution
+- a styled local operator UI with review previews, first-run import status,
+  context viewer, and understanding-output routes
+- Codex and ChatGPT-oriented local workflow samples over the current companion
+  API path
 
-Important limits still apply:
+## Intentional Limits
+
+These are current boundaries, not accidents:
 
 - canonical truth remains filesystem-first and approval-governed
-- controlled automation is limited to explicit policy checks and non-canonical session-summary writes
-- no semantic or vector retrieval executes in core v1; hybrid retrieval means advisory discovery plus deterministic governed assembly, not probabilistic core truth
-- the UI shows review previews and inactive approval decision controls, but it does not persist approval or rejection decisions
-- the first-run UI is status and inspection only; it does not execute imports or promote candidates
-- the MCP layer is currently a thin in-process adapter surface, not a production transport host
-- provider-facing runtime alignment is shared-contract based; hosted transport, remote reachability, authentication, and provider-specific attachment work remain follow-up scope
+- no semantic or vector retrieval executes in core v1
+- hybrid retrieval means advisory discovery plus deterministic governed
+  assembly, not probabilistic core truth
+- the first-run UI is status and inspection only; it does not execute imports
+  or promote candidates on `main`
+- the UI shows review previews and inactive approval decision controls, but it
+  does not persist approval or rejection decisions yet
+- the MCP layer is currently a thin in-process adapter surface, not a
+  production transport host
+- provider-facing runtime alignment is shared-contract based; hosted transport,
+  remote reachability, authentication, and provider-specific attachment work
+  remain follow-up scope
+- controlled automation is limited to explicit policy checks and
+  non-canonical session-summary writes
 
-## Start Here
+## Project Map
 
-If you are orienting yourself in the repo, this order works well:
+| Path | Purpose |
+| --- | --- |
+| [docs/](docs/README.md) | Architecture, scope, roadmap, and current-state docs |
+| [src/](src/README.md) | Product code by module boundary |
+| [tests/](tests/README.md) | Automated validation by module |
+| [samples/](samples/README.md) | Demo workspaces and fixtures |
+
+Start with:
 
 1. [docs/current-state.md](docs/current-state.md)
 2. [docs/architecture.md](docs/architecture.md)
@@ -122,52 +202,35 @@ If you are orienting yourself in the repo, this order works well:
 5. [docs/retrieval-evolution.md](docs/retrieval-evolution.md)
 6. [docs/operator-workflows.md](docs/operator-workflows.md)
 7. [docs/external-runtime-contract.md](docs/external-runtime-contract.md)
-8. [src/README.md](src/README.md)
-9. [tests/README.md](tests/README.md)
+8. [docs/project-state-view.md](docs/project-state-view.md)
+9. [docs/agent-project-state-interpretation.md](docs/agent-project-state-interpretation.md)
 
-For runtime-facing state view details, read
-[docs/project-state-view.md](docs/project-state-view.md) and
-[docs/agent-project-state-interpretation.md](docs/agent-project-state-interpretation.md).
-
-## Local Run
+## Validation
 
 Build everything:
 
-- `dotnet build Memora.sln`
+```powershell
+dotnet build Memora.sln
+```
 
-Run the UI:
+Run focused test projects:
 
-- startup project: `src/Memora.Ui`
-- default dev URL: `http://127.0.0.1:5080`
-- when no workspace root is configured, the UI uses a writable local copy of `samples/workspaces`
-
-Run the API:
-
-- startup project: `src/Memora.Api`
-- default dev URL: `http://127.0.0.1:5081`
-- set `MEMORA_WORKSPACES_ROOT` or `Memora:WorkspacesRootPath` to use the file-backed service
-
-Smallest useful validation:
-
-- `dotnet test tests/Memora.Core.Tests/Memora.Core.Tests.csproj`
-- `dotnet test tests/Memora.Storage.Tests/Memora.Storage.Tests.csproj`
-- `dotnet test tests/Memora.Index.Tests/Memora.Index.Tests.csproj`
-- `dotnet test tests/Memora.Context.Tests/Memora.Context.Tests.csproj`
-- `dotnet test tests/Memora.Api.Tests/Memora.Api.Tests.csproj`
-- `dotnet test tests/Memora.Mcp.Tests/Memora.Mcp.Tests.csproj`
-- `dotnet test tests/Memora.Ui.Tests/Memora.Ui.Tests.csproj`
-
-## Repo Map
-
-- [docs/](docs/README.md): architecture, scope, roadmap, and current-state docs
-- [samples/](samples/README.md): demo workspaces and fixtures
-- [src/](src/README.md): product code by module boundary
-- [tests/](tests/README.md): automated validation by module
+```powershell
+dotnet test tests/Memora.Core.Tests/Memora.Core.Tests.csproj
+dotnet test tests/Memora.Storage.Tests/Memora.Storage.Tests.csproj
+dotnet test tests/Memora.Index.Tests/Memora.Index.Tests.csproj
+dotnet test tests/Memora.Context.Tests/Memora.Context.Tests.csproj
+dotnet test tests/Memora.Import.Tests/Memora.Import.Tests.csproj
+dotnet test tests/Memora.Api.Tests/Memora.Api.Tests.csproj
+dotnet test tests/Memora.Mcp.Tests/Memora.Mcp.Tests.csproj
+dotnet test tests/Memora.Ui.Tests/Memora.Ui.Tests.csproj
+```
 
 ## Status
 
-Memora is an early product slice with real foundational, integration, and UI
-behavior, but some surfaces are intentionally thin and documented as such.
+Memora is an early product slice with real foundational, integration, import,
+and UI behavior, but some surfaces are intentionally thin and documented as
+such.
 
 Use [docs/current-state.md](docs/current-state.md) for the most accurate
 summary of implemented behavior in this checkout.
