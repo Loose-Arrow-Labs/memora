@@ -15,6 +15,7 @@ public sealed record ProjectWorkspace
         CanonicalRootPath = Path.Combine(RootPath, "canonical");
         DraftsRootPath = Path.Combine(RootPath, "drafts");
         SummariesRootPath = Path.Combine(RootPath, "summaries");
+        EvidenceRootPath = Path.Combine(RootPath, "evidence");
         CanonicalChartersPath = Path.Combine(CanonicalRootPath, "charters");
         CanonicalDecisionsPath = Path.Combine(CanonicalRootPath, "decisions");
         CanonicalPlansPath = Path.Combine(CanonicalRootPath, "plans");
@@ -37,6 +38,8 @@ public sealed record ProjectWorkspace
     public string DraftsRootPath { get; }
 
     public string SummariesRootPath { get; }
+
+    public string EvidenceRootPath { get; }
 
     public string CanonicalChartersPath { get; }
 

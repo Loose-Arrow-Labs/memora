@@ -37,7 +37,12 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
                 null,
                 null,
                 [new AgentInteractionError("project.not_found", $"Project '{projectId}' was not found.", "project_id")])
-            : new ProjectLookupResponse(workspace.ProjectId, workspace.Metadata.Name, workspace.Metadata.Status, []);
+            : new ProjectLookupResponse(
+                workspace.ProjectId,
+                workspace.Metadata.Name,
+                workspace.Metadata.Status,
+                [],
+                workspace.Metadata.RepositoryAttachments);
     }
 
     public GetContextResponse GetContext(GetContextRequest request)

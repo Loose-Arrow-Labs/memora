@@ -26,6 +26,7 @@ public sealed class WorkspaceDiscoveryTests : IDisposable
         Assert.Equal(Path.Combine(workspaceRootPath, "canonical"), workspace.CanonicalRootPath);
         Assert.Equal(Path.Combine(workspaceRootPath, "drafts"), workspace.DraftsRootPath);
         Assert.Equal(Path.Combine(workspaceRootPath, "summaries"), workspace.SummariesRootPath);
+        Assert.Equal(Path.Combine(workspaceRootPath, "evidence"), workspace.EvidenceRootPath);
         Assert.Equal(Path.Combine(workspace.CanonicalRootPath, "charters"), workspace.CanonicalChartersPath);
         Assert.Equal(Path.Combine(workspace.CanonicalRootPath, "decisions"), workspace.CanonicalDecisionsPath);
         Assert.Equal(Path.Combine(workspace.CanonicalRootPath, "plans"), workspace.CanonicalPlansPath);
@@ -33,6 +34,43 @@ public sealed class WorkspaceDiscoveryTests : IDisposable
         Assert.Equal(Path.Combine(workspace.CanonicalRootPath, "questions"), workspace.CanonicalQuestionsPath);
         Assert.Equal(Path.Combine(workspace.CanonicalRootPath, "outcomes"), workspace.CanonicalOutcomesPath);
         Assert.Equal(Path.Combine(workspace.CanonicalRootPath, "repo"), workspace.CanonicalRepoPath);
+    }
+
+    [Fact]
+    public void Load_ReadsRepositoryAttachmentsFromProjectMetadata()
+    {
+        var workspaceRootPath = CreateWorkspaceDirectory("attached-workspace");
+        WriteProjectMetadata(
+            Path.Combine(workspaceRootPath, "project.json"),
+            new Dictionary<string, object?>
+            {
+                ["projectId"] = "attached",
+                ["name"] = "Attached Project",
+                ["status"] = "active",
+                ["repositoryAttachments"] = new object[]
+                {
+                    new Dictionary<string, object?>
+                    {
+                        ["attachmentId"] = "ATT-123",
+                        ["projectId"] = "attached",
+                        ["kind"] = "github",
+                        ["repositoryIdentity"] = "github:https://github.com/alucero270/memora.git",
+                        ["remoteUrl"] = "https://github.com/alucero270/memora.git",
+                        ["defaultBranch"] = "main",
+                        ["originRemoteName"] = "origin",
+                        ["originUrl"] = "https://github.com/alucero270/memora.git",
+                        ["attachedAtUtc"] = "2026-05-05T18:00:00Z"
+                    }
+                }
+            });
+
+        var workspace = _discovery.Load(workspaceRootPath);
+
+        var attachment = Assert.Single(workspace.Metadata.RepositoryAttachments);
+        Assert.Equal("ATT-123", attachment.AttachmentId);
+        Assert.Equal("attached", attachment.ProjectId);
+        Assert.Equal("github:https://github.com/alucero270/memora.git", attachment.RepositoryIdentity);
+        Assert.Equal("main", attachment.DefaultBranch);
     }
 
     [Fact]

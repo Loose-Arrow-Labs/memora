@@ -18,6 +18,42 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     private readonly ArtifactFileStore _fileStore = new();
 
     [Fact]
+    public void GetProject_ReturnsAttachedRepositoryMetadataForIntegrationResolution()
+    {
+        var workspace = CreateWorkspace("memora");
+        File.WriteAllText(
+            workspace.ProjectMetadataPath,
+            """
+            {
+              "projectId": "memora",
+              "name": "Memora",
+              "status": "active",
+              "repositoryAttachments": [
+                {
+                  "attachmentId": "ATT-123",
+                  "projectId": "memora",
+                  "kind": "github",
+                  "repositoryIdentity": "github:https://github.com/alucero270/memora.git",
+                  "remoteUrl": "https://github.com/alucero270/memora.git",
+                  "defaultBranch": "main",
+                  "originRemoteName": "origin",
+                  "originUrl": "https://github.com/alucero270/memora.git",
+                  "attachedAtUtc": "2026-05-05T18:00:00Z"
+                }
+              ]
+            }
+            """);
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.GetProject("memora");
+
+        Assert.True(response.IsSuccess);
+        var attachment = Assert.Single(response.RepositoryAttachments);
+        Assert.Equal("ATT-123", attachment.AttachmentId);
+        Assert.Equal("github:https://github.com/alucero270/memora.git", attachment.RepositoryIdentity);
+    }
+
+    [Fact]
     public void ProposeArtifact_PersistsProposalInDraftStorage()
     {
         var workspace = CreateWorkspace("memora");
