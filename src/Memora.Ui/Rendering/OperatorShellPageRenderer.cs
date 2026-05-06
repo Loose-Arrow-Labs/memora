@@ -121,6 +121,14 @@ internal static class OperatorShellPageRenderer
 
         body.AppendLine("<article class=\"panel\">");
         body.AppendLine("<div class=\"panel-header\">");
+        body.AppendLine("<h2>Trust Dashboard</h2>");
+        body.AppendLine("<p class=\"muted\">Inspect review pressure, rebuild health, missing memory, and import warnings from shared diagnostics.</p>");
+        body.AppendLine("</div>");
+        body.AppendLine($"<p><a class=\"button ghost\" href=\"/projects/{Encode(snapshot.Workspace.ProjectId)}/trust\">Open trust dashboard</a></p>");
+        body.AppendLine("</article>");
+
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\">");
         body.AppendLine("<h2>First-Run Import</h2>");
         body.AppendLine("<p class=\"muted\">Inspect attached repositories, imported evidence, candidate memory, and readiness state.</p>");
         body.AppendLine("</div>");
@@ -309,6 +317,38 @@ internal static class OperatorShellPageRenderer
         body.AppendLine(RenderScopeNote(options));
 
         return RenderLayout($"{snapshot.Workspace.Metadata.Name} proposals", options, projects, snapshot.Workspace.ProjectId, body.ToString());
+    }
+
+    public static string RenderTrustDashboard(
+        OperatorShellOptions options,
+        IReadOnlyList<OperatorProjectSummary> projects,
+        OperatorTrustDashboard dashboard)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<section class=\"hero compact\">");
+        body.AppendLine("<p class=\"eyebrow\">Trust Dashboard</p>");
+        body.AppendLine($"<h1>{Encode(dashboard.ProjectName)}</h1>");
+        body.AppendLine($"<p class=\"lede\">Review, observe, and import-health signals for <code>{Encode(dashboard.ProjectId)}</code>. Values are derived from queue, filesystem, import, and rebuild diagnostics.</p>");
+        body.AppendLine("</section>");
+
+        body.AppendLine("<section class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Trust Summary</h2><p class=\"muted\">Each card links to the relevant review or diagnostic surface.</p></div>");
+        body.AppendLine("<div class=\"trust-grid\">");
+        foreach (var metric in dashboard.Metrics)
+        {
+            body.AppendLine($"<article class=\"trust-card trust-{Encode(metric.State.ToString().ToLowerInvariant())}\">");
+            body.AppendLine($"<a href=\"{Encode(metric.Url)}\"><h3>{Encode(metric.Label)}</h3></a>");
+            body.AppendLine($"<p class=\"trust-count\">{Encode(metric.Count.ToString(CultureInfo.InvariantCulture))}</p>");
+            body.AppendLine($"<p><span class=\"badge badge-trust-{Encode(metric.State.ToString().ToLowerInvariant())}\">{Encode(FormatTrustMetricState(metric.State))}</span></p>");
+            body.AppendLine($"<p class=\"muted\">{Encode(metric.Detail)}</p>");
+            body.AppendLine("</article>");
+        }
+
+        body.AppendLine("</div>");
+        body.AppendLine("</section>");
+        body.AppendLine(RenderScopeNote(options));
+
+        return RenderLayout($"{dashboard.ProjectName} trust", options, projects, dashboard.ProjectId, body.ToString());
     }
 
     private static string RenderPendingReviewItems(OperatorProjectSnapshot snapshot)
@@ -632,6 +672,7 @@ internal static class OperatorShellPageRenderer
             html.AppendLine($"<a href=\"/projects/{projectId}/first-run-import\">First Run</a>");
             html.AppendLine($"<a href=\"/projects/{projectId}/queue\">Queue</a>");
             html.AppendLine($"<a href=\"/projects/{projectId}/proposals\">Proposals</a>");
+            html.AppendLine($"<a href=\"/projects/{projectId}/trust\">Trust</a>");
             html.AppendLine($"<a href=\"/context-viewer?projectId={projectId}\">Context</a>");
             html.AppendLine($"<a href=\"/understanding?projectId={projectId}\">Understanding</a>");
         }
@@ -1166,6 +1207,15 @@ internal static class OperatorShellPageRenderer
             _ => disposition.ToString()
         };
 
+    private static string FormatTrustMetricState(OperatorTrustMetricState state) =>
+        state switch
+        {
+            OperatorTrustMetricState.Ready => "ready",
+            OperatorTrustMetricState.NeedsReview => "needs review",
+            OperatorTrustMetricState.Blocked => "blocked",
+            _ => state.ToString()
+        };
+
     private static string BuildArtifactLink(string projectId, string relativePath) =>
         $"/projects/{Uri.EscapeDataString(projectId)}/artifacts?path={Uri.EscapeDataString(relativePath)}";
 
@@ -1210,6 +1260,10 @@ h1, h2, h3 { margin-top: 0; }
 .project-grid, .two-up { display: grid; gap: 20px; }
 .project-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .two-up { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.trust-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.trust-card { border: 1px solid rgba(91, 56, 35, 0.12); border-radius: 16px; padding: 16px; background: rgba(255, 255, 255, 0.58); }
+.trust-card h3 { margin-bottom: 8px; }
+.trust-count { font-size: 2rem; font-weight: 700; margin: 0 0 8px; }
 .list { display: grid; gap: 10px; padding-left: 18px; }
 .badge { display: inline-flex; padding: 4px 10px; border-radius: 999px; font-size: 0.84rem; text-transform: uppercase; letter-spacing: 0.08em; background: #ead7b6; }
 .badge-draft, .badge-proposed { background: #f0c98b; }
@@ -1218,6 +1272,9 @@ h1, h2, h3 { margin-top: 0; }
 .badge-progress-complete, .badge-progress-ready { background: #b8d1b0; }
 .badge-progress-waiting { background: #d9c6bb; }
 .badge-progress-needsreview { background: #f0c98b; }
+.badge-trust-ready { background: #b8d1b0; }
+.badge-trust-needsreview { background: #f0c98b; }
+.badge-trust-blocked { background: #e7aaa1; }
 .table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border-radius: 18px; }
 table { width: 100%; min-width: 680px; border-collapse: collapse; }
 th, td { text-align: left; vertical-align: top; padding: 12px 10px; border-bottom: 1px solid rgba(91, 56, 35, 0.12); overflow-wrap: anywhere; }
