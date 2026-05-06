@@ -123,6 +123,23 @@ The boundary is intentionally conservative. Evidence says what was observed.
 Memory says what Memora is allowed to preserve as project understanding.
 Inferred meaning stays visible, provenance-backed, and reviewable.
 
+## Hybrid Retrieval Boundary
+
+Project import is the first place Memora's hybrid retrieval strategy becomes
+visible.
+
+M10 combines:
+
+- deterministic scans over attached local repositories and GitHub evidence
+- evidence-derived candidate memory with provenance and confidence
+- later advisory discovery hooks that can suggest additional candidates
+- deterministic, lifecycle-aware assembly when agents request grounded context
+
+Advisory discovery cannot bypass import modes, lifecycle, approval, safety
+filtering, or provenance. It may help find candidate material, but Memora's
+agent-facing grounded output still comes from approved or explicitly allowed
+artifacts assembled through deterministic context rules.
+
 ## GitHub Import Risks
 
 GitHub import is a real integration surface, not just another file scan. The
@@ -242,7 +259,7 @@ Within the first ten minutes, Memora should be able to show:
 - agent readiness gaps
 - baseline approval or review next steps
 - MCP/OpenAPI readiness for the imported project, including project resolution
-  and deterministic context retrieval
+  and hybrid retrieval status plus deterministic grounded context retrieval
 
 Example first-run result:
 
@@ -270,7 +287,8 @@ Happy-path sequence:
    Approval before promotion behavior runs
 4. run a bounded import with progress, evidence counts, and safety diagnostics
 5. persist safe evidence according to the selected import mode
-6. generate deterministic candidate memory and an agent readiness report
+6. generate hybrid candidate memory and an agent readiness report, separating
+   deterministic evidence-derived findings from inferred or advisory candidates
 7. show baseline evidence, baseline memory, and review-needed candidates
    separately
 8. expose the imported project through MCP and OpenAPI project resolution and

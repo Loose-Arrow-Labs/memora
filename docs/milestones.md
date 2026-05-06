@@ -174,7 +174,8 @@ Includes:
   constraints, outcomes, contribution style, risks, and open questions
 - agent readiness report that highlights missing project memory and next review
   steps
-- MCP readiness for imported projects: project resolution, deterministic context
+- hybrid retrieval boundary for imported projects: deterministic evidence
+  scans, reviewable advisory candidates, deterministic grounded context
   retrieval, readiness-state exposure, and lifecycle-safe proposal paths
 
 Outcome: a legacy repo can be attached and scanned quickly, with lived project
@@ -185,7 +186,7 @@ M10 should sequence toward a polished happy-path first-run experience, not every
 legacy import edge case at once. The first target is one attached local or
 GitHub repository, bounded evidence import, candidate memory generation,
 readiness reporting, and MCP/OpenAPI exposure that respects the selected import
-mode.
+mode and the hybrid retrieval boundary.
 
 ## Milestone 11 - Human Review And Trust UI
 
