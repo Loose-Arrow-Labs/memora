@@ -18,7 +18,10 @@ public sealed class FileSystemFirstRunImportStatusService
         _workspacesRootPath = Path.GetFullPath(workspacesRootPath);
     }
 
-    public FirstRunImportStatusPage? TryBuildPage(string projectId, string? requestedImportMode)
+    public FirstRunImportStatusPage? TryBuildPage(
+        string projectId,
+        string? requestedImportMode,
+        FirstRunGitHubImportRunResult? githubImportResult = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
 
@@ -46,12 +49,14 @@ public sealed class FileSystemFirstRunImportStatusService
             importModeSelection.Mode,
             importModeSelection.Source,
             workspace.Metadata.RepositoryAttachments,
+            BuildSuggestedGitHubRemoteUrl(workspace.Metadata.RepositoryAttachments),
             BuildProgressSteps(workspace.Metadata.RepositoryAttachments.Count, evidence.Count, report),
             BuildEvidenceSummaries(evidence),
             candidates,
             report?.ReadinessReport,
             warnings.Distinct(StringComparer.Ordinal).OrderBy(value => value, StringComparer.Ordinal).ToArray(),
-            BuildNextActions(workspace.ProjectId, report));
+            BuildNextActions(workspace.ProjectId, report),
+            githubImportResult);
     }
 
     private IReadOnlyList<ImportedEvidenceRecord> LoadEvidence(string workspaceRootPath, ICollection<string> warnings)
@@ -142,6 +147,27 @@ public sealed class FileSystemFirstRunImportStatusService
             .OrderBy(summary => summary.SourceType)
             .ThenBy(summary => summary.TrustState)
             .ToArray();
+
+    private static string? BuildSuggestedGitHubRemoteUrl(IReadOnlyList<ProjectRepositoryAttachment> attachments)
+    {
+        var githubAttachmentRemote = attachments
+            .Where(attachment => attachment.Kind == RepositoryAttachmentKind.GitHub)
+            .Select(attachment => attachment.RemoteUrl ?? attachment.OriginUrl)
+            .FirstOrDefault(IsGitHubRemote);
+
+        if (!string.IsNullOrWhiteSpace(githubAttachmentRemote))
+        {
+            return githubAttachmentRemote;
+        }
+
+        return attachments
+            .SelectMany(attachment => new[] { attachment.RemoteUrl, attachment.OriginUrl })
+            .FirstOrDefault(IsGitHubRemote);
+    }
+
+    private static bool IsGitHubRemote(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        value.Contains("github.com", StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<FirstRunCandidateView> BuildCandidateViews(
         FirstRunMemoryGenerationResult? report,
@@ -252,12 +278,14 @@ public sealed record FirstRunImportStatusPage(
     ImportMode SelectedImportMode,
     FirstRunImportModeSelectionSource ImportModeSelectionSource,
     IReadOnlyList<ProjectRepositoryAttachment> RepositoryAttachments,
+    string? SuggestedGitHubRemoteUrl,
     IReadOnlyList<FirstRunProgressStep> ProgressSteps,
     IReadOnlyList<FirstRunEvidenceSummary> EvidenceSummaries,
     IReadOnlyList<FirstRunCandidateView> Candidates,
     AgentReadinessReport? ReadinessReport,
     IReadOnlyList<string> Warnings,
-    IReadOnlyList<FirstRunNextAction> NextActions)
+    IReadOnlyList<FirstRunNextAction> NextActions,
+    FirstRunGitHubImportRunResult? GitHubImportResult = null)
 {
     public int EvidenceRecordCount => EvidenceSummaries.Sum(summary => summary.Count);
 

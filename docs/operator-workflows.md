@@ -25,6 +25,8 @@ The first screen lists discovered projects. Open a project to see:
 - the current approval queue from `ApprovalQueueBuilder`
 - the first-run import status page for attached repository identity, evidence
   counts, candidate source and disposition, readiness warnings, and next actions
+- the bounded GitHub import action for importing evidence through existing
+  local GitHub CLI authentication
 - links into artifact detail and review pages
 
 ## Inspect First-Run Import Status
@@ -46,6 +48,14 @@ The page shows:
 Changing the visible import-mode selector does not promote artifacts by itself.
 Promotion still depends on the governed import, lifecycle, safety, provenance,
 and approval rules.
+
+The GitHub import action accepts a GitHub remote URL, import mode, and bounded
+item count. Submitting it attaches the GitHub repository when needed, then runs
+the shared GitHub evidence importer. The result panel reports created and
+existing evidence counts plus safe diagnostics such as missing credentials,
+partial import warnings, or unsupported remotes. Evidence is persisted through
+the same filesystem-first evidence store and safety filtering used by non-UI
+imports.
 
 ## Review Pending Artifacts
 
@@ -135,7 +145,7 @@ issue first, then rebuild or refresh the understanding output.
 The current workflows do not include:
 
 - direct UI approval persistence
-- UI execution of repository import jobs
+- background import jobs or hosted GitHub authorization flows
 - automatic canonical writes by agents
 - auto-repair of invalid artifacts or indexes
 - semantic or vector retrieval in core

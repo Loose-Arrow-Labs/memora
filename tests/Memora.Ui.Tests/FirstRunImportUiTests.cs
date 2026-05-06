@@ -1,9 +1,13 @@
 using System.Net;
 using Memora.Core.Import;
 using Memora.Import.Evidence;
+using Memora.Import.GitHub;
 using Memora.Import.Readiness;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Memora.Ui.Tests;
 
@@ -53,6 +57,65 @@ public sealed class FirstRunImportUiTests : IDisposable
         Assert.Contains("Grounded Context Ready", html, StringComparison.Ordinal);
         Assert.Contains("Review candidate memory proposals.", html, StringComparison.Ordinal);
         Assert.Contains("Later advisory discovery", html, StringComparison.Ordinal);
+        Assert.Contains("Run GitHub Import", html, StringComparison.Ordinal);
+        Assert.Contains("https://github.com/alucero270/memora.git", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GitHubImportPost_AttachesImportsReportsAndDeduplicatesEvidence()
+    {
+        CreateImportedWorkspace("memora");
+
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureAppConfiguration((_, configuration) =>
+                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["Memora:WorkspacesRootPath"] = _workspacesRootPath
+                    }));
+                builder.ConfigureTestServices(services =>
+                {
+                    services.RemoveAll<IGitHubEvidenceClient>();
+                    services.AddSingleton<IGitHubEvidenceClient>(new FakeGitHubEvidenceClient(CreateGitHubSnapshot()));
+                });
+            });
+
+        using var client = factory.CreateClient();
+        var form = new Dictionary<string, string>
+        {
+            ["remoteUrl"] = "https://github.com/alucero270/memora.git",
+            ["importMode"] = ImportMode.EvidenceCanonical.ToSchemaValue(),
+            ["maxItems"] = "3"
+        };
+
+        var response = await client.PostAsync(
+            "/projects/memora/first-run-import/github",
+            new FormUrlEncodedContent(form));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("GitHub Import Result", html, StringComparison.Ordinal);
+        Assert.Contains("Imported 3 GitHub evidence record(s): 3 new, 0 already present.", html, StringComparison.Ordinal);
+        Assert.Contains("github_attachment.created", html, StringComparison.Ordinal);
+        Assert.Contains("github.import.completed", html, StringComparison.Ordinal);
+        Assert.Contains("Canonical Evidence", html, StringComparison.Ordinal);
+
+        var evidence = new FileBackedImportedEvidenceStore()
+            .ReadAll(Path.Combine(_workspacesRootPath, "memora"));
+        Assert.Contains(evidence, record =>
+            record.SourceType == ImportedEvidenceSourceType.GitHubIssue &&
+            record.TrustState == ImportedEvidenceTrustState.CanonicalEvidence &&
+            record.SourceReference == "248");
+
+        var repeatResponse = await client.PostAsync(
+            "/projects/memora/first-run-import/github",
+            new FormUrlEncodedContent(form));
+
+        Assert.Equal(HttpStatusCode.OK, repeatResponse.StatusCode);
+        var repeatHtml = await repeatResponse.Content.ReadAsStringAsync();
+        Assert.Contains("Imported 3 GitHub evidence record(s): 0 new, 3 already present.", repeatHtml, StringComparison.Ordinal);
+        Assert.Contains("github_attachment.already_attached", repeatHtml, StringComparison.Ordinal);
     }
 
     public void Dispose()
@@ -182,5 +245,62 @@ public sealed class FirstRunImportUiTests : IDisposable
 
         new FileBackedFirstRunReportStore()
             .Save(workspaceRootPath, new FirstRunMemoryGenerationResult(candidates, report));
+    }
+
+    private static GitHubEvidenceSnapshot CreateGitHubSnapshot()
+    {
+        var observedAtUtc = new DateTimeOffset(2026, 5, 6, 10, 0, 0, TimeSpan.Zero);
+        return new GitHubEvidenceSnapshot(
+            [
+                new GitHubIssueEvidence(
+                    248,
+                    "https://github.com/alucero270/memora/issues/248",
+                    "Add first-run GitHub import execution UI",
+                    "open",
+                    observedAtUtc.AddDays(-1),
+                    observedAtUtc)
+            ],
+            [
+                new GitHubPullRequestEvidence(
+                    249,
+                    "https://github.com/alucero270/memora/pull/249",
+                    "Add first-run GitHub import execution UI",
+                    "open",
+                    null,
+                    observedAtUtc.AddHours(-3),
+                    observedAtUtc)
+            ],
+            [],
+            [],
+            [
+                new GitHubCommitEvidence(
+                    "abcdef1234567890",
+                    "https://github.com/alucero270/memora/commit/abcdef1234567890",
+                    "feat(ui): run github import from first-run page",
+                    "Alex Lucero",
+                    observedAtUtc)
+            ],
+            [],
+            [],
+            IsPartial: false,
+            [
+                GitHubImportDiagnostic.Info(
+                    "github.discussions.not_available",
+                    "GitHub discussion linkage was skipped in this bounded test.",
+                    "discussions")
+            ]);
+    }
+
+    private sealed class FakeGitHubEvidenceClient : IGitHubEvidenceClient
+    {
+        private readonly GitHubEvidenceSnapshot _snapshot;
+
+        public FakeGitHubEvidenceClient(GitHubEvidenceSnapshot snapshot)
+        {
+            _snapshot = snapshot;
+        }
+
+        public GitHubEvidenceClientResult Fetch(string remoteUrl, int maxItems) =>
+            GitHubEvidenceClientResult.Succeeded(_snapshot);
     }
 }
