@@ -112,6 +112,15 @@ internal static class OperatorShellPageRenderer
 
         body.AppendLine("<article class=\"panel\">");
         body.AppendLine("<div class=\"panel-header\">");
+        body.AppendLine("<h2>Proposal Review</h2>");
+        body.AppendLine("<p class=\"muted\">Inspect proposed artifacts as non-canonical review inputs before any approval workflow can promote them.</p>");
+        body.AppendLine("</div>");
+        body.AppendLine($"<p>{Encode(snapshot.ProposedItems.Count.ToString(CultureInfo.InvariantCulture))} proposed artifact(s) need proposal review.</p>");
+        body.AppendLine($"<p><a class=\"button ghost\" href=\"/projects/{Encode(snapshot.Workspace.ProjectId)}/proposals\">Open proposals</a></p>");
+        body.AppendLine("</article>");
+
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\">");
         body.AppendLine("<h2>First-Run Import</h2>");
         body.AppendLine("<p class=\"muted\">Inspect attached repositories, imported evidence, candidate memory, and readiness state.</p>");
         body.AppendLine("</div>");
@@ -281,6 +290,27 @@ internal static class OperatorShellPageRenderer
         return RenderLayout($"{snapshot.Workspace.Metadata.Name} queue", options, projects, snapshot.Workspace.ProjectId, body.ToString());
     }
 
+    public static string RenderProposalReview(
+        OperatorShellOptions options,
+        IReadOnlyList<OperatorProjectSummary> projects,
+        OperatorProjectSnapshot snapshot)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<section class=\"hero compact\">");
+        body.AppendLine("<p class=\"eyebrow\">Proposal Review</p>");
+        body.AppendLine($"<h1>{Encode(snapshot.Workspace.Metadata.Name)}</h1>");
+        body.AppendLine($"<p class=\"lede\">{Encode(snapshot.ProposedItems.Count.ToString(CultureInfo.InvariantCulture))} proposed artifact(s) are visible as non-canonical review inputs. Approved truth still comes only from governed lifecycle persistence.</p>");
+        body.AppendLine("</section>");
+
+        body.AppendLine(ReviewUiComponents.RenderPanel(
+            "Pending Proposals",
+            "Proposals are suggestions, not approved project memory.",
+            RenderProposalTable(snapshot)));
+        body.AppendLine(RenderScopeNote(options));
+
+        return RenderLayout($"{snapshot.Workspace.Metadata.Name} proposals", options, projects, snapshot.Workspace.ProjectId, body.ToString());
+    }
+
     private static string RenderPendingReviewItems(OperatorProjectSnapshot snapshot)
     {
         if (snapshot.PendingItems.Count == 0)
@@ -310,6 +340,35 @@ internal static class OperatorShellPageRenderer
         return html.ToString();
     }
 
+    private static string RenderProposalTable(OperatorProjectSnapshot snapshot)
+    {
+        if (snapshot.ProposedItems.Count == 0)
+        {
+            return "<p>No proposed artifacts are waiting for review.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"table-scroll\">");
+        html.AppendLine("<table><thead><tr><th>Title</th><th>Status</th><th>Type</th><th>Revision</th><th>Provenance</th><th>Diff Context</th></tr></thead><tbody>");
+        foreach (var item in snapshot.ProposedItems)
+        {
+            var artifact = item.Record.Artifact;
+            var reviewLink = BuildReviewLink(snapshot.Workspace.ProjectId, item.Record.RelativePath);
+            html.AppendLine("<tr>");
+            html.AppendLine($"<td><strong>{Encode(artifact.Title)}</strong><br><code>{Encode(artifact.Id)}</code></td>");
+            html.AppendLine($"<td>{RenderStatusBadge(artifact.Status)}<br><span class=\"muted\">Non-canonical</span></td>");
+            html.AppendLine($"<td>{Encode(artifact.Type.ToSchemaValue())}</td>");
+            html.AppendLine($"<td>{Encode(artifact.Revision.ToString(CultureInfo.InvariantCulture))}</td>");
+            html.AppendLine($"<td>{Encode(artifact.Provenance)}<br><span class=\"muted\">{Encode(artifact.Reason)}</span></td>");
+            html.AppendLine($"<td><a href=\"{reviewLink}\">Inspect proposal details and diff</a></td>");
+            html.AppendLine("</tr>");
+        }
+
+        html.AppendLine("</tbody></table>");
+        html.AppendLine("</div>");
+        return html.ToString();
+    }
+
     public static string RenderReview(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
@@ -327,6 +386,15 @@ internal static class OperatorShellPageRenderer
             body.AppendLine($"<p class=\"queue-position\">Review item {Encode(view.ReviewQueueContext.Position.ToString(CultureInfo.InvariantCulture))} of {Encode(view.ReviewQueueContext.TotalItems.ToString(CultureInfo.InvariantCulture))}</p>");
         }
         body.AppendLine("</section>");
+
+        if (artifact.Status == ArtifactStatus.Proposed)
+        {
+            body.AppendLine(ReviewUiComponents.RenderPanel(
+                "Non-Canonical Proposal",
+                "This proposal is review input only; it is not approved project truth.",
+                "<p>Use this view to inspect metadata, provenance, sections, and diff context before a governed lifecycle action changes filesystem-backed state.</p>",
+                "note"));
+        }
 
         body.AppendLine(RenderReviewNavigation(view));
 
@@ -447,6 +515,7 @@ internal static class OperatorShellPageRenderer
             html.AppendLine($"<a href=\"/projects/{projectId}\">Artifacts</a>");
             html.AppendLine($"<a href=\"/projects/{projectId}/first-run-import\">First Run</a>");
             html.AppendLine($"<a href=\"/projects/{projectId}/queue\">Queue</a>");
+            html.AppendLine($"<a href=\"/projects/{projectId}/proposals\">Proposals</a>");
             html.AppendLine($"<a href=\"/context-viewer?projectId={projectId}\">Context</a>");
             html.AppendLine($"<a href=\"/understanding?projectId={projectId}\">Understanding</a>");
         }
