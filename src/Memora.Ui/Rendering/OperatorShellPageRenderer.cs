@@ -372,10 +372,12 @@ internal static class OperatorShellPageRenderer
     public static string RenderReview(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
-        OperatorArtifactView view)
+        OperatorArtifactView view,
+        IReadOnlyList<string>? decisionErrors = null)
     {
         var artifact = view.SelectedArtifact.Artifact;
         var body = new StringBuilder();
+        var errors = decisionErrors ?? [];
 
         body.AppendLine("<section class=\"hero compact\">");
         body.AppendLine("<p class=\"eyebrow\">Revision Review</p>");
@@ -386,6 +388,20 @@ internal static class OperatorShellPageRenderer
             body.AppendLine($"<p class=\"queue-position\">Review item {Encode(view.ReviewQueueContext.Position.ToString(CultureInfo.InvariantCulture))} of {Encode(view.ReviewQueueContext.TotalItems.ToString(CultureInfo.InvariantCulture))}</p>");
         }
         body.AppendLine("</section>");
+
+        if (errors.Count > 0)
+        {
+            body.AppendLine("<section class=\"panel alert\">");
+            body.AppendLine("<h2>Review Decision Failed</h2>");
+            body.AppendLine("<ul class=\"list\">");
+            foreach (var error in errors)
+            {
+                body.AppendLine($"<li>{Encode(error)}</li>");
+            }
+
+            body.AppendLine("</ul>");
+            body.AppendLine("</section>");
+        }
 
         if (artifact.Status == ArtifactStatus.Proposed)
         {
@@ -456,7 +472,7 @@ internal static class OperatorShellPageRenderer
         body.AppendLine(RenderDecisionPanel(view));
         body.AppendLine("<section class=\"panel note\">");
         body.AppendLine("<h2>Current UI boundary</h2>");
-        body.AppendLine("<p>Approval and rejection behavior exists in core, but this shell intentionally stops at review preview for now. That keeps the UI honest until filesystem persistence for those decisions is defined end to end.</p>");
+        body.AppendLine("<p>Approval and rejection actions now persist through the governed core workflow. The UI still cannot directly edit canonical truth or bypass lifecycle validation.</p>");
         body.AppendLine("</section>");
         body.AppendLine(RenderScopeNote(options));
 
@@ -1029,14 +1045,43 @@ internal static class OperatorShellPageRenderer
             new("Diff status", view.DiffIssues.Count > 0 ? "needs attention" : view.RevisionDiff is null ? "net new or unavailable" : "ready to inspect")
         ]));
         html.AppendLine(ReviewUiComponents.RenderActionGroup(
-        [
-            "<span class=\"button disabled\">Approve</span>",
-            "<span class=\"button disabled danger\">Reject</span>",
-            "<a class=\"button ghost\" href=\"/projects/" + Encode(view.Project.Workspace.ProjectId) + "/queue\">Return to queue</a>"
-        ]));
-        html.AppendLine("<p class=\"muted\">The visible decision controls are intentionally inactive until UI persistence can apply the existing core approval workflow without bypassing filesystem-first governance.</p>");
+            BuildDecisionActions(view)));
+        html.AppendLine("<p class=\"muted\">Approval and rejection submit through the existing core approval workflow before filesystem-backed state changes. Proposed artifacts remain non-canonical unless a governed transition succeeds.</p>");
         html.AppendLine("</section>");
         return html.ToString();
+    }
+
+    private static IReadOnlyList<string> BuildDecisionActions(OperatorArtifactView view)
+    {
+        var actions = new List<string>();
+        var artifact = view.SelectedArtifact.Artifact;
+        var postPath = $"/projects/{Encode(view.Project.Workspace.ProjectId)}/review/decision";
+        var pathInput = $"<input type=\"hidden\" name=\"path\" value=\"{Encode(view.SelectedArtifact.RelativePath)}\" />";
+
+        if (artifact.Status == ArtifactStatus.Draft && view.ProvenanceReview.IsApprovalReady)
+        {
+            actions.Add($"""
+                <form method="post" action="{postPath}" class="inline-decision-form">
+                {pathInput}
+                <input type="hidden" name="decision" value="Approve" />
+                <button class="button" type="submit">Approve</button>
+                </form>
+                """);
+        }
+        else
+        {
+            actions.Add("<span class=\"button disabled\">Approve</span>");
+        }
+
+        actions.Add($"""
+            <form method="post" action="{postPath}" class="inline-decision-form">
+            {pathInput}
+            <input type="hidden" name="decision" value="Reject" />
+            <button class="button danger" type="submit">Reject</button>
+            </form>
+            """);
+        actions.Add("<a class=\"button ghost\" href=\"/projects/" + Encode(view.Project.Workspace.ProjectId) + "/queue\">Return to queue</a>");
+        return actions;
     }
 
     private static string RenderScopeNote(OperatorShellOptions options)
@@ -1045,7 +1090,7 @@ internal static class OperatorShellPageRenderer
             ? "The shell is using a writable local copy of the sample workspaces so you can explore without touching the repo fixtures."
             : "The shell is using the configured workspace root directly.";
 
-        return $"<section class=\"panel note\"><h2>Current workflow scope</h2><p>{Encode(rootMode)}</p><p>Draft inspection and editing are wired through current core and storage behavior. Approval review is visible here, while approval and rejection persistence remain outside this UI slice.</p></section>";
+        return $"<section class=\"panel note\"><h2>Current workflow scope</h2><p>{Encode(rootMode)}</p><p>Draft inspection, editing, approval, and rejection are wired through current core and storage behavior. Canonical truth still changes only through governed approval persistence.</p></section>";
     }
 
     private static string RenderStatusBadge(ArtifactStatus status) =>
@@ -1187,6 +1232,7 @@ th, td { text-align: left; vertical-align: top; padding: 12px 10px; border-botto
 .body-card, .section-card { background: rgba(255, 255, 255, 0.72); border-radius: 18px; padding: 16px; border: 1px solid rgba(91, 56, 35, 0.1); }
 pre { white-space: pre-wrap; margin: 0; }
 .edit-form { display: grid; gap: 16px; }
+.inline-decision-form { margin: 0; }
 .compact-form { margin-bottom: 16px; }
 .edit-form label { display: grid; gap: 8px; }
 .button { display: inline-flex; align-items: center; justify-content: center; width: fit-content; border: none; border-radius: 999px; padding: 12px 18px; background: #7d341f; color: #fff8f3; text-decoration: none; cursor: pointer; }
