@@ -10,6 +10,7 @@ Provides the local operator interface for Memora.
 - approval queue
 - approval review navigation
 - first-run import status and baseline approval inspection
+- bounded GitHub evidence import execution through shared import services
 - context inspection
 - understanding output inspection
 
@@ -33,7 +34,7 @@ Provides the local operator interface for Memora.
 - approval review surfaces are wired to current core diff and queue behavior
 - revision diffs show deterministic areas, display labels, raw paths, and before/after values
 - approval and rejection persistence are intentionally not claimed in this slice
-- first-run import status is read-only; it shows attachments, evidence counts, candidate source/disposition, readiness warnings, and next actions without promoting memory
+- first-run import can run bounded GitHub evidence import using existing local `gh` authentication; it still shows attachments, evidence counts, candidate source/disposition, readiness warnings, and next actions without promoting memory
 - understanding outputs remain read-only and are grounded in the shared context builder plus rebuildable traceability queries
 - no IDE review surface is implemented here; the current IDE review boundary only exists as draft/sample planning state
 

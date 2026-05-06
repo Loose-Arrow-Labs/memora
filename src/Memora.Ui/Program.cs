@@ -1,3 +1,5 @@
+using Memora.Core.Import;
+using Memora.Import.GitHub;
 using Memora.Ui.ContextViewer;
 using Memora.Ui.FirstRunImport;
 using Memora.Ui.Operator;
@@ -16,6 +18,14 @@ builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<OperatorShellOptions>();
     return new FileSystemFirstRunImportStatusService(options.NormalizedWorkspacesRootPath);
+});
+builder.Services.AddSingleton<IGitHubEvidenceClient, GitHubCliEvidenceClient>();
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<OperatorShellOptions>();
+    return new FirstRunGitHubImportService(
+        options.NormalizedWorkspacesRootPath,
+        sp.GetRequiredService<IGitHubEvidenceClient>());
 });
 builder.Services.AddSingleton(sp =>
 {
@@ -130,6 +140,58 @@ app.MapGet(
         return Results.Content(html, "text/html");
     });
 
+app.MapPost(
+    "/projects/{projectId}/first-run-import/github",
+    async (
+        string projectId,
+        HttpRequest request,
+        FirstRunGitHubImportService githubImportService,
+        FileSystemFirstRunImportStatusService importStatusService,
+        LocalOperatorWorkspaceService service,
+        OperatorShellOptions options) =>
+    {
+        var form = await request.ReadFormAsync();
+        var requestedImportMode = form["importMode"].ToString();
+        var remoteUrl = form["remoteUrl"].ToString();
+        var maxItems = TryReadMaxItems(form["maxItems"].ToString());
+
+        FirstRunGitHubImportRunResult importResult;
+        if (!ImportModeExtensions.TryParseSchemaValue(requestedImportMode, out var importMode))
+        {
+            importMode = ImportMode.StrictGovernance;
+            importResult = FirstRunGitHubImportRunResult.Failed(
+                "GitHub import did not complete.",
+                FirstRunGitHubImportRunDiagnostic.Error(
+                    "github_import.import_mode.invalid",
+                    "Selected import mode is invalid.",
+                    "importMode"));
+        }
+        else
+        {
+            importResult = githubImportService.Run(
+                new FirstRunGitHubImportRunRequest(
+                    projectId,
+                    importMode,
+                    remoteUrl,
+                    maxItems));
+        }
+
+        var page = importStatusService.TryBuildPage(
+            projectId,
+            importMode.ToSchemaValue(),
+            importResult);
+        if (page is null)
+        {
+            return Results.NotFound();
+        }
+
+        var html = OperatorShellPageRenderer.RenderFirstRunImport(options, service.GetProjects(), page);
+        return Results.Content(
+            html,
+            "text/html",
+            statusCode: importResult.IsSuccess ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest);
+    });
+
 app.MapGet(
     "/projects/{projectId}/review",
     (string projectId, string? path, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
@@ -225,5 +287,10 @@ static OperatorShellOptions BuildShellOptions(IConfiguration configuration, IHos
             Path.GetFullPath(configuredWorkspacesRoot),
             UsesSeededSampleRoot: false);
 }
+
+static int? TryReadMaxItems(string? value) =>
+    int.TryParse(value, out var parsed)
+        ? parsed
+        : null;
 
 public partial class Program;

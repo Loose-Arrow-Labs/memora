@@ -95,6 +95,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - first-run import status page showing attached repository identity, selected
   import mode, progress, evidence counts, warnings, candidate source and
   disposition, readiness report details, and next actions
+- bounded GitHub import execution from the first-run page using existing local
+  GitHub CLI authentication and shared import services
 - context viewer page backed by the shared context builder
 - understanding output page with context, traceability, and component views
 
@@ -118,7 +120,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - rebuild diagnostics identify filesystem issues, but they do not auto-repair artifacts or indexes
 - controlled automation does not provide a general direct-write path and does not write canonical artifacts
 - IDE review is captured as draft/sample planning state, not implemented product behavior
-- first-run import UI is status and inspection only; it does not execute imports,
+- first-run import UI can execute bounded GitHub evidence import through the
+  shared import boundary; it does not run background import orchestration,
   persist approval decisions, or promote candidate memory to canonical truth
 
 ## Where To Look In Code

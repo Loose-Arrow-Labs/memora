@@ -151,6 +151,16 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</article>");
         body.AppendLine("</section>");
 
+        body.AppendLine("<section class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Run GitHub Import</h2><p class=\"muted\">Attach or confirm one GitHub repository, then run a bounded evidence import through the shared import services.</p></div>");
+        body.AppendLine(RenderGitHubImportForm(page));
+        body.AppendLine("</section>");
+
+        if (page.GitHubImportResult is not null)
+        {
+            body.AppendLine(RenderGitHubImportResult(page.GitHubImportResult));
+        }
+
         body.AppendLine("<section class=\"two-up\">");
         body.AppendLine("<article class=\"panel\">");
         body.AppendLine("<div class=\"panel-header\"><h2>Repository Identity</h2><p class=\"muted\">Source repositories are evidence sources; the Memora workspace stays app-managed.</p></div>");
@@ -507,6 +517,75 @@ internal static class OperatorShellPageRenderer
         html.AppendLine($"<div><dt>Selected mode</dt><dd>{Encode(FormatImportMode(page.SelectedImportMode))}</dd></div>");
         html.AppendLine($"<div><dt>Selection source</dt><dd>{Encode(FormatImportModeSelection(page.ImportModeSelectionSource))}</dd></div>");
         html.AppendLine("</dl>");
+        return html.ToString();
+    }
+
+    private static string RenderGitHubImportForm(FirstRunImportStatusPage page)
+    {
+        var html = new StringBuilder();
+        html.AppendLine($"<form method=\"post\" action=\"/projects/{Encode(page.ProjectId)}/first-run-import/github\" class=\"edit-form import-run-form\">");
+        html.AppendLine("<label><span>GitHub remote URL</span>");
+        html.AppendLine($"<input type=\"url\" name=\"remoteUrl\" placeholder=\"https://github.com/owner/repo.git\" value=\"{Encode(page.SuggestedGitHubRemoteUrl)}\" /></label>");
+        html.AppendLine("<label><span>Import mode for this run</span>");
+        html.AppendLine("<select name=\"importMode\">");
+        foreach (var mode in Enum.GetValues<ImportMode>())
+        {
+            var selected = mode == page.SelectedImportMode ? " selected" : string.Empty;
+            html.AppendLine($"<option value=\"{Encode(mode.ToSchemaValue())}\"{selected}>{Encode(FormatImportMode(mode))}</option>");
+        }
+
+        html.AppendLine("</select></label>");
+        html.AppendLine("<label><span>Max items per GitHub evidence type</span>");
+        html.AppendLine("<input type=\"number\" name=\"maxItems\" min=\"1\" max=\"100\" value=\"25\" /></label>");
+        html.AppendLine("<button class=\"button\" type=\"submit\">Run bounded GitHub import</button>");
+        html.AppendLine("<p class=\"muted\">Uses the local GitHub CLI authentication status. Imported evidence is still filtered for secrets and written as filesystem-backed evidence, not approved project memory.</p>");
+        html.AppendLine("</form>");
+        return html.ToString();
+    }
+
+    private static string RenderGitHubImportResult(FirstRunGitHubImportRunResult result)
+    {
+        var html = new StringBuilder();
+        var panelClass = result.IsSuccess ? "panel note" : "panel alert";
+        html.AppendLine($"<section class=\"{panelClass}\">");
+        html.AppendLine("<div class=\"panel-header\"><h2>GitHub Import Result</h2><p class=\"muted\">Result from the latest submitted import action.</p></div>");
+        html.AppendLine($"<p>{Encode(result.Summary)}</p>");
+        html.AppendLine("<dl class=\"stat-grid\">");
+        html.AppendLine($"<div><dt>Mode</dt><dd>{Encode(FormatImportMode(result.ImportMode))}</dd></div>");
+        html.AppendLine($"<div><dt>Max Items</dt><dd>{Encode(result.MaxItems.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Total Records</dt><dd>{Encode(result.TotalRecords.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Created Records</dt><dd>{Encode(result.CreatedRecords.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Existing Records</dt><dd>{Encode(result.ExistingRecords.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Issues</dt><dd>{Encode(result.IssueCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Pull Requests</dt><dd>{Encode(result.PullRequestCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Reviews</dt><dd>{Encode(result.ReviewCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Review Comments</dt><dd>{Encode(result.ReviewCommentCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Commits</dt><dd>{Encode(result.CommitCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Releases</dt><dd>{Encode(result.ReleaseCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Discussions</dt><dd>{Encode(result.DiscussionCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine("</dl>");
+
+        if (result.Diagnostics.Count > 0)
+        {
+            html.AppendLine("<h3>Diagnostics</h3>");
+            html.AppendLine("<ul class=\"list diagnostic-list\">");
+            foreach (var diagnostic in result.Diagnostics)
+            {
+                html.AppendLine("<li>");
+                html.AppendLine($"<span class=\"badge diagnostic-{Encode(diagnostic.Severity.ToLowerInvariant())}\">{Encode(diagnostic.Severity)}</span> ");
+                html.AppendLine($"<code>{Encode(diagnostic.Code)}</code>: {Encode(diagnostic.Message)}");
+                if (!string.IsNullOrWhiteSpace(diagnostic.Path))
+                {
+                    html.AppendLine($"<br><span class=\"muted\">{Encode(diagnostic.Path)}</span>");
+                }
+
+                html.AppendLine("</li>");
+            }
+
+            html.AppendLine("</ul>");
+        }
+
+        html.AppendLine("</section>");
         return html.ToString();
     }
 

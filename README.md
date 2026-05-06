@@ -97,7 +97,7 @@ This checkout includes working slices across:
 - Codex and ChatGPT-oriented local workflow samples over the current companion API path
 - runtime-facing prototype and compatibility validation for context, proposal, update, and outcome flows across MCP and OpenAPI
 - controlled automation policy models, safe trigger evaluation, and a guarded session-summary direct-write prototype
-- a styled local operator UI with approval review navigation, first-run import status, clearer revision diffs, a context viewer route, and an understanding-output route
+- a styled local operator UI with approval review navigation, first-run import status, bounded GitHub import execution, clearer revision diffs, a context viewer route, and an understanding-output route
 - operator workflow guidance for review, draft editing, diff inspection, and rebuild recovery
 - sample workspace artifacts that capture the next IDE review boundary work as draft project memory
 
@@ -107,7 +107,7 @@ Important limits still apply:
 - controlled automation is limited to explicit policy checks and non-canonical session-summary writes
 - no semantic or vector retrieval executes in core v1; hybrid retrieval means advisory discovery plus deterministic governed assembly, not probabilistic core truth
 - the UI shows review previews and inactive approval decision controls, but it does not persist approval or rejection decisions
-- the first-run UI is status and inspection only; it does not execute imports or promote candidates
+- the first-run UI can execute bounded GitHub evidence import through local `gh` authentication, but it does not promote candidates
 - the MCP layer is currently a thin in-process adapter surface, not a production transport host
 - provider-facing runtime alignment is shared-contract based; hosted transport, remote reachability, authentication, and provider-specific attachment work remain follow-up scope
 
