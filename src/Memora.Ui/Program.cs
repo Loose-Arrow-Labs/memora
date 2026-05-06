@@ -1,4 +1,5 @@
 using Memora.Ui.ContextViewer;
+using Memora.Ui.FirstRunImport;
 using Memora.Ui.Operator;
 using Memora.Ui.Rendering;
 using Memora.Ui.Understanding;
@@ -11,6 +12,11 @@ builder.Services.AddSingleton(sp =>
         sp.GetRequiredService<IConfiguration>(),
         sp.GetRequiredService<IHostEnvironment>()));
 builder.Services.AddSingleton<LocalOperatorWorkspaceService>();
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<OperatorShellOptions>();
+    return new FileSystemFirstRunImportStatusService(options.NormalizedWorkspacesRootPath);
+});
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<OperatorShellOptions>();
@@ -107,6 +113,20 @@ app.MapGet(
         }
 
         var html = OperatorShellPageRenderer.RenderQueue(options, service.GetProjects(), snapshot);
+        return Results.Content(html, "text/html");
+    });
+
+app.MapGet(
+    "/projects/{projectId}/first-run-import",
+    (string projectId, string? importMode, FileSystemFirstRunImportStatusService importStatusService, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    {
+        var page = importStatusService.TryBuildPage(projectId, importMode);
+        if (page is null)
+        {
+            return Results.NotFound();
+        }
+
+        var html = OperatorShellPageRenderer.RenderFirstRunImport(options, service.GetProjects(), page);
         return Results.Content(html, "text/html");
     });
 
