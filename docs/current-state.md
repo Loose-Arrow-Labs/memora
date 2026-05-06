@@ -98,6 +98,8 @@ It is intentionally separate from roadmap and milestone planning docs.
   approval workflow with filesystem-backed persistence
 - trust dashboard summary for pending proposals, stale drafts, relationship and
   rebuild diagnostics, missing project memory, and import warnings
+- grouped operator navigation for review, observe, trust, and configure
+  surfaces
 - first-run import status page showing attached repository identity, selected
   import mode, progress, evidence counts, warnings, candidate source and
   disposition, readiness report details, and next actions

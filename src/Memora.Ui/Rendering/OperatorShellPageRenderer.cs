@@ -663,23 +663,33 @@ internal static class OperatorShellPageRenderer
     {
         var html = new StringBuilder();
         html.AppendLine("<nav class=\"topnav\" aria-label=\"Primary navigation\">");
-        html.AppendLine("<a href=\"/\">Home</a>");
+        html.AppendLine("<div class=\"nav-group\"><span>Configure</span><a href=\"/\">Home</a>");
 
         if (!string.IsNullOrWhiteSpace(selectedProjectId))
         {
             var projectId = Encode(selectedProjectId);
             html.AppendLine($"<a href=\"/projects/{projectId}\">Artifacts</a>");
-            html.AppendLine($"<a href=\"/projects/{projectId}/first-run-import\">First Run</a>");
+            html.AppendLine("</div>");
+            html.AppendLine("<div class=\"nav-group\"><span>Review</span>");
             html.AppendLine($"<a href=\"/projects/{projectId}/queue\">Queue</a>");
             html.AppendLine($"<a href=\"/projects/{projectId}/proposals\">Proposals</a>");
+            html.AppendLine("</div>");
+            html.AppendLine("<div class=\"nav-group\"><span>Trust</span>");
             html.AppendLine($"<a href=\"/projects/{projectId}/trust\">Trust</a>");
+            html.AppendLine("</div>");
+            html.AppendLine("<div class=\"nav-group\"><span>Observe</span>");
+            html.AppendLine($"<a href=\"/projects/{projectId}/first-run-import\">First Run</a>");
             html.AppendLine($"<a href=\"/context-viewer?projectId={projectId}\">Context</a>");
             html.AppendLine($"<a href=\"/understanding?projectId={projectId}\">Understanding</a>");
+            html.AppendLine("</div>");
         }
         else
         {
+            html.AppendLine("</div>");
+            html.AppendLine("<div class=\"nav-group\"><span>Observe</span>");
             html.AppendLine("<a href=\"/context-viewer\">Context</a>");
             html.AppendLine("<a href=\"/understanding\">Understanding</a>");
+            html.AppendLine("</div>");
         }
 
         html.AppendLine("</nav>");
@@ -1239,7 +1249,9 @@ code, pre { overflow-wrap: anywhere; word-break: break-word; }
 .brand-block { min-width: 0; }
 .brand { font-size: 1.4rem; font-weight: 700; text-decoration: none; }
 .topbar-copy, .muted { color: #695748; overflow-wrap: anywhere; }
-.topnav { display: flex; flex-wrap: wrap; gap: 8px; }
+.topnav { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.nav-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px; border: 1px solid rgba(91, 56, 35, 0.12); border-radius: 16px; background: rgba(255, 255, 255, 0.34); }
+.nav-group span { color: #8a6041; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0 4px; }
 .topnav a { display: inline-flex; align-items: center; min-height: 34px; padding: 7px 10px; border: 1px solid rgba(125, 52, 31, 0.18); border-radius: 999px; background: rgba(255, 255, 255, 0.52); color: #7d341f; text-decoration: none; }
 .selector { display: grid; grid-template-columns: 1fr; gap: 4px; min-width: 0; max-width: 100%; }
 .selector-title { font-size: 0.92rem; }
@@ -1311,6 +1323,7 @@ pre { white-space: pre-wrap; margin: 0; }
   .shell { padding: 16px; }
   .topbar { grid-template-columns: 1fr; align-items: stretch; }
   .topnav { gap: 6px; }
+  .nav-group { flex: 1 1 100%; }
   .topnav a { flex: 1 1 auto; justify-content: center; }
   .hero, .panel, .project-card, .section-card { border-radius: 22px; padding: 24px; }
   .hero.compact h1 { font-size: 1.9rem; }

@@ -55,6 +55,10 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
         Assert.Contains("CHR-001.r0001.md", html);
         Assert.Contains("Primary navigation", html);
         Assert.Contains(">Understanding</a>", html);
+        Assert.Contains(">Review</span>", html);
+        Assert.Contains(">Observe</span>", html);
+        Assert.Contains(">Trust</span>", html);
+        Assert.Contains(">Configure</span>", html);
     }
 
     [Fact]
