@@ -163,6 +163,36 @@ app.MapGet(
         return Results.Content(html, "text/html");
     });
 
+app.MapPost(
+    "/projects/{projectId}/review/decision",
+    async (string projectId, HttpRequest request, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    {
+        var form = await request.ReadFormAsync();
+        var relativePath = form["path"].ToString();
+        var decisionValue = form["decision"].ToString();
+
+        if (string.IsNullOrWhiteSpace(relativePath) ||
+            !Enum.TryParse<OperatorReviewDecision>(decisionValue, ignoreCase: true, out var decision))
+        {
+            return Results.BadRequest();
+        }
+
+        var result = service.ApplyReviewDecision(projectId, relativePath, decision);
+        if (result.IsSuccess)
+        {
+            return Results.Redirect($"/projects/{Uri.EscapeDataString(projectId)}/queue");
+        }
+
+        var artifactView = service.TryGetArtifactView(projectId, relativePath);
+        if (result.IsNotFound || artifactView is null)
+        {
+            return Results.NotFound();
+        }
+
+        var html = OperatorShellPageRenderer.RenderReview(options, service.GetProjects(), artifactView, result.ValidationErrors);
+        return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
+    });
+
 app.MapGet(
     "/context-viewer",
     (HttpRequest request, FileSystemContextViewerService service) =>
