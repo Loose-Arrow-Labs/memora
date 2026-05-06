@@ -59,16 +59,19 @@ It is intentionally separate from roadmap and milestone planning docs.
 ### Integration Surfaces
 
 - local HTTP endpoints in `Memora.Api` for:
-  - project lookup
+  - project lookup with repository attachment and imported readiness state
   - context assembly
   - artifact proposals
   - artifact updates
   - outcome recording
 - a thin MCP adapter in `Memora.Mcp` over the shared agent interaction contract
 - MCP tools for `get_context`, `propose_artifact`, `propose_update`, and `record_outcome`
-- MCP resource template `memora://projects/{projectId}`
+- MCP resource template `memora://projects/{projectId}` exposing project
+  metadata, repository attachments, and imported readiness state
 - a provider-agnostic external runtime contract definition shared by MCP and OpenAPI
 - byte-equal compatibility validation for the serialized state view across MCP and OpenAPI paths
+- protocol parity validation for imported project readiness state across MCP and
+  OpenAPI project lookup
 - a documented Machina-to-Memora interaction model that keeps runtime execution outside Memora
 - runtime-facing prototype coverage for deterministic context retrieval, proposal submission, update proposal submission, and outcome recording through the current OpenAPI path
 - Codex external workflow sample that performs project lookup, context retrieval, proposal submission, and outcome recording

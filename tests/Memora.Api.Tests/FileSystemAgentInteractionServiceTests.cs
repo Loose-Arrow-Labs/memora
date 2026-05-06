@@ -2,7 +2,10 @@ using Memora.Api.Services;
 using Memora.Core.AgentInteraction;
 using Memora.Core.Artifacts;
 using Memora.Core.Automation;
+using Memora.Core.Import;
 using Memora.Core.Projects;
+using Memora.Import.Evidence;
+using Memora.Import.Readiness;
 using Memora.Storage.Persistence;
 using Memora.Storage.Workspaces;
 
@@ -51,6 +54,54 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
         var attachment = Assert.Single(response.RepositoryAttachments);
         Assert.Equal("ATT-123", attachment.AttachmentId);
         Assert.Equal("github:https://github.com/alucero270/memora.git", attachment.RepositoryIdentity);
+    }
+
+    [Fact]
+    public void GetProject_ReturnsImportedReadinessStateForAttachedWorkspace()
+    {
+        var workspace = CreateWorkspace("memora");
+        File.WriteAllText(
+            workspace.ProjectMetadataPath,
+            """
+            {
+              "projectId": "memora",
+              "name": "Memora",
+              "status": "active",
+              "repositoryAttachments": [
+                {
+                  "attachmentId": "ATT-123",
+                  "projectId": "memora",
+                  "kind": "github",
+                  "repositoryIdentity": "github:https://github.com/alucero270/memora.git",
+                  "remoteUrl": "https://github.com/alucero270/memora.git",
+                  "defaultBranch": "main",
+                  "originRemoteName": "origin",
+                  "originUrl": "https://github.com/alucero270/memora.git",
+                  "attachedAtUtc": "2026-05-05T18:00:00Z"
+                }
+              ]
+            }
+            """);
+        SeedFirstRunImport(workspace.RootPath, workspace.ProjectId);
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.GetProject("memora");
+
+        Assert.True(response.IsSuccess);
+        var readiness = Assert.IsType<ImportedProjectReadinessState>(response.ImportReadiness);
+        Assert.True(readiness.HasReadinessReport);
+        Assert.True(readiness.GroundedContextReady);
+        Assert.Equal("summaries/first-run-readiness.json", readiness.ReadinessReportPath);
+        Assert.Equal(3, readiness.EvidenceRecordCount);
+        Assert.Equal(1, readiness.BaselineEvidenceCount);
+        Assert.Equal(1, readiness.CanonicalEvidenceCount);
+        Assert.Equal(1, readiness.ReviewableEvidenceCount);
+        Assert.Equal(3, readiness.CandidateCount);
+        Assert.Equal(1, readiness.EvidenceDerivedCandidateCount);
+        Assert.Equal(1, readiness.InferredCandidateCount);
+        Assert.Equal(1, readiness.AdvisoryCandidateCount);
+        Assert.Equal(1, readiness.FutureAdvisoryGapCount);
+        Assert.Contains("Advisory discovery can inspect CI for extra readiness hints.", readiness.AdvisoryDiscoveryGaps);
     }
 
     [Fact]
@@ -448,4 +499,106 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
                 ["Consequences"] = "Updates must stay proposal-only."
             },
             "2026-04-17");
+
+    private static void SeedFirstRunImport(string workspaceRootPath, string projectId)
+    {
+        var importedAtUtc = new DateTimeOffset(2026, 5, 6, 9, 0, 0, TimeSpan.Zero);
+        var records = new[]
+        {
+            new ImportedEvidenceRecord(
+                "local-commit-001",
+                projectId,
+                ImportedEvidenceSourceType.LocalGitCommit,
+                "ATT-123",
+                "github:https://github.com/alucero270/memora.git",
+                "abc1234",
+                "feat(import): add readiness",
+                "Changed source files.",
+                importedAtUtc.AddMinutes(-10),
+                importedAtUtc,
+                "git commit abc1234",
+                ImportedEvidenceTrustState.BaselineEvidence),
+            new ImportedEvidenceRecord(
+                "github-pr-244",
+                projectId,
+                ImportedEvidenceSourceType.GitHubPullRequest,
+                "ATT-123",
+                "github:https://github.com/alucero270/memora.git",
+                "https://github.com/alucero270/memora/pull/244",
+                "M10-07 UI",
+                "Draft pull request evidence.",
+                importedAtUtc.AddMinutes(-5),
+                importedAtUtc,
+                "github pull request #244",
+                ImportedEvidenceTrustState.ReviewableEvidence),
+            new ImportedEvidenceRecord(
+                "github-release-001",
+                projectId,
+                ImportedEvidenceSourceType.GitHubRelease,
+                "ATT-123",
+                "github:https://github.com/alucero270/memora.git",
+                "v0.10.0",
+                "Milestone readiness release",
+                "Release evidence.",
+                importedAtUtc.AddMinutes(-3),
+                importedAtUtc,
+                "github release v0.10.0",
+                ImportedEvidenceTrustState.CanonicalEvidence)
+        };
+
+        new FileBackedImportedEvidenceStore()
+            .Save(new ProjectEvidenceWriteRequest(workspaceRootPath, records));
+
+        var candidates = new[]
+        {
+            new CandidateMemoryRecord(
+                "candidate-repo-structure",
+                CandidateMemoryKind.RepoStructure,
+                CandidateMemorySource.EvidenceDerived,
+                "Imported UI area",
+                "Direct evidence references UI files.",
+                0.9,
+                "Ownership still needs review.",
+                "Grouped changed-file paths.",
+                CandidateMemoryDisposition.BaselineMemory,
+                ["local-commit-001"]),
+            new CandidateMemoryRecord(
+                "candidate-style",
+                CandidateMemoryKind.ContributionStyle,
+                CandidateMemorySource.Inferred,
+                "Use scoped prefixes",
+                "Titles suggest conventional commit prefixes.",
+                0.7,
+                "Style inference needs review.",
+                "Matched commit title pattern.",
+                CandidateMemoryDisposition.ReviewRequired,
+                ["local-commit-001"]),
+            new CandidateMemoryRecord(
+                "candidate-advisory",
+                CandidateMemoryKind.OpenQuestion,
+                CandidateMemorySource.Advisory,
+                "Inspect CI later",
+                "Advisory discovery can suggest missing CI details later.",
+                0.5,
+                "Future advisory candidate is not approved meaning.",
+                "Recorded advisory gap.",
+                CandidateMemoryDisposition.ReviewRequired,
+                ["github-pr-244"])
+        };
+
+        var report = new AgentReadinessReport(
+            projectId,
+            importedAtUtc.AddMinutes(1),
+            records.Length,
+            candidates.Length,
+            ReadyForAgentUse: true,
+            MissingContext: [],
+            MissingTests: [],
+            RiskyModules: [],
+            AdvisoryDiscoveryGaps: ["Advisory discovery can inspect CI for extra readiness hints."],
+            NextReviewSteps: ["Review inferred and advisory candidates before promotion."]);
+
+        new FileBackedFirstRunReportStore()
+            .Save(workspaceRootPath, new FirstRunMemoryGenerationResult(candidates, report));
+    }
 }

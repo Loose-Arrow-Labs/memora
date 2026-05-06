@@ -84,7 +84,7 @@ public sealed class MemoraMcpServer
             new McpToolBinding(
                 new McpToolDefinition(
                     "get_context",
-                    "Retrieve a deterministic context bundle for a project task.",
+                    "Retrieve grounded context for a project task through deterministic assembly.",
                     nameof(GetContextRequest),
                     nameof(GetContextResponse),
                     [new McpErrorContract("context.validation", "The context request did not satisfy shared validation rules.")]),
@@ -130,7 +130,7 @@ public sealed class MemoraMcpServer
         new(
             "memora://projects/{projectId}",
             "project",
-            "Read project metadata for a Memora workspace.",
+            "Read project metadata and imported readiness state for a Memora workspace.",
             nameof(ProjectLookupResponse),
             [
                 new McpErrorContract("mcp.resource.uri.invalid", "The resource URI does not match the published project resource template."),

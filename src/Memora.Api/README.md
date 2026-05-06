@@ -5,7 +5,7 @@ Exposes Memora capabilities through a local OpenAPI-compatible service.
 
 ## Responsibilities
 - project lookup endpoint
-- deterministic context endpoint
+- governed context endpoint
 - artifact proposal endpoint
 - update proposal endpoint
 - outcome recording endpoint
@@ -25,6 +25,8 @@ Exposes Memora capabilities through a local OpenAPI-compatible service.
 
 - endpoints are minimal and focused on the shared agent interaction contract
 - current routes are project lookup, context retrieval, artifact proposal, update proposal, and outcome recording
+- project lookup includes repository attachment metadata plus imported readiness
+  state when first-run import evidence and reports are present
 - the host publishes a companion OpenAPI document at `/openapi.json`
 - the file-backed path is only active when a workspace root is configured
 - context cache reuse is derived from freshly loaded filesystem artifacts and never replaces filesystem truth

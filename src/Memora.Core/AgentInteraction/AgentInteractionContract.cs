@@ -121,13 +121,15 @@ public sealed record ProjectLookupResponse : AgentInteractionResponse
         string? name,
         string? status,
         IReadOnlyList<AgentInteractionError> errors,
-        IReadOnlyList<ProjectRepositoryAttachment>? repositoryAttachments = null)
+        IReadOnlyList<ProjectRepositoryAttachment>? repositoryAttachments = null,
+        ImportedProjectReadinessState? importReadiness = null)
         : base(errors)
     {
         ProjectId = AgentInteractionContractHelpers.RequireValue(projectId, nameof(projectId), "Project id is required.");
         Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
         Status = string.IsNullOrWhiteSpace(status) ? null : status.Trim();
         RepositoryAttachments = repositoryAttachments?.ToArray() ?? [];
+        ImportReadiness = importReadiness;
     }
 
     public string ProjectId { get; }
@@ -137,6 +139,77 @@ public sealed record ProjectLookupResponse : AgentInteractionResponse
     public string? Status { get; }
 
     public IReadOnlyList<ProjectRepositoryAttachment> RepositoryAttachments { get; }
+
+    public ImportedProjectReadinessState? ImportReadiness { get; }
+}
+
+public sealed record ImportedProjectReadinessState(
+    string? ReadinessReportPath,
+    bool HasReadinessReport,
+    bool GroundedContextReady,
+    int EvidenceRecordCount,
+    int CandidateCount,
+    int BaselineEvidenceCount,
+    int CanonicalEvidenceCount,
+    int ReviewableEvidenceCount,
+    int EvidenceDerivedCandidateCount,
+    int InferredCandidateCount,
+    int AdvisoryCandidateCount,
+    int FutureAdvisoryGapCount,
+    IReadOnlyList<string> AdvisoryDiscoveryGaps,
+    IReadOnlyList<string> MissingContext,
+    IReadOnlyList<string> MissingTests,
+    IReadOnlyList<string> RiskyModules,
+    IReadOnlyList<string> NextReviewSteps,
+    IReadOnlyList<ImportedProjectReadinessDiagnostic>? Diagnostics = null)
+{
+    public string? ReadinessReportPath { get; } = string.IsNullOrWhiteSpace(ReadinessReportPath) ? null : ReadinessReportPath.Trim();
+    public bool HasReadinessReport { get; } = HasReadinessReport;
+    public bool GroundedContextReady { get; } = GroundedContextReady;
+    public int EvidenceRecordCount { get; } = EvidenceRecordCount >= 0
+        ? EvidenceRecordCount
+        : throw new ArgumentOutOfRangeException(nameof(EvidenceRecordCount));
+    public int CandidateCount { get; } = CandidateCount >= 0
+        ? CandidateCount
+        : throw new ArgumentOutOfRangeException(nameof(CandidateCount));
+    public int BaselineEvidenceCount { get; } = BaselineEvidenceCount >= 0
+        ? BaselineEvidenceCount
+        : throw new ArgumentOutOfRangeException(nameof(BaselineEvidenceCount));
+    public int CanonicalEvidenceCount { get; } = CanonicalEvidenceCount >= 0
+        ? CanonicalEvidenceCount
+        : throw new ArgumentOutOfRangeException(nameof(CanonicalEvidenceCount));
+    public int ReviewableEvidenceCount { get; } = ReviewableEvidenceCount >= 0
+        ? ReviewableEvidenceCount
+        : throw new ArgumentOutOfRangeException(nameof(ReviewableEvidenceCount));
+    public int EvidenceDerivedCandidateCount { get; } = EvidenceDerivedCandidateCount >= 0
+        ? EvidenceDerivedCandidateCount
+        : throw new ArgumentOutOfRangeException(nameof(EvidenceDerivedCandidateCount));
+    public int InferredCandidateCount { get; } = InferredCandidateCount >= 0
+        ? InferredCandidateCount
+        : throw new ArgumentOutOfRangeException(nameof(InferredCandidateCount));
+    public int AdvisoryCandidateCount { get; } = AdvisoryCandidateCount >= 0
+        ? AdvisoryCandidateCount
+        : throw new ArgumentOutOfRangeException(nameof(AdvisoryCandidateCount));
+    public int FutureAdvisoryGapCount { get; } = FutureAdvisoryGapCount >= 0
+        ? FutureAdvisoryGapCount
+        : throw new ArgumentOutOfRangeException(nameof(FutureAdvisoryGapCount));
+    public IReadOnlyList<string> AdvisoryDiscoveryGaps { get; } = AgentInteractionContractHelpers.NormalizeValues(AdvisoryDiscoveryGaps);
+    public IReadOnlyList<string> MissingContext { get; } = AgentInteractionContractHelpers.NormalizeValues(MissingContext);
+    public IReadOnlyList<string> MissingTests { get; } = AgentInteractionContractHelpers.NormalizeValues(MissingTests);
+    public IReadOnlyList<string> RiskyModules { get; } = AgentInteractionContractHelpers.NormalizeValues(RiskyModules);
+    public IReadOnlyList<string> NextReviewSteps { get; } = AgentInteractionContractHelpers.NormalizeValues(NextReviewSteps);
+    public IReadOnlyList<ImportedProjectReadinessDiagnostic> Diagnostics { get; } =
+        Diagnostics?.ToArray() ?? [];
+}
+
+public sealed record ImportedProjectReadinessDiagnostic(
+    string Code,
+    string Message,
+    string? Path = null)
+{
+    public string Code { get; } = AgentInteractionContractHelpers.RequireValue(Code, nameof(Code), "Diagnostic code is required.");
+    public string Message { get; } = AgentInteractionContractHelpers.RequireValue(Message, nameof(Message), "Diagnostic message is required.");
+    public string? Path { get; } = string.IsNullOrWhiteSpace(Path) ? null : Path.Trim();
 }
 
 public sealed record ArtifactProposalContent
