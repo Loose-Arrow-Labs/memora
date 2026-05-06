@@ -22,6 +22,10 @@ It is intentionally separate from roadmap and milestone planning docs.
   branches, tags, changed-file summaries, changelog/release signals,
   stable evidence ids, idempotent JSON persistence under `evidence/`, and
   bounded diagnostics
+- GitHub evidence normalization and import for attached GitHub repositories,
+  including issues, pull requests, reviews, review comments, commits, releases,
+  optional discussion metadata from client snapshots, stable provenance, partial
+  import diagnostics, and idempotent JSON persistence under `evidence/`
 - SQLite schema plus rebuild-from-files indexing in `Memora.Index`
 - typed relationship indexing and direct, dependency, and impact traceability queries over approved artifacts
 - rebuild diagnostics distinguish filesystem truth from derived SQLite index state
@@ -93,8 +97,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - controlled automation does not provide a general direct-write path and does not write canonical artifacts
 - IDE review is captured as draft/sample planning state, not implemented product behavior
 - first-run import currently covers repository attachment and local Git evidence
-  import only; GitHub evidence import, secret filtering, generated candidates,
-  readiness reporting, and UI review remain M10 follow-up slices
+  import plus GitHub evidence normalization/import; secret filtering, generated
+  candidates, readiness reporting, and UI review remain M10 follow-up slices
 
 ## Where To Look In Code
 
@@ -114,6 +118,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 
 - `src/Memora.Import/Attachment/RepositoryAttachmentService.cs`
 - `src/Memora.Import/Evidence/FileBackedImportedEvidenceStore.cs`
+- `src/Memora.Import/GitHub/GitHubEvidenceImporter.cs`
+- `src/Memora.Import/GitHub/GitHubCliEvidenceClient.cs`
 - `src/Memora.Import/Git/LocalGitEvidenceImporter.cs`
 - `src/Memora.Import/Git/ProcessGitRepositoryInspector.cs`
 
