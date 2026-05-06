@@ -255,6 +255,58 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
         Assert.Contains("status: deprecated", await File.ReadAllTextAsync(draftPath), StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(workspaceRoot, "canonical", "plans", "PLN-996.r0001.md")));
     }
+
+    [Fact]
+    public async Task Proposal_page_renders_pending_proposals_as_non_canonical()
+    {
+        using var factory = new OperatorShellFactory();
+        var proposalDirectory = Path.Combine(factory.WorkspacesRootPath, "demo-project", "drafts", "plan");
+        Directory.CreateDirectory(proposalDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(proposalDirectory, "PLN-999.r0001.md"),
+            """
+            ---
+            id: PLN-999
+            project_id: demo-project
+            type: plan
+            status: proposed
+            title: Proposed review workflow
+            created_at: 2026-05-06T10:00:00Z
+            updated_at: 2026-05-06T10:00:00Z
+            revision: 1
+            tags:
+              - review
+            provenance: agent
+            reason: show pending proposals in the operator review interface
+            links:
+              depends_on: []
+              affects: []
+              derived_from: []
+              supersedes: []
+            priority: normal
+            active: false
+            ---
+            ## Goal
+            Show pending proposals.
+
+            ## Scope
+            Keep proposal review separate from approved truth.
+
+            ## Acceptance Criteria
+            - proposed artifacts are visible
+
+            ## Notes
+            This is review-only input.
+            """);
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync("/projects/demo-project/proposals");
+
+        Assert.Contains("Proposal Review", html, StringComparison.Ordinal);
+        Assert.Contains("Proposed review workflow", html, StringComparison.Ordinal);
+        Assert.Contains("Non-canonical", html, StringComparison.Ordinal);
+        Assert.Contains("Inspect proposal details and diff", html, StringComparison.Ordinal);
+    }
 }
 
 public sealed class OperatorShellFactory : WebApplicationFactory<Program>
