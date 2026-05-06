@@ -92,7 +92,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - styled local operator shell in `Memora.Ui`
 - project selection from discovered workspaces
 - artifact browsing and draft editing
-- approval queue navigation, revision review previews, and decision-readiness context
+- approval queue navigation, proposal review listing, revision review previews,
+  and decision-readiness context
 - first-run import status page showing attached repository identity, selected
   import mode, progress, evidence counts, warnings, candidate source and
   disposition, readiness report details, and next actions

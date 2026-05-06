@@ -245,7 +245,13 @@ public sealed record OperatorPendingReviewItem(
 public sealed record OperatorProjectSnapshot(
     ProjectWorkspace Workspace,
     IReadOnlyList<OperatorArtifactRecord> Artifacts,
-    IReadOnlyList<OperatorPendingReviewItem> PendingItems);
+    IReadOnlyList<OperatorPendingReviewItem> PendingItems)
+{
+    public IReadOnlyList<OperatorPendingReviewItem> ProposedItems { get; } =
+        PendingItems
+            .Where(item => item.QueueItem.PendingStatus == ArtifactStatus.Proposed)
+            .ToArray();
+}
 
 public sealed record OperatorArtifactView(
     OperatorProjectSnapshot Project,
