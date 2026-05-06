@@ -14,7 +14,9 @@
     "onView:memoraReviewInbox",
     "onCommand:memoraReviewInbox.refresh",
     "onCommand:memoraReviewInbox.openPreview",
-    "onCommand:memoraReviewInbox.openFile"
+    "onCommand:memoraReviewInbox.openFile",
+    "onCommand:memoraReviewInbox.approve",
+    "onCommand:memoraReviewInbox.reject"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -48,6 +50,16 @@
         "command": "memoraReviewInbox.openFile",
         "title": "Open Memora Artifact File",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "memoraReviewInbox.approve",
+        "title": "Approve Memora Artifact",
+        "icon": "$(check)"
+      },
+      {
+        "command": "memoraReviewInbox.reject",
+        "title": "Reject Memora Artifact",
+        "icon": "$(close)"
       }
     ],
     "views": {
@@ -68,9 +80,19 @@
       ],
       "view/item/context": [
         {
-          "command": "memoraReviewInbox.openPreview",
+          "command": "memoraReviewInbox.approve",
           "when": "view == memoraReviewInbox && viewItem == memoraReviewInboxItem",
           "group": "inline"
+        },
+        {
+          "command": "memoraReviewInbox.reject",
+          "when": "view == memoraReviewInbox && viewItem == memoraReviewInboxItem",
+          "group": "inline"
+        },
+        {
+          "command": "memoraReviewInbox.openPreview",
+          "when": "view == memoraReviewInbox && viewItem == memoraReviewInboxItem",
+          "group": "navigation"
         },
         {
           "command": "memoraReviewInbox.openFile",

@@ -65,7 +65,8 @@ It is intentionally separate from roadmap and milestone planning docs.
   - artifact proposals
   - artifact updates
   - outcome recording
-  - review inbox listing and artifact preview for IDE clients
+  - review inbox listing, artifact preview, and governed review decisions for
+    IDE clients
 - a thin MCP adapter in `Memora.Mcp` over the shared agent interaction contract
 - MCP tools for `get_context`, `propose_artifact`, `propose_update`, and `record_outcome`
 - MCP resource template `memora://projects/{projectId}` exposing project
@@ -79,8 +80,9 @@ It is intentionally separate from roadmap and milestone planning docs.
 - Codex external workflow sample that performs project lookup, context retrieval, proposal submission, and outcome recording
 - ChatGPT-oriented sample that validates the current read-only state-view path
 - shared compatibility validation across the current MCP and OpenAPI runtime-facing surfaces
-- VS Code/Cursor review inbox extension that lists draft/proposed artifacts and
-  opens API-backed read-only previews without promoting them to canonical truth
+- VS Code/Cursor review extension that lists draft/proposed artifacts, opens
+  API-backed read-only previews, and routes approve/reject decisions through
+  Memora's governed filesystem-backed workflow
 
 ### Controlled Automation
 
@@ -130,8 +132,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - cached context packages are derived convenience and never replace filesystem truth
 - rebuild diagnostics identify filesystem issues, but they do not auto-repair artifacts or indexes
 - controlled automation does not provide a general direct-write path and does not write canonical artifacts
-- IDE review currently supports inbox inspection and preview only; approve and
-  reject actions remain outside the IDE extension in this slice
+- IDE review decisions are routed through the local API and governed workflow;
+  the IDE extension still does not directly mutate canonical files
 - first-run import UI is status and inspection only; it does not execute imports,
   persist approval decisions, or promote candidate memory to canonical truth
 

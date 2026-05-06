@@ -28,6 +28,7 @@ public sealed class AgentInteractionApiTests
         Assert.True(root.GetProperty("paths").TryGetProperty("/api/outcomes", out _));
         Assert.True(root.GetProperty("paths").TryGetProperty("/api/projects/{projectId}/review/inbox", out _));
         Assert.True(root.GetProperty("paths").TryGetProperty("/api/projects/{projectId}/review/preview", out _));
+        Assert.True(root.GetProperty("paths").TryGetProperty("/api/projects/{projectId}/review/decisions", out _));
     }
 
     [Fact]
@@ -134,6 +135,26 @@ public sealed class AgentInteractionApiTests
     }
 
     [Fact]
+    public async Task PostReviewDecision_ReturnsGovernedDecisionContractForIdeClients()
+    {
+        using var factory = CreateFactory(new TestAgentInteractionService());
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/projects/memora/review/decisions",
+            new ReviewDecisionRequest("drafts/decision/ADR-002.r0001.md", "reject"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ReviewDecisionResponse>();
+        Assert.NotNull(payload);
+        Assert.True(payload.IsSuccess);
+        Assert.Equal("reject", payload.Decision);
+        Assert.NotNull(payload.Item);
+        Assert.Equal(ArtifactStatus.Deprecated, payload.Item.Status);
+        Assert.Equal("Rejected ADR-002 revision 1.", payload.Message);
+    }
+
+    [Fact]
     public async Task ValidationErrors_MapToBadRequest()
     {
         using var factory = CreateFactory(new FailingAgentInteractionService());
@@ -222,11 +243,19 @@ public sealed class AgentInteractionApiTests
                 },
                 []);
 
-        private static ReviewInboxItem CreateReviewInboxItem() =>
+        public ReviewDecisionResponse ApplyReviewDecision(string projectId, ReviewDecisionRequest request) =>
+            new(
+                projectId,
+                request.Decision,
+                CreateReviewInboxItem(ArtifactStatus.Deprecated),
+                "Rejected ADR-002 revision 1.",
+                []);
+
+        private static ReviewInboxItem CreateReviewInboxItem(ArtifactStatus status = ArtifactStatus.Proposed) =>
             new(
                 "ADR-002",
                 ArtifactType.Decision,
-                ArtifactStatus.Proposed,
+                status,
                 "Reviewable decision",
                 1,
                 "agent",

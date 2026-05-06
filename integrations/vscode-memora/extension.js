@@ -30,7 +30,9 @@ function activate(context) {
     treeView,
     vscode.commands.registerCommand('memoraReviewInbox.refresh', () => provider.refresh()),
     vscode.commands.registerCommand('memoraReviewInbox.openPreview', item => openPreview(item)),
-    vscode.commands.registerCommand('memoraReviewInbox.openFile', item => openFile(item))
+    vscode.commands.registerCommand('memoraReviewInbox.openFile', item => openFile(item)),
+    vscode.commands.registerCommand('memoraReviewInbox.approve', item => applyDecision(item, 'approve', provider)),
+    vscode.commands.registerCommand('memoraReviewInbox.reject', item => applyDecision(item, 'reject', provider))
   );
 }
 
@@ -148,9 +150,72 @@ async function openFile(treeItem) {
   }
 }
 
+async function applyDecision(treeItem, decision, provider) {
+  const item = unwrapItem(treeItem);
+  if (!item) {
+    return;
+  }
+
+  const projectId = getProjectId();
+  if (!projectId) {
+    vscode.window.showWarningMessage('Set memora.projectId before applying Memora review decisions.');
+    return;
+  }
+
+  const label = decision === 'approve' ? 'Approve' : 'Reject';
+  const confirmed = await vscode.window.showWarningMessage(
+    `${label} ${item.artifactId} revision ${item.revision}?`,
+    { modal: true },
+    label
+  );
+  if (confirmed !== label) {
+    return;
+  }
+
+  try {
+    const payload = await postJson(`/api/projects/${encodeURIComponent(projectId)}/review/decisions`, {
+      relativePath: item.relativePath || '',
+      decision
+    });
+    const errors = Array.isArray(payload.errors) ? payload.errors : [];
+    if (errors.length > 0) {
+      vscode.window.showErrorMessage(errors.map(error => `${error.code}: ${error.message}`).join('; '));
+      return;
+    }
+
+    vscode.window.showInformationMessage(payload.message || `${label} decision persisted by Memora.`);
+    provider.refresh();
+  } catch (error) {
+    vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+  }
+}
+
 async function fetchJson(path) {
   const baseUrl = getBaseUrl();
   const response = await fetch(`${baseUrl}${path}`);
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : {};
+
+  if (!response.ok) {
+    const errors = Array.isArray(payload.errors) ? payload.errors : [];
+    const message = errors.length > 0
+      ? errors.map(error => `${error.code}: ${error.message}`).join('; ')
+      : `Memora request failed with HTTP ${response.status}.`;
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
+async function postJson(path, body) {
+  const baseUrl = getBaseUrl();
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
   const text = await response.text();
   const payload = text ? JSON.parse(text) : {};
 
