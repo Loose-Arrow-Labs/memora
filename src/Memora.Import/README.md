@@ -18,5 +18,10 @@ repository inspection, evidence intake, safety filtering, and readiness output.
 ## Current Scope
 - repository attachment records are persisted in app-managed workspace metadata
 - source repositories remain evidence sources instead of Memora workspace roots
-- later M10 slices build evidence import, safety filtering, candidate memory,
-  and readiness reporting on this shared layer
+- local Git evidence import stores commits, branches, tags, changed-file
+  summaries, and changelog or release signals as idempotent workspace evidence
+- GitHub evidence import normalizes issues, pull requests, reviews, review
+  comments, commits, releases, and available discussion metadata into the same
+  evidence store
+- later M10 slices build safety filtering, candidate memory, and readiness
+  reporting on this shared layer
