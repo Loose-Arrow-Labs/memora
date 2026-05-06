@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Memora.Core.Import;
 using Memora.Import.Evidence;
+using Memora.Import.Safety;
 using Memora.Storage.Workspaces;
 
 namespace Memora.Import.Git;
@@ -12,13 +13,15 @@ public sealed class LocalGitEvidenceImporter
     private readonly WorkspaceDiscovery _workspaceDiscovery;
     private readonly ILocalGitHistoryReader _historyReader;
     private readonly IImportedEvidenceStore _evidenceStore;
+    private readonly ImportContentSafetyFilter _safetyFilter;
 
     public LocalGitEvidenceImporter(string workspacesRootPath)
         : this(
             workspacesRootPath,
             new WorkspaceDiscovery(),
             new ProcessLocalGitHistoryReader(),
-            new FileBackedImportedEvidenceStore())
+            new FileBackedImportedEvidenceStore(),
+            new ImportContentSafetyFilter())
     {
     }
 
@@ -26,7 +29,8 @@ public sealed class LocalGitEvidenceImporter
         string workspacesRootPath,
         WorkspaceDiscovery workspaceDiscovery,
         ILocalGitHistoryReader historyReader,
-        IImportedEvidenceStore evidenceStore)
+        IImportedEvidenceStore evidenceStore,
+        ImportContentSafetyFilter? safetyFilter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workspacesRootPath);
 
@@ -34,6 +38,7 @@ public sealed class LocalGitEvidenceImporter
         _workspaceDiscovery = workspaceDiscovery ?? throw new ArgumentNullException(nameof(workspaceDiscovery));
         _historyReader = historyReader ?? throw new ArgumentNullException(nameof(historyReader));
         _evidenceStore = evidenceStore ?? throw new ArgumentNullException(nameof(evidenceStore));
+        _safetyFilter = safetyFilter ?? new ImportContentSafetyFilter();
     }
 
     public LocalGitEvidenceImportResult Import(LocalGitEvidenceImportRequest request)
@@ -74,16 +79,34 @@ public sealed class LocalGitEvidenceImporter
         var importedAtUtc = DateTimeOffset.UtcNow;
         var trustState = ImportModeTrustPolicy.GetEvidenceTrustState(request.ImportMode);
         var records = BuildEvidenceRecords(workspace.ProjectId, attachment, historyResult.Snapshot, importedAtUtc, trustState);
-        var persistence = _evidenceStore.Save(new ProjectEvidenceWriteRequest(workspace.RootPath, records));
         var diagnostics = historyResult.Diagnostics.ToList();
+        var safetyResult = _safetyFilter.Filter(records);
+        diagnostics.AddRange(safetyResult.Diagnostics.Select(MapSafetyDiagnostic));
+
+        if (safetyResult.BlocksPersistence)
+        {
+            return new LocalGitEvidenceImportResult(
+                [],
+                new LocalGitImportProgress(
+                    records.Count,
+                    0,
+                    0,
+                    historyResult.Snapshot.Commits.Count,
+                    historyResult.Snapshot.Branches.Count,
+                    historyResult.Snapshot.Tags.Count,
+                    historyResult.Snapshot.ChangelogSignals.Count),
+                diagnostics);
+        }
+
+        var persistence = _evidenceStore.Save(new ProjectEvidenceWriteRequest(workspace.RootPath, safetyResult.Records));
         diagnostics.Add(
             LocalGitImportDiagnostic.Info(
                 "local_git.import.completed",
-                $"Imported {records.Count} local Git evidence record(s). {persistence.CreatedCount} new, {persistence.ExistingCount} already present.",
+                $"Imported {safetyResult.Records.Count} local Git evidence record(s). {persistence.CreatedCount} new, {persistence.ExistingCount} already present.",
                 "evidence"));
 
         return new LocalGitEvidenceImportResult(
-            records,
+            safetyResult.Records,
             new LocalGitImportProgress(
                 records.Count,
                 persistence.CreatedCount,
@@ -283,6 +306,15 @@ public sealed class LocalGitEvidenceImporter
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return $"EVD-{Convert.ToHexString(hash)[..16]}";
     }
+
+    private static LocalGitImportDiagnostic MapSafetyDiagnostic(ImportSafetyDiagnostic diagnostic) =>
+        new(
+            diagnostic.Code,
+            diagnostic.Message,
+            diagnostic.Severity == ImportSafetyDiagnosticSeverity.Error
+                ? LocalGitImportDiagnosticSeverity.Error
+                : LocalGitImportDiagnosticSeverity.Warning,
+            $"{diagnostic.StableEvidenceId}:{diagnostic.Field}");
 
     private static LocalGitEvidenceImportResult Failed(params LocalGitImportDiagnostic[] diagnostics) =>
         new(

@@ -26,6 +26,17 @@ It is intentionally separate from roadmap and milestone planning docs.
   including issues, pull requests, reviews, review comments, commits, releases,
   optional discussion metadata from client snapshots, stable provenance, partial
   import diagnostics, and idempotent JSON persistence under `evidence/`
+- import intake safety filtering for local Git and GitHub evidence, with
+  redaction diagnostics for common tokens and blocking diagnostics for unsafe
+  private key material before evidence persistence
+- first-run candidate memory generation for the deterministic evidence-derived
+  side of Memora's hybrid retrieval model: repo structure, build/test commands,
+  constraints, outcomes, contribution style, risks, and open questions, with
+  evidence ids, confidence, ambiguity, extraction reason, and baseline/review
+  disposition
+- agent readiness report generation for missing context, missing tests, risky
+  modules, and next review steps, with optional JSON persistence under
+  `summaries/first-run-readiness.json`
 - SQLite schema plus rebuild-from-files indexing in `Memora.Index`
 - typed relationship indexing and direct, dependency, and impact traceability queries over approved artifacts
 - rebuild diagnostics distinguish filesystem truth from derived SQLite index state
@@ -41,6 +52,9 @@ It is intentionally separate from roadmap and milestone planning docs.
 - a normalized runtime-facing state view exposed as `GetContextResponse.bundle`
 - context viewer UI route at `/context-viewer`
 - optional retrieval extension contracts exist for future advisory candidate discovery, but they are disabled by default and do not execute semantic retrieval in core v1
+- hybrid retrieval is represented as a boundary: advisory discovery may produce
+  reviewable candidates later, while final context assembly remains
+  deterministic, explainable, and lifecycle-aware
 
 ### Integration Surfaces
 
@@ -91,14 +105,16 @@ It is intentionally separate from roadmap and milestone planning docs.
 - API is a minimal HTTP surface, not a fully documented production service
 - MCP is currently an in-process adapter surface, not a complete hosted server transport
 - runtime alignment is grounded in the shared contract, but hosted transport, remote reachability, authentication, and provider-specific attachments still remain follow-up work
-- context assembly is deterministic and explainable, but remains non-semantic and non-vector in v1
+- context assembly is deterministic and explainable, while the broader product
+  retrieval strategy is hybrid: advisory discovery can suggest candidates, but
+  core v1 remains non-semantic and non-vector
 - cached context packages are derived convenience and never replace filesystem truth
 - rebuild diagnostics identify filesystem issues, but they do not auto-repair artifacts or indexes
 - controlled automation does not provide a general direct-write path and does not write canonical artifacts
 - IDE review is captured as draft/sample planning state, not implemented product behavior
 - first-run import currently covers repository attachment and local Git evidence
-  import plus GitHub evidence normalization/import; secret filtering, generated
-  candidates, readiness reporting, and UI review remain M10 follow-up slices
+  import plus GitHub evidence normalization/import and import safety filtering;
+  UI review remains an M10 follow-up slice
 
 ## Where To Look In Code
 
@@ -122,6 +138,9 @@ It is intentionally separate from roadmap and milestone planning docs.
 - `src/Memora.Import/GitHub/GitHubCliEvidenceClient.cs`
 - `src/Memora.Import/Git/LocalGitEvidenceImporter.cs`
 - `src/Memora.Import/Git/ProcessGitRepositoryInspector.cs`
+- `src/Memora.Import/Readiness/FirstRunMemoryGenerator.cs`
+- `src/Memora.Import/Readiness/FileBackedFirstRunReportStore.cs`
+- `src/Memora.Import/Safety/ImportContentSafetyFilter.cs`
 
 ### Storage
 

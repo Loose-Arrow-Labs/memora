@@ -8,7 +8,8 @@ repository inspection, evidence intake, safety filtering, and readiness output.
 - repository attachment services
 - local Git and GitHub evidence intake boundaries
 - import-mode-aware placement decisions
-- deterministic first-run candidate and readiness generation
+- hybrid first-run candidate and readiness generation, with deterministic
+  evidence-derived findings separated from inferred or advisory candidates
 
 ## Does NOT contain
 - canonical artifact lifecycle bypasses
@@ -23,5 +24,9 @@ repository inspection, evidence intake, safety filtering, and readiness output.
 - GitHub evidence import normalizes issues, pull requests, reviews, review
   comments, commits, releases, and available discussion metadata into the same
   evidence store
-- later M10 slices build safety filtering, candidate memory, and readiness
-  reporting on this shared layer
+- import safety filtering redacts common tokens and blocks unsafe private key
+  material before local Git or GitHub evidence is persisted
+- first-run candidate memory and agent readiness reports generate the
+  deterministic evidence-derived side of Memora's hybrid retrieval model, with
+  provenance and review state
+- later M10 slices add UI and protocol exposure on this shared layer

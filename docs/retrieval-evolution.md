@@ -22,6 +22,30 @@ Memora retrieval remains governed by the same core rules:
 These rules apply even when retrieval becomes faster or can inspect more of the
 approved relationship graph.
 
+## Hybrid Retrieval Decision
+
+Memora's retrieval strategy is hybrid, but the word hybrid does not mean
+semantic search inside core v1.
+
+Hybrid retrieval means:
+
+- deterministic governed assembly for final agent context
+- deterministic evidence scans for directly observed repo and GitHub facts
+- optional advisory discovery for candidate material, kept outside core truth
+- provenance, confidence, ambiguity, and review state on every generated
+  candidate
+- lifecycle and approval before candidate meaning becomes canonical memory
+
+The practical model is:
+
+1. discover broadly from evidence and later advisory sources
+2. store or present candidates with provenance and review state
+3. assemble grounded agent context deterministically from approved or explicitly
+   allowed Memora artifacts
+
+This lets Memora benefit from broad discovery without letting broad discovery
+become truth.
+
 ## Shipped Retrieval Behavior
 
 The current retrieval path in `Memora.Context` includes:
@@ -78,7 +102,7 @@ preserve what the system knows, not what the system guesses.
 ## Future Exploration Boundary
 
 Future retrieval exploration must stay outside core v1 unless it preserves the
-same governance model.
+same governance model and the hybrid boundary above.
 
 The optional retrieval extension contract is a boundary for future candidate
 discovery providers. It is not active core behavior.
@@ -107,6 +131,7 @@ For the current implementation and adjacent boundaries, read these together:
 
 ## Summary
 
-Retrieval evolution in Memora means making deterministic retrieval faster,
-richer, and easier to explain. It does not mean shifting Memora core toward
-semantic search, vector indexing, or probabilistic project memory.
+Retrieval evolution in Memora means making governed context assembly faster,
+richer, and easier to explain while adding hybrid discovery around it. It does
+not mean shifting Memora core toward semantic search, vector indexing, or
+probabilistic project memory.
