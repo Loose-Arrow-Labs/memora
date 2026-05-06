@@ -117,6 +117,9 @@ Do not:
 
 - One issue = one reviewable change
 - Each change must have clear acceptance criteria
+- PRs that fully satisfy an issue must use a GitHub closing keyword such as
+  `Closes #123`; use `References #123` only for related or partial work that
+  should not auto-close the issue.
 - Do not implement beyond current milestone scope
 - Do not assume future features exist
 
@@ -244,7 +247,9 @@ For each issue:
 3. Implement only that issue
 4. Avoid unrelated changes
 5. Run the smallest meaningful validation
-6. Open a draft PR targeting `main`
+6. Open a draft PR targeting `main`; if the PR fully satisfies the issue, use
+   `Closes #<issue-number>` in the PR body so GitHub auto-closes the issue on
+   merge
 7. Stop after the draft PR is open unless explicitly asked to continue
 
 ### 15.4 Cleanup
@@ -310,7 +315,9 @@ If the current checkout is dirty with unrelated changes:
 
 Each PR must:
 
-- reference its GitHub issue
+- use `Closes #<issue-number>` when the PR fully satisfies its GitHub issue
+- use `References #<issue-number>` only when the PR is related to an issue but
+  should not auto-close it
 - describe current scope honestly
 - distinguish current implementation from roadmap work
 
