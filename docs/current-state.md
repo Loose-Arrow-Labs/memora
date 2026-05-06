@@ -89,6 +89,9 @@ It is intentionally separate from roadmap and milestone planning docs.
 - project selection from discovered workspaces
 - artifact browsing and draft editing
 - approval queue navigation, revision review previews, and decision-readiness context
+- first-run import status page showing attached repository identity, selected
+  import mode, progress, evidence counts, warnings, candidate source and
+  disposition, readiness report details, and next actions
 - context viewer page backed by the shared context builder
 - understanding output page with context, traceability, and component views
 
@@ -112,9 +115,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - rebuild diagnostics identify filesystem issues, but they do not auto-repair artifacts or indexes
 - controlled automation does not provide a general direct-write path and does not write canonical artifacts
 - IDE review is captured as draft/sample planning state, not implemented product behavior
-- first-run import currently covers repository attachment and local Git evidence
-  import plus GitHub evidence normalization/import and import safety filtering;
-  UI review remains an M10 follow-up slice
+- first-run import UI is status and inspection only; it does not execute imports,
+  persist approval decisions, or promote candidate memory to canonical truth
 
 ## Where To Look In Code
 

@@ -23,7 +23,29 @@ The first screen lists discovered projects. Open a project to see:
 
 - all discovered canonical, draft, and summary artifacts
 - the current approval queue from `ApprovalQueueBuilder`
+- the first-run import status page for attached repository identity, evidence
+  counts, candidate source and disposition, readiness warnings, and next actions
 - links into artifact detail and review pages
+
+## Inspect First-Run Import Status
+
+Open `/projects/{projectId}/first-run-import` to inspect the current first-run
+import state. The page reads from workspace metadata, stored evidence, and the
+first-run readiness report.
+
+The page shows:
+
+- selected import mode
+- repository attachment identity and source path or URL
+- progress and completion state from stored workspace files
+- baseline evidence, canonical evidence, and reviewable evidence counts
+- baseline memory, review-needed candidates, and advisory or future-advisory gaps
+- candidate provenance, confidence, ambiguity, extraction reason, and disposition
+- next actions for review, agent setup, re-import, or later advisory discovery
+
+Changing the visible import-mode selector does not promote artifacts by itself.
+Promotion still depends on the governed import, lifecycle, safety, provenance,
+and approval rules.
 
 ## Review Pending Artifacts
 
@@ -113,6 +135,7 @@ issue first, then rebuild or refresh the understanding output.
 The current workflows do not include:
 
 - direct UI approval persistence
+- UI execution of repository import jobs
 - automatic canonical writes by agents
 - auto-repair of invalid artifacts or indexes
 - semantic or vector retrieval in core

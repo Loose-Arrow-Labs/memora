@@ -2,6 +2,9 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using Memora.Core.Artifacts;
+using Memora.Core.Import;
+using Memora.Import.Readiness;
+using Memora.Ui.FirstRunImport;
 using Memora.Ui.Operator;
 
 namespace Memora.Ui.Rendering;
@@ -16,7 +19,7 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("<section class=\"hero\">");
         body.AppendLine("<p class=\"eyebrow\">Memora Human Loop</p>");
         body.AppendLine("<h1>Minimal local operator shell</h1>");
-        body.AppendLine("<p class=\"lede\">Browse local workspace artifacts, inspect draft revisions, review the current approval queue, and jump into deterministic context views without changing canonical project truth.</p>");
+        body.AppendLine("<p class=\"lede\">Browse local workspace artifacts, inspect draft revisions, review the current approval queue, and jump into governed context views without changing canonical project truth.</p>");
         body.AppendLine("</section>");
 
         body.AppendLine("<section class=\"panel\">");
@@ -51,7 +54,7 @@ internal static class OperatorShellPageRenderer
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero compact\">");
         body.AppendLine($"<p class=\"eyebrow\">Project</p><h1>{Encode(snapshot.Workspace.Metadata.Name)}</h1>");
-        body.AppendLine($"<p class=\"lede\">Workspace dashboard for <code>{Encode(snapshot.Workspace.ProjectId)}</code>. Use the navigation above to move between artifacts, review queue, context, and understanding views.</p>");
+        body.AppendLine($"<p class=\"lede\">Workspace dashboard for <code>{Encode(snapshot.Workspace.ProjectId)}</code>. Use the navigation above to move between artifacts, first-run import, review queue, context, and understanding views.</p>");
         body.AppendLine("</section>");
 
         body.AppendLine("<section class=\"two-up\">");
@@ -106,10 +109,97 @@ internal static class OperatorShellPageRenderer
         }
 
         body.AppendLine("</article>");
+
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\">");
+        body.AppendLine("<h2>First-Run Import</h2>");
+        body.AppendLine("<p class=\"muted\">Inspect attached repositories, imported evidence, candidate memory, and readiness state.</p>");
+        body.AppendLine("</div>");
+        body.AppendLine($"<p><a class=\"button ghost\" href=\"/projects/{Encode(snapshot.Workspace.ProjectId)}/first-run-import\">Open first-run import</a></p>");
+        body.AppendLine("</article>");
         body.AppendLine("</section>");
         body.AppendLine(RenderScopeNote(options));
 
         return RenderLayout(snapshot.Workspace.Metadata.Name, options, projects, snapshot.Workspace.ProjectId, body.ToString());
+    }
+
+    public static string RenderFirstRunImport(
+        OperatorShellOptions options,
+        IReadOnlyList<OperatorProjectSummary> projects,
+        FirstRunImportStatusPage page)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<section class=\"hero compact\">");
+        body.AppendLine("<p class=\"eyebrow\">First-Run Import</p>");
+        body.AppendLine($"<h1>{Encode(page.ProjectName)}</h1>");
+        body.AppendLine($"<p class=\"lede\">Import status for <code>{Encode(page.ProjectId)}</code>: attached repositories, bounded evidence, candidate memory, advisory discovery gaps, and governed context readiness.</p>");
+        body.AppendLine("<div class=\"hero-actions\">");
+        body.AppendLine($"<a class=\"button ghost\" href=\"/projects/{Encode(page.ProjectId)}\">Project artifacts</a>");
+        body.AppendLine($"<a class=\"button ghost\" href=\"/projects/{Encode(page.ProjectId)}/queue\">Review queue</a>");
+        body.AppendLine($"<a class=\"button ghost\" href=\"/context-viewer?projectId={Encode(page.ProjectId)}&taskDescription=Prepare%20agent%20readiness\">Agent setup context</a>");
+        body.AppendLine("</div>");
+        body.AppendLine("</section>");
+
+        body.AppendLine("<section class=\"two-up\">");
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Import Mode</h2><p class=\"muted\">Promotion remains governed by import mode, lifecycle, provenance, safety filtering, and approval.</p></div>");
+        body.AppendLine(RenderImportModeForm(page));
+        body.AppendLine("</article>");
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Completion State</h2><p class=\"muted\">Current first-run progress from stored workspace files.</p></div>");
+        body.AppendLine(RenderProgressSteps(page.ProgressSteps));
+        body.AppendLine("</article>");
+        body.AppendLine("</section>");
+
+        body.AppendLine("<section class=\"two-up\">");
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Repository Identity</h2><p class=\"muted\">Source repositories are evidence sources; the Memora workspace stays app-managed.</p></div>");
+        body.AppendLine(RenderRepositoryAttachments(page.RepositoryAttachments));
+        body.AppendLine("</article>");
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Evidence Counts</h2><p class=\"muted\">Baseline evidence, canonical evidence, and reviewable evidence remain visible separately.</p></div>");
+        body.AppendLine(RenderEvidenceCounters(page));
+        body.AppendLine(RenderEvidenceSummaries(page.EvidenceSummaries));
+        body.AppendLine("</article>");
+        body.AppendLine("</section>");
+
+        if (page.Warnings.Count > 0)
+        {
+            body.AppendLine("<section class=\"panel alert\">");
+            body.AppendLine("<div class=\"panel-header\"><h2>Warnings</h2><p class=\"muted\">Diagnostics and readiness gaps are shown without exposing secret values.</p></div>");
+            body.AppendLine("<ul class=\"list\">");
+            foreach (var warning in page.Warnings)
+            {
+                body.AppendLine($"<li>{Encode(warning)}</li>");
+            }
+
+            body.AppendLine("</ul>");
+            body.AppendLine("</section>");
+        }
+
+        body.AppendLine("<section class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Baseline Approval</h2><p class=\"muted\">Candidate disposition controls what is baseline memory versus review-needed meaning.</p></div>");
+        body.AppendLine(RenderCandidateTrustSummary(page));
+        body.AppendLine("</section>");
+
+        body.AppendLine("<section class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Candidate Memory</h2><p class=\"muted\">Sources distinguish evidence-derived facts, inferred meaning, and advisory or future-advisory candidates.</p></div>");
+        body.AppendLine(RenderCandidateTable(page.Candidates));
+        body.AppendLine("</section>");
+
+        body.AppendLine("<section class=\"two-up\">");
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Readiness Report</h2><p class=\"muted\">Agent readiness is visible before consumers attach.</p></div>");
+        body.AppendLine(RenderReadinessReport(page));
+        body.AppendLine("</article>");
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Next Actions</h2><p class=\"muted\">Review, agent setup, re-import, and advisory discovery stay explicit.</p></div>");
+        body.AppendLine(RenderNextActions(page.NextActions));
+        body.AppendLine("</article>");
+        body.AppendLine("</section>");
+
+        body.AppendLine(RenderScopeNote(options));
+        return RenderLayout($"{page.ProjectName} first-run import", options, projects, page.ProjectId, body.ToString());
     }
 
     public static string RenderArtifact(
@@ -358,6 +448,7 @@ internal static class OperatorShellPageRenderer
         {
             var projectId = Encode(selectedProjectId);
             html.AppendLine($"<a href=\"/projects/{projectId}\">Artifacts</a>");
+            html.AppendLine($"<a href=\"/projects/{projectId}/first-run-import\">First Run</a>");
             html.AppendLine($"<a href=\"/projects/{projectId}/queue\">Queue</a>");
             html.AppendLine($"<a href=\"/context-viewer?projectId={projectId}\">Context</a>");
             html.AppendLine($"<a href=\"/understanding?projectId={projectId}\">Understanding</a>");
@@ -394,6 +485,239 @@ internal static class OperatorShellPageRenderer
 
         html.AppendLine("</select>");
         html.AppendLine("</label>");
+        return html.ToString();
+    }
+
+    private static string RenderImportModeForm(FirstRunImportStatusPage page)
+    {
+        var html = new StringBuilder();
+        html.AppendLine($"<form method=\"get\" action=\"/projects/{Encode(page.ProjectId)}/first-run-import\" class=\"edit-form compact-form\">");
+        html.AppendLine("<label><span>Selected import mode</span>");
+        html.AppendLine("<select name=\"importMode\">");
+        foreach (var mode in Enum.GetValues<ImportMode>())
+        {
+            var selected = mode == page.SelectedImportMode ? " selected" : string.Empty;
+            html.AppendLine($"<option value=\"{Encode(mode.ToSchemaValue())}\"{selected}>{Encode(FormatImportMode(mode))}</option>");
+        }
+
+        html.AppendLine("</select></label>");
+        html.AppendLine("<button class=\"button\" type=\"submit\">Apply mode</button>");
+        html.AppendLine("</form>");
+        html.AppendLine("<dl class=\"meta-grid\">");
+        html.AppendLine($"<div><dt>Selected mode</dt><dd>{Encode(FormatImportMode(page.SelectedImportMode))}</dd></div>");
+        html.AppendLine($"<div><dt>Selection source</dt><dd>{Encode(FormatImportModeSelection(page.ImportModeSelectionSource))}</dd></div>");
+        html.AppendLine("</dl>");
+        return html.ToString();
+    }
+
+    private static string RenderProgressSteps(IReadOnlyList<FirstRunProgressStep> steps)
+    {
+        var html = new StringBuilder();
+        html.AppendLine("<ol class=\"progress-list\">");
+        foreach (var step in steps)
+        {
+            html.AppendLine("<li>");
+            html.AppendLine($"<span class=\"badge badge-progress-{Encode(step.State.ToString().ToLowerInvariant())}\">{Encode(FormatProgressState(step.State))}</span>");
+            html.AppendLine($"<strong>{Encode(step.Label)}</strong>");
+            html.AppendLine($"<span class=\"muted\">{Encode(step.Detail)}</span>");
+            html.AppendLine("</li>");
+        }
+
+        html.AppendLine("</ol>");
+        return html.ToString();
+    }
+
+    private static string RenderRepositoryAttachments(IReadOnlyList<ProjectRepositoryAttachment> attachments)
+    {
+        if (attachments.Count == 0)
+        {
+            return "<p>No repository attachment is recorded yet.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"table-scroll\">");
+        html.AppendLine("<table><thead><tr><th>Kind</th><th>Repository Identity</th><th>Default Branch</th><th>Source</th><th>Attached</th></tr></thead><tbody>");
+        foreach (var attachment in attachments.OrderBy(attachment => attachment.AttachmentId, StringComparer.Ordinal))
+        {
+            var source = attachment.LocalPath ?? attachment.RemoteUrl ?? attachment.OriginUrl ?? "unspecified";
+            html.AppendLine("<tr>");
+            html.AppendLine($"<td>{Encode(FormatAttachmentKind(attachment.Kind))}</td>");
+            html.AppendLine($"<td><code>{Encode(attachment.RepositoryIdentity)}</code></td>");
+            html.AppendLine($"<td>{Encode(attachment.DefaultBranch)}</td>");
+            html.AppendLine($"<td><code>{Encode(source)}</code></td>");
+            html.AppendLine($"<td>{Encode(attachment.AttachedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture))}</td>");
+            html.AppendLine("</tr>");
+        }
+
+        html.AppendLine("</tbody></table>");
+        html.AppendLine("</div>");
+        return html.ToString();
+    }
+
+    private static string RenderEvidenceCounters(FirstRunImportStatusPage page)
+    {
+        var html = new StringBuilder();
+        html.AppendLine("<dl class=\"stat-grid\">");
+        html.AppendLine($"<div><dt>Total Evidence</dt><dd>{Encode(page.EvidenceRecordCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Baseline Evidence</dt><dd>{Encode(page.BaselineEvidenceCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Canonical Evidence</dt><dd>{Encode(page.CanonicalEvidenceCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Reviewable Evidence</dt><dd>{Encode(page.ReviewableEvidenceCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine("</dl>");
+        return html.ToString();
+    }
+
+    private static string RenderEvidenceSummaries(IReadOnlyList<FirstRunEvidenceSummary> summaries)
+    {
+        if (summaries.Count == 0)
+        {
+            return "<p>No evidence records are stored yet.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"table-scroll\">");
+        html.AppendLine("<table><thead><tr><th>Source Type</th><th>Trust State</th><th>Count</th></tr></thead><tbody>");
+        foreach (var summary in summaries)
+        {
+            html.AppendLine("<tr>");
+            html.AppendLine($"<td>{Encode(summary.SourceType.ToSchemaValue())}</td>");
+            html.AppendLine($"<td>{Encode(summary.TrustState.ToSchemaValue())}</td>");
+            html.AppendLine($"<td>{Encode(summary.Count.ToString(CultureInfo.InvariantCulture))}</td>");
+            html.AppendLine("</tr>");
+        }
+
+        html.AppendLine("</tbody></table>");
+        html.AppendLine("</div>");
+        return html.ToString();
+    }
+
+    private static string RenderCandidateTrustSummary(FirstRunImportStatusPage page)
+    {
+        var html = new StringBuilder();
+        html.AppendLine("<dl class=\"stat-grid\">");
+        html.AppendLine($"<div><dt>Baseline Memory</dt><dd>{Encode(page.BaselineMemoryCandidateCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Review Needed Candidates</dt><dd>{Encode((page.ReviewRequiredCandidateCount + page.GroupedBaselineReviewCandidateCount).ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Evidence-Derived</dt><dd>{Encode(page.EvidenceDerivedCandidateCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Inferred</dt><dd>{Encode(page.InferredCandidateCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Advisory / Future Advisory</dt><dd>{Encode((page.AdvisoryCandidateCount + page.FutureAdvisoryGapCount).ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine("</dl>");
+        return html.ToString();
+    }
+
+    private static string RenderCandidateTable(IReadOnlyList<FirstRunCandidateView> candidates)
+    {
+        if (candidates.Count == 0)
+        {
+            return "<p>No candidate memory has been generated yet.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"table-scroll\">");
+        html.AppendLine("<table><thead><tr><th>Candidate</th><th>Kind</th><th>Source</th><th>Disposition</th><th>Confidence</th><th>Ambiguity</th><th>Extraction Reason</th><th>Provenance</th></tr></thead><tbody>");
+        foreach (var candidate in candidates)
+        {
+            html.AppendLine("<tr>");
+            html.AppendLine($"<td><strong>{Encode(candidate.Title)}</strong><br><span class=\"muted\">{Encode(candidate.Summary)}</span><br><code>{Encode(candidate.CandidateId)}</code></td>");
+            html.AppendLine($"<td>{Encode(FormatCandidateKind(candidate.Kind))}</td>");
+            html.AppendLine($"<td>{Encode(FormatCandidateSource(candidate.Source))}</td>");
+            html.AppendLine($"<td>{Encode(FormatCandidateDisposition(candidate.Disposition))}</td>");
+            html.AppendLine($"<td>{Encode(candidate.Confidence.ToString("0.00", CultureInfo.InvariantCulture))}</td>");
+            html.AppendLine($"<td>{Encode(candidate.Ambiguity)}</td>");
+            html.AppendLine($"<td>{Encode(candidate.ExtractionReason)}</td>");
+            html.AppendLine($"<td>{RenderProvenanceList(candidate.EvidenceProvenance)}</td>");
+            html.AppendLine("</tr>");
+        }
+
+        html.AppendLine("</tbody></table>");
+        html.AppendLine("</div>");
+        return html.ToString();
+    }
+
+    private static string RenderReadinessReport(FirstRunImportStatusPage page)
+    {
+        var report = page.ReadinessReport;
+        if (report is null)
+        {
+            return "<p>No readiness report is stored yet.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<dl class=\"meta-grid\">");
+        html.AppendLine($"<div><dt>Grounded Context Ready</dt><dd>{Encode(report.ReadyForAgentUse ? "yes" : "needs review")}</dd></div>");
+        html.AppendLine($"<div><dt>Generated</dt><dd>{Encode(report.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Evidence Records</dt><dd>{Encode(report.EvidenceRecordCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine($"<div><dt>Candidates</dt><dd>{Encode(report.CandidateCount.ToString(CultureInfo.InvariantCulture))}</dd></div>");
+        html.AppendLine("</dl>");
+        html.AppendLine(RenderReportList("Missing Context", report.MissingContext));
+        html.AppendLine(RenderReportList("Missing Tests", report.MissingTests));
+        html.AppendLine(RenderReportList("Risky Modules", report.RiskyModules));
+        html.AppendLine(RenderReportList("Advisory / Future Advisory Gaps", report.AdvisoryDiscoveryGaps));
+        return html.ToString();
+    }
+
+    private static string RenderNextActions(IReadOnlyList<FirstRunNextAction> actions)
+    {
+        if (actions.Count == 0)
+        {
+            return "<p>No next actions are recorded yet.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<ul class=\"list next-actions\">");
+        foreach (var action in actions)
+        {
+            html.AppendLine("<li>");
+            if (string.IsNullOrWhiteSpace(action.Url))
+            {
+                html.AppendLine($"<strong>{Encode(action.Label)}</strong>");
+            }
+            else
+            {
+                html.AppendLine($"<a href=\"{Encode(action.Url)}\"><strong>{Encode(action.Label)}</strong></a>");
+            }
+
+            html.AppendLine($"<span class=\"muted\">{Encode(action.Detail)}</span>");
+            html.AppendLine("</li>");
+        }
+
+        html.AppendLine("</ul>");
+        return html.ToString();
+    }
+
+    private static string RenderReportList(string title, IReadOnlyList<string> values)
+    {
+        var html = new StringBuilder();
+        html.AppendLine($"<h3>{Encode(title)}</h3>");
+        if (values.Count == 0)
+        {
+            html.AppendLine("<p class=\"muted\">None recorded.</p>");
+            return html.ToString();
+        }
+
+        html.AppendLine("<ul class=\"list\">");
+        foreach (var value in values)
+        {
+            html.AppendLine($"<li>{Encode(value)}</li>");
+        }
+
+        html.AppendLine("</ul>");
+        return html.ToString();
+    }
+
+    private static string RenderProvenanceList(IReadOnlyList<string> provenance)
+    {
+        if (provenance.Count == 0)
+        {
+            return "<span class=\"muted\">No evidence ids recorded.</span>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<ul class=\"provenance-list\">");
+        foreach (var item in provenance)
+        {
+            html.AppendLine($"<li><code>{Encode(item)}</code></li>");
+        }
+
+        html.AppendLine("</ul>");
         return html.ToString();
     }
 
@@ -559,6 +883,76 @@ internal static class OperatorShellPageRenderer
     private static string RenderStatusBadge(ArtifactStatus status) =>
         $"<span class=\"badge badge-{status.ToSchemaValue()}\">{Encode(status.ToSchemaValue())}</span>";
 
+    private static string FormatImportMode(ImportMode mode) =>
+        mode switch
+        {
+            ImportMode.FastBaseline => "Fast Baseline",
+            ImportMode.StrictGovernance => "Strict Governance",
+            ImportMode.EvidenceCanonical => "Evidence Canonical",
+            ImportMode.BulkApproval => "Bulk Approval",
+            _ => mode.ToString()
+        };
+
+    private static string FormatImportModeSelection(FirstRunImportModeSelectionSource source) =>
+        source switch
+        {
+            FirstRunImportModeSelectionSource.OperatorSelected => "operator selected",
+            FirstRunImportModeSelectionSource.InferredFromEvidence => "inferred from evidence",
+            FirstRunImportModeSelectionSource.InferredFromReadiness => "inferred from readiness",
+            FirstRunImportModeSelectionSource.Defaulted => "defaulted",
+            _ => source.ToString()
+        };
+
+    private static string FormatProgressState(FirstRunProgressState state) =>
+        state switch
+        {
+            FirstRunProgressState.Waiting => "waiting",
+            FirstRunProgressState.Complete => "complete",
+            FirstRunProgressState.NeedsReview => "needs review",
+            FirstRunProgressState.Ready => "ready",
+            _ => state.ToString()
+        };
+
+    private static string FormatAttachmentKind(RepositoryAttachmentKind kind) =>
+        kind switch
+        {
+            RepositoryAttachmentKind.LocalGit => "Local Git",
+            RepositoryAttachmentKind.GitHub => "GitHub",
+            _ => kind.ToString()
+        };
+
+    private static string FormatCandidateKind(CandidateMemoryKind kind) =>
+        kind switch
+        {
+            CandidateMemoryKind.RepoStructure => "Repo Structure",
+            CandidateMemoryKind.BuildCommand => "Build Command",
+            CandidateMemoryKind.TestCommand => "Test Command",
+            CandidateMemoryKind.Constraint => "Constraint",
+            CandidateMemoryKind.Outcome => "Outcome",
+            CandidateMemoryKind.ContributionStyle => "Contribution Style",
+            CandidateMemoryKind.Risk => "Risk",
+            CandidateMemoryKind.OpenQuestion => "Open Question",
+            _ => kind.ToString()
+        };
+
+    private static string FormatCandidateSource(CandidateMemorySource source) =>
+        source switch
+        {
+            CandidateMemorySource.EvidenceDerived => "Evidence-Derived",
+            CandidateMemorySource.Inferred => "Inferred",
+            CandidateMemorySource.Advisory => "Advisory / Future Advisory",
+            _ => source.ToString()
+        };
+
+    private static string FormatCandidateDisposition(CandidateMemoryDisposition disposition) =>
+        disposition switch
+        {
+            CandidateMemoryDisposition.BaselineMemory => "Baseline Memory",
+            CandidateMemoryDisposition.ReviewRequired => "Review Required",
+            CandidateMemoryDisposition.GroupedBaselineReview => "Grouped Baseline Review",
+            _ => disposition.ToString()
+        };
+
     private static string BuildArtifactLink(string projectId, string relativePath) =>
         $"/projects/{Uri.EscapeDataString(projectId)}/artifacts?path={Uri.EscapeDataString(relativePath)}";
 
@@ -608,22 +1002,34 @@ h1, h2, h3 { margin-top: 0; }
 .badge-draft, .badge-proposed { background: #f0c98b; }
 .badge-approved { background: #b8d1b0; }
 .badge-superseded, .badge-deprecated { background: #d9c6bb; }
+.badge-progress-complete, .badge-progress-ready { background: #b8d1b0; }
+.badge-progress-waiting { background: #d9c6bb; }
+.badge-progress-needsreview { background: #f0c98b; }
 .table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border-radius: 18px; }
 table { width: 100%; min-width: 680px; border-collapse: collapse; }
 th, td { text-align: left; vertical-align: top; padding: 12px 10px; border-bottom: 1px solid rgba(91, 56, 35, 0.12); overflow-wrap: anywhere; }
 .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
 .meta-grid dt { color: #8a6041; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; }
 .meta-grid dd { margin: 6px 0 0; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 16px; }
+.stat-grid div { border: 1px solid rgba(91, 56, 35, 0.12); border-radius: 16px; padding: 14px; background: rgba(255, 255, 255, 0.58); }
+.stat-grid dt { color: #8a6041; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.stat-grid dd { margin: 6px 0 0; font-size: 1.35rem; font-weight: 700; }
 .section-stack { display: grid; gap: 14px; }
 .body-card, .section-card { background: rgba(255, 255, 255, 0.72); border-radius: 18px; padding: 16px; border: 1px solid rgba(91, 56, 35, 0.1); }
 pre { white-space: pre-wrap; margin: 0; }
 .edit-form { display: grid; gap: 16px; }
+.compact-form { margin-bottom: 16px; }
 .edit-form label { display: grid; gap: 8px; }
 .button { display: inline-flex; align-items: center; justify-content: center; width: fit-content; border: none; border-radius: 999px; padding: 12px 18px; background: #7d341f; color: #fff8f3; text-decoration: none; cursor: pointer; }
 .button.ghost { background: transparent; color: #7d341f; border: 1px solid rgba(125, 52, 31, 0.24); }
 .button.disabled { background: #d9c6bb; color: #695748; cursor: not-allowed; }
 .button.danger { background: #9d3d30; color: #fff8f3; }
 .review-nav, .decision-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.progress-list { display: grid; gap: 12px; padding-left: 20px; }
+.progress-list li { padding-left: 4px; }
+.progress-list strong, .next-actions strong { display: block; margin: 6px 0 2px; }
+.provenance-list { display: grid; gap: 6px; margin: 0; padding-left: 16px; }
 .queue-position { display: inline-flex; border: 1px solid rgba(125, 52, 31, 0.18); border-radius: 999px; padding: 8px 12px; background: rgba(255, 255, 255, 0.58); }
 .decision-panel { border-color: rgba(91, 56, 35, 0.24); }
 .diff-summary { font-weight: 700; }

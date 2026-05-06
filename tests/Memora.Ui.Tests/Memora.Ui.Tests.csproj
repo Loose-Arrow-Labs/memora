@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Memora.Import\Memora.Import.csproj" />
     <ProjectReference Include="..\..\src\Memora.Ui\Memora.Ui.csproj" />
   </ItemGroup>
 
