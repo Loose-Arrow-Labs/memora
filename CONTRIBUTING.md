@@ -69,6 +69,10 @@ Rules:
 Each PR must:
 
 - Reference a GitHub issue
+- Use a GitHub closing keyword such as `Closes #123` when the PR fully
+  satisfies that issue, so GitHub auto-closes it on merge
+- Use `References #123` only for related or partial work that should not
+  auto-close the issue
 - Stay within defined scope
 - Include tests where applicable
 - Pass build and validation checks
