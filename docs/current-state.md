@@ -93,7 +93,7 @@ It is intentionally separate from roadmap and milestone planning docs.
 - project selection from discovered workspaces
 - artifact browsing and draft editing
 - approval queue navigation, proposal review listing, revision review previews,
-  and decision-readiness context
+  evidence provenance inspection, and decision-readiness context
 - first-run import status page showing attached repository identity, selected
   import mode, progress, evidence counts, warnings, candidate source and
   disposition, readiness report details, and next actions
