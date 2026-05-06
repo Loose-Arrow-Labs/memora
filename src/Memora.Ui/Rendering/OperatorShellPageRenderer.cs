@@ -121,6 +121,14 @@ internal static class OperatorShellPageRenderer
 
         body.AppendLine("<article class=\"panel\">");
         body.AppendLine("<div class=\"panel-header\">");
+        body.AppendLine("<h2>Trust Dashboard</h2>");
+        body.AppendLine("<p class=\"muted\">Inspect review pressure, rebuild health, missing memory, and import warnings from shared diagnostics.</p>");
+        body.AppendLine("</div>");
+        body.AppendLine($"<p><a class=\"button ghost\" href=\"/projects/{Encode(snapshot.Workspace.ProjectId)}/trust\">Open trust dashboard</a></p>");
+        body.AppendLine("</article>");
+
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\">");
         body.AppendLine("<h2>First-Run Import</h2>");
         body.AppendLine("<p class=\"muted\">Inspect attached repositories, imported evidence, candidate memory, and readiness state.</p>");
         body.AppendLine("</div>");
@@ -311,6 +319,38 @@ internal static class OperatorShellPageRenderer
         return RenderLayout($"{snapshot.Workspace.Metadata.Name} proposals", options, projects, snapshot.Workspace.ProjectId, body.ToString());
     }
 
+    public static string RenderTrustDashboard(
+        OperatorShellOptions options,
+        IReadOnlyList<OperatorProjectSummary> projects,
+        OperatorTrustDashboard dashboard)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<section class=\"hero compact\">");
+        body.AppendLine("<p class=\"eyebrow\">Trust Dashboard</p>");
+        body.AppendLine($"<h1>{Encode(dashboard.ProjectName)}</h1>");
+        body.AppendLine($"<p class=\"lede\">Review, observe, and import-health signals for <code>{Encode(dashboard.ProjectId)}</code>. Values are derived from queue, filesystem, import, and rebuild diagnostics.</p>");
+        body.AppendLine("</section>");
+
+        body.AppendLine("<section class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Trust Summary</h2><p class=\"muted\">Each card links to the relevant review or diagnostic surface.</p></div>");
+        body.AppendLine("<div class=\"trust-grid\">");
+        foreach (var metric in dashboard.Metrics)
+        {
+            body.AppendLine($"<article class=\"trust-card trust-{Encode(metric.State.ToString().ToLowerInvariant())}\">");
+            body.AppendLine($"<a href=\"{Encode(metric.Url)}\"><h3>{Encode(metric.Label)}</h3></a>");
+            body.AppendLine($"<p class=\"trust-count\">{Encode(metric.Count.ToString(CultureInfo.InvariantCulture))}</p>");
+            body.AppendLine($"<p><span class=\"badge badge-trust-{Encode(metric.State.ToString().ToLowerInvariant())}\">{Encode(FormatTrustMetricState(metric.State))}</span></p>");
+            body.AppendLine($"<p class=\"muted\">{Encode(metric.Detail)}</p>");
+            body.AppendLine("</article>");
+        }
+
+        body.AppendLine("</div>");
+        body.AppendLine("</section>");
+        body.AppendLine(RenderScopeNote(options));
+
+        return RenderLayout($"{dashboard.ProjectName} trust", options, projects, dashboard.ProjectId, body.ToString());
+    }
+
     private static string RenderPendingReviewItems(OperatorProjectSnapshot snapshot)
     {
         if (snapshot.PendingItems.Count == 0)
@@ -372,10 +412,12 @@ internal static class OperatorShellPageRenderer
     public static string RenderReview(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
-        OperatorArtifactView view)
+        OperatorArtifactView view,
+        IReadOnlyList<string>? decisionErrors = null)
     {
         var artifact = view.SelectedArtifact.Artifact;
         var body = new StringBuilder();
+        var errors = decisionErrors ?? [];
 
         body.AppendLine("<section class=\"hero compact\">");
         body.AppendLine("<p class=\"eyebrow\">Revision Review</p>");
@@ -386,6 +428,20 @@ internal static class OperatorShellPageRenderer
             body.AppendLine($"<p class=\"queue-position\">Review item {Encode(view.ReviewQueueContext.Position.ToString(CultureInfo.InvariantCulture))} of {Encode(view.ReviewQueueContext.TotalItems.ToString(CultureInfo.InvariantCulture))}</p>");
         }
         body.AppendLine("</section>");
+
+        if (errors.Count > 0)
+        {
+            body.AppendLine("<section class=\"panel alert\">");
+            body.AppendLine("<h2>Review Decision Failed</h2>");
+            body.AppendLine("<ul class=\"list\">");
+            foreach (var error in errors)
+            {
+                body.AppendLine($"<li>{Encode(error)}</li>");
+            }
+
+            body.AppendLine("</ul>");
+            body.AppendLine("</section>");
+        }
 
         if (artifact.Status == ArtifactStatus.Proposed)
         {
@@ -412,6 +468,8 @@ internal static class OperatorShellPageRenderer
                 ? "<p>No approved artifact exists for this id yet, so this review is for a net-new artifact.</p>"
                 : RenderApprovedSummary(view.CurrentApprovedArtifact)));
         body.AppendLine("</section>");
+
+        body.AppendLine(RenderProvenanceReview(view.ProvenanceReview));
 
         body.AppendLine("<section class=\"panel\">");
         body.AppendLine("<div class=\"panel-header\"><h2>Revision Diff</h2><p class=\"muted\">Field-level changes from the core diff model.</p></div>");
@@ -454,11 +512,109 @@ internal static class OperatorShellPageRenderer
         body.AppendLine(RenderDecisionPanel(view));
         body.AppendLine("<section class=\"panel note\">");
         body.AppendLine("<h2>Current UI boundary</h2>");
-        body.AppendLine("<p>Approval and rejection behavior exists in core, but this shell intentionally stops at review preview for now. That keeps the UI honest until filesystem persistence for those decisions is defined end to end.</p>");
+        body.AppendLine("<p>Approval and rejection actions now persist through the governed core workflow. The UI still cannot directly edit canonical truth or bypass lifecycle validation.</p>");
         body.AppendLine("</section>");
         body.AppendLine(RenderScopeNote(options));
 
         return RenderLayout($"{artifact.Title} review", options, projects, view.Project.Workspace.ProjectId, body.ToString());
+    }
+
+    private static string RenderProvenanceReview(OperatorProvenanceReview review)
+    {
+        var html = new StringBuilder();
+        html.AppendLine("<section class=\"panel\">");
+        html.AppendLine("<div class=\"panel-header\"><h2>Evidence Provenance</h2><p class=\"muted\">Directly observed evidence is separated from inferred candidate meaning before approval readiness.</p></div>");
+        html.AppendLine(ReviewUiComponents.RenderMetadataGrid(
+        [
+            new("Declared provenance", review.DeclaredProvenance),
+            new("Evidence requirement", review.RequiresImportedEvidence ? "required for proposal approval readiness" : "optional for this review item"),
+            new("Approval readiness", review.IsApprovalReady ? "ready" : "blocked"),
+            new("Readiness reason", review.ReadinessMessage)
+        ]));
+
+        if (review.MissingEvidenceIds.Count > 0)
+        {
+            html.AppendLine("<div class=\"body-card alert\"><h3>Missing Or Invalid Provenance</h3><ul class=\"list\">");
+            foreach (var evidenceId in review.MissingEvidenceIds)
+            {
+                html.AppendLine($"<li><code>{Encode(evidenceId)}</code> does not resolve to imported evidence in this workspace.</li>");
+            }
+
+            html.AppendLine("</ul></div>");
+        }
+
+        if (review.Warnings.Count > 0)
+        {
+            html.AppendLine("<div class=\"body-card alert\"><h3>Provenance Diagnostics</h3><ul class=\"list\">");
+            foreach (var warning in review.Warnings)
+            {
+                html.AppendLine($"<li>{Encode(warning)}</li>");
+            }
+
+            html.AppendLine("</ul></div>");
+        }
+
+        html.AppendLine("<h3>Directly Observed Evidence</h3>");
+        html.AppendLine(RenderDirectEvidenceTable(review.DirectEvidence));
+        html.AppendLine("<h3>Inferred Meaning And Candidate Notes</h3>");
+        html.AppendLine(RenderCandidateProvenanceTable(review.CandidateNotes));
+        html.AppendLine("</section>");
+        return html.ToString();
+    }
+
+    private static string RenderDirectEvidenceTable(IReadOnlyList<OperatorEvidenceProvenanceItem> evidence)
+    {
+        if (evidence.Count == 0)
+        {
+            return "<p class=\"muted\">No imported evidence records resolved for this artifact.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"table-scroll\">");
+        html.AppendLine("<table><thead><tr><th>Evidence</th><th>Source Type</th><th>URL / Path / SHA / Issue / PR</th><th>Trust</th><th>Observed</th><th>Summary</th></tr></thead><tbody>");
+        foreach (var item in evidence)
+        {
+            html.AppendLine("<tr>");
+            html.AppendLine($"<td><code>{Encode(item.StableId)}</code><br><span class=\"muted\">{Encode(item.Provenance)}</span></td>");
+            html.AppendLine($"<td>{Encode(item.SourceType.ToSchemaValue())}</td>");
+            html.AppendLine($"<td><code>{Encode(item.SourceReference)}</code></td>");
+            html.AppendLine($"<td>{Encode(item.TrustState.ToSchemaValue())}</td>");
+            html.AppendLine($"<td>{Encode(item.ObservedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture))}</td>");
+            html.AppendLine($"<td><strong>{Encode(item.Title)}</strong><br><span class=\"muted\">{Encode(item.Summary)}</span></td>");
+            html.AppendLine("</tr>");
+        }
+
+        html.AppendLine("</tbody></table>");
+        html.AppendLine("</div>");
+        return html.ToString();
+    }
+
+    private static string RenderCandidateProvenanceTable(IReadOnlyList<OperatorCandidateProvenanceItem> candidates)
+    {
+        if (candidates.Count == 0)
+        {
+            return "<p class=\"muted\">No first-run candidate metadata is linked to this artifact.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"table-scroll\">");
+        html.AppendLine("<table><thead><tr><th>Candidate</th><th>Kind</th><th>Source</th><th>Disposition</th><th>Confidence Notes</th><th>Extraction Reason</th><th>Evidence Ids</th></tr></thead><tbody>");
+        foreach (var candidate in candidates)
+        {
+            html.AppendLine("<tr>");
+            html.AppendLine($"<td><strong>{Encode(candidate.Title)}</strong><br><code>{Encode(candidate.CandidateId)}</code><br><span class=\"muted\">{Encode(candidate.Summary)}</span></td>");
+            html.AppendLine($"<td>{Encode(FormatCandidateKind(candidate.Kind))}</td>");
+            html.AppendLine($"<td>{Encode(FormatCandidateSource(candidate.Source))}</td>");
+            html.AppendLine($"<td>{Encode(FormatCandidateDisposition(candidate.Disposition))}</td>");
+            html.AppendLine($"<td>{Encode(candidate.Confidence.ToString("0.00", CultureInfo.InvariantCulture))}<br><span class=\"muted\">{Encode(candidate.Ambiguity)}</span></td>");
+            html.AppendLine($"<td>{Encode(candidate.ExtractionReason)}</td>");
+            html.AppendLine($"<td>{RenderProvenanceList(candidate.EvidenceStableIds)}</td>");
+            html.AppendLine("</tr>");
+        }
+
+        html.AppendLine("</tbody></table>");
+        html.AppendLine("</div>");
+        return html.ToString();
     }
 
     private static string RenderLayout(
@@ -516,6 +672,7 @@ internal static class OperatorShellPageRenderer
             html.AppendLine($"<a href=\"/projects/{projectId}/first-run-import\">First Run</a>");
             html.AppendLine($"<a href=\"/projects/{projectId}/queue\">Queue</a>");
             html.AppendLine($"<a href=\"/projects/{projectId}/proposals\">Proposals</a>");
+            html.AppendLine($"<a href=\"/projects/{projectId}/trust\">Trust</a>");
             html.AppendLine($"<a href=\"/context-viewer?projectId={projectId}\">Context</a>");
             html.AppendLine($"<a href=\"/understanding?projectId={projectId}\">Understanding</a>");
         }
@@ -929,14 +1086,43 @@ internal static class OperatorShellPageRenderer
             new("Diff status", view.DiffIssues.Count > 0 ? "needs attention" : view.RevisionDiff is null ? "net new or unavailable" : "ready to inspect")
         ]));
         html.AppendLine(ReviewUiComponents.RenderActionGroup(
-        [
-            "<span class=\"button disabled\">Approve</span>",
-            "<span class=\"button disabled danger\">Reject</span>",
-            "<a class=\"button ghost\" href=\"/projects/" + Encode(view.Project.Workspace.ProjectId) + "/queue\">Return to queue</a>"
-        ]));
-        html.AppendLine("<p class=\"muted\">The visible decision controls are intentionally inactive until UI persistence can apply the existing core approval workflow without bypassing filesystem-first governance.</p>");
+            BuildDecisionActions(view)));
+        html.AppendLine("<p class=\"muted\">Approval and rejection submit through the existing core approval workflow before filesystem-backed state changes. Proposed artifacts remain non-canonical unless a governed transition succeeds.</p>");
         html.AppendLine("</section>");
         return html.ToString();
+    }
+
+    private static IReadOnlyList<string> BuildDecisionActions(OperatorArtifactView view)
+    {
+        var actions = new List<string>();
+        var artifact = view.SelectedArtifact.Artifact;
+        var postPath = $"/projects/{Encode(view.Project.Workspace.ProjectId)}/review/decision";
+        var pathInput = $"<input type=\"hidden\" name=\"path\" value=\"{Encode(view.SelectedArtifact.RelativePath)}\" />";
+
+        if (artifact.Status == ArtifactStatus.Draft && view.ProvenanceReview.IsApprovalReady)
+        {
+            actions.Add($"""
+                <form method="post" action="{postPath}" class="inline-decision-form">
+                {pathInput}
+                <input type="hidden" name="decision" value="Approve" />
+                <button class="button" type="submit">Approve</button>
+                </form>
+                """);
+        }
+        else
+        {
+            actions.Add("<span class=\"button disabled\">Approve</span>");
+        }
+
+        actions.Add($"""
+            <form method="post" action="{postPath}" class="inline-decision-form">
+            {pathInput}
+            <input type="hidden" name="decision" value="Reject" />
+            <button class="button danger" type="submit">Reject</button>
+            </form>
+            """);
+        actions.Add("<a class=\"button ghost\" href=\"/projects/" + Encode(view.Project.Workspace.ProjectId) + "/queue\">Return to queue</a>");
+        return actions;
     }
 
     private static string RenderScopeNote(OperatorShellOptions options)
@@ -945,7 +1131,7 @@ internal static class OperatorShellPageRenderer
             ? "The shell is using a writable local copy of the sample workspaces so you can explore without touching the repo fixtures."
             : "The shell is using the configured workspace root directly.";
 
-        return $"<section class=\"panel note\"><h2>Current workflow scope</h2><p>{Encode(rootMode)}</p><p>Draft inspection and editing are wired through current core and storage behavior. Approval review is visible here, while approval and rejection persistence remain outside this UI slice.</p></section>";
+        return $"<section class=\"panel note\"><h2>Current workflow scope</h2><p>{Encode(rootMode)}</p><p>Draft inspection, editing, approval, and rejection are wired through current core and storage behavior. Canonical truth still changes only through governed approval persistence.</p></section>";
     }
 
     private static string RenderStatusBadge(ArtifactStatus status) =>
@@ -1021,6 +1207,15 @@ internal static class OperatorShellPageRenderer
             _ => disposition.ToString()
         };
 
+    private static string FormatTrustMetricState(OperatorTrustMetricState state) =>
+        state switch
+        {
+            OperatorTrustMetricState.Ready => "ready",
+            OperatorTrustMetricState.NeedsReview => "needs review",
+            OperatorTrustMetricState.Blocked => "blocked",
+            _ => state.ToString()
+        };
+
     private static string BuildArtifactLink(string projectId, string relativePath) =>
         $"/projects/{Uri.EscapeDataString(projectId)}/artifacts?path={Uri.EscapeDataString(relativePath)}";
 
@@ -1065,6 +1260,10 @@ h1, h2, h3 { margin-top: 0; }
 .project-grid, .two-up { display: grid; gap: 20px; }
 .project-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .two-up { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.trust-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.trust-card { border: 1px solid rgba(91, 56, 35, 0.12); border-radius: 16px; padding: 16px; background: rgba(255, 255, 255, 0.58); }
+.trust-card h3 { margin-bottom: 8px; }
+.trust-count { font-size: 2rem; font-weight: 700; margin: 0 0 8px; }
 .list { display: grid; gap: 10px; padding-left: 18px; }
 .badge { display: inline-flex; padding: 4px 10px; border-radius: 999px; font-size: 0.84rem; text-transform: uppercase; letter-spacing: 0.08em; background: #ead7b6; }
 .badge-draft, .badge-proposed { background: #f0c98b; }
@@ -1073,6 +1272,9 @@ h1, h2, h3 { margin-top: 0; }
 .badge-progress-complete, .badge-progress-ready { background: #b8d1b0; }
 .badge-progress-waiting { background: #d9c6bb; }
 .badge-progress-needsreview { background: #f0c98b; }
+.badge-trust-ready { background: #b8d1b0; }
+.badge-trust-needsreview { background: #f0c98b; }
+.badge-trust-blocked { background: #e7aaa1; }
 .table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border-radius: 18px; }
 table { width: 100%; min-width: 680px; border-collapse: collapse; }
 th, td { text-align: left; vertical-align: top; padding: 12px 10px; border-bottom: 1px solid rgba(91, 56, 35, 0.12); overflow-wrap: anywhere; }
@@ -1087,6 +1289,7 @@ th, td { text-align: left; vertical-align: top; padding: 12px 10px; border-botto
 .body-card, .section-card { background: rgba(255, 255, 255, 0.72); border-radius: 18px; padding: 16px; border: 1px solid rgba(91, 56, 35, 0.1); }
 pre { white-space: pre-wrap; margin: 0; }
 .edit-form { display: grid; gap: 16px; }
+.inline-decision-form { margin: 0; }
 .compact-form { margin-bottom: 16px; }
 .edit-form label { display: grid; gap: 8px; }
 .button { display: inline-flex; align-items: center; justify-content: center; width: fit-content; border: none; border-radius: 999px; padding: 12px 18px; background: #7d341f; color: #fff8f3; text-decoration: none; cursor: pointer; }

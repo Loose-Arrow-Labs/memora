@@ -24,6 +24,10 @@ Provides the local operator interface for Memora.
 - supports project selection, artifact browsing, draft editing, approval review previews, queue navigation, first-run import status, decision-readiness context, a context viewer route, and an understanding-output route
 - proposal review lists proposed artifacts separately from approved truth and
   links each item into the shared revision review surface
+- review pages resolve imported evidence and first-run candidate metadata where
+  available so operators can separate direct evidence from inferred meaning
+- trust dashboard summarizes review pressure, stale drafts, rebuild diagnostics,
+  missing memory, and import warnings from shared filesystem-derived services
 
 ## Design Guidance
 - future UI work should follow the shared component-system guidance in `../../docs/ui-design-system.md`
@@ -34,7 +38,8 @@ Provides the local operator interface for Memora.
 - draft edits write new draft revisions to the selected workspace root
 - approval review surfaces are wired to current core diff and queue behavior
 - revision diffs show deterministic areas, display labels, raw paths, and before/after values
-- approval and rejection persistence are intentionally not claimed in this slice
+- approval and rejection persistence route through the governed core workflow
+  before filesystem-backed state changes
 - first-run import status is read-only; it shows attachments, evidence counts, candidate source/disposition, readiness warnings, and next actions without promoting memory
 - understanding outputs remain read-only and are grounded in the shared context builder plus rebuildable traceability queries
 - no IDE review surface is implemented here; the current IDE review boundary only exists as draft/sample planning state

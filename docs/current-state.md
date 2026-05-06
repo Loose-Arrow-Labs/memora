@@ -93,7 +93,11 @@ It is intentionally separate from roadmap and milestone planning docs.
 - project selection from discovered workspaces
 - artifact browsing and draft editing
 - approval queue navigation, proposal review listing, revision review previews,
-  and decision-readiness context
+  evidence provenance inspection, and decision-readiness context
+- UI approval and rejection actions routed through the existing governed
+  approval workflow with filesystem-backed persistence
+- trust dashboard summary for pending proposals, stale drafts, relationship and
+  rebuild diagnostics, missing project memory, and import warnings
 - first-run import status page showing attached repository identity, selected
   import mode, progress, evidence counts, warnings, candidate source and
   disposition, readiness report details, and next actions
@@ -109,7 +113,9 @@ It is intentionally separate from roadmap and milestone planning docs.
 
 ## Still Intentionally Thin
 
-- UI review is preview-oriented and does not persist approval or rejection decisions
+- UI review persists approval and rejection decisions through the governed core
+  workflow, while proposed artifacts and drafts remain non-canonical until a
+  successful approval writes an approved canonical revision
 - API is a minimal HTTP surface, not a fully documented production service
 - MCP is currently an in-process adapter surface, not a complete hosted server transport
 - runtime alignment is grounded in the shared contract, but hosted transport, remote reachability, authentication, and provider-specific attachments still remain follow-up work
