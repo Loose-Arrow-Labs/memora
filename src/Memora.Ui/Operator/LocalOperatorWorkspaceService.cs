@@ -1,7 +1,10 @@
 using Memora.Core.Approval;
 using Memora.Core.Artifacts;
 using Memora.Core.Editing;
+using Memora.Core.Import;
 using Memora.Core.Revisions;
+using Memora.Import.Evidence;
+using Memora.Import.Readiness;
 using Memora.Storage.Parsing;
 using Memora.Storage.Persistence;
 using Memora.Storage.Workspaces;
@@ -16,6 +19,8 @@ public sealed class LocalOperatorWorkspaceService
     private readonly ApprovalQueueBuilder _approvalQueueBuilder = new();
     private readonly DraftArtifactEditor _draftArtifactEditor = new();
     private readonly ArtifactRevisionDiffBuilder _diffBuilder = new();
+    private readonly FileBackedImportedEvidenceStore _evidenceStore = new();
+    private readonly FileBackedFirstRunReportStore _firstRunReportStore = new();
     private readonly OperatorShellOptions _options;
 
     public LocalOperatorWorkspaceService(OperatorShellOptions options)
@@ -89,7 +94,8 @@ public sealed class LocalOperatorWorkspaceService
             currentApprovedArtifact,
             revisionDiff,
             diffIssues,
-            BuildReviewQueueContext(project, selectedRecord));
+            BuildReviewQueueContext(project, selectedRecord),
+            BuildProvenanceReview(project.Workspace, selectedRecord.Artifact));
     }
 
     public OperatorMutationResult EditDraft(
@@ -216,6 +222,126 @@ public sealed class LocalOperatorWorkspaceService
             selectedIndex + 1 < project.PendingItems.Count ? project.PendingItems[selectedIndex + 1] : null);
     }
 
+    private OperatorProvenanceReview BuildProvenanceReview(ProjectWorkspace workspace, ArtifactDocument artifact)
+    {
+        var warnings = new List<string>();
+        var evidence = ReadEvidence(workspace, warnings);
+        var evidenceById = evidence.ToDictionary(record => record.StableId, StringComparer.Ordinal);
+        var evidenceIds = ExtractEvidenceIds(artifact, evidenceById);
+        var missingEvidenceIds = evidenceIds
+            .Where(id => !evidenceById.ContainsKey(id))
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToArray();
+        var directEvidence = evidenceIds
+            .Where(evidenceById.ContainsKey)
+            .Select(id => evidenceById[id])
+            .Select(record => new OperatorEvidenceProvenanceItem(
+                record.StableId,
+                record.SourceType,
+                record.SourceReference,
+                record.Title,
+                record.Summary,
+                record.Provenance,
+                record.TrustState,
+                record.ObservedAtUtc,
+                record.ImportedAtUtc))
+            .ToArray();
+        var candidates = ReadFirstRunReport(workspace, warnings)?.Candidates ?? [];
+        var candidateNotes = candidates
+            .Where(candidate => ReferencesArtifact(candidate, artifact, evidenceIds))
+            .Select(candidate => new OperatorCandidateProvenanceItem(
+                candidate.CandidateId,
+                candidate.Kind,
+                candidate.Source,
+                candidate.Title,
+                candidate.Summary,
+                candidate.Confidence,
+                candidate.Ambiguity,
+                candidate.ExtractionReason,
+                candidate.Disposition,
+                candidate.EvidenceStableIds))
+            .ToArray();
+        var requiresImportedEvidence = artifact.Status == ArtifactStatus.Proposed;
+        var isApprovalReady = !requiresImportedEvidence || (directEvidence.Length > 0 && missingEvidenceIds.Length == 0);
+        var readinessMessage = isApprovalReady
+            ? "Required provenance is present for this review item."
+            : "Approval readiness is blocked until required imported evidence provenance resolves.";
+
+        return new OperatorProvenanceReview(
+            requiresImportedEvidence,
+            isApprovalReady,
+            readinessMessage,
+            artifact.Provenance,
+            evidenceIds,
+            missingEvidenceIds,
+            directEvidence,
+            candidateNotes,
+            warnings);
+    }
+
+    private IReadOnlyList<ImportedEvidenceRecord> ReadEvidence(ProjectWorkspace workspace, ICollection<string> warnings)
+    {
+        try
+        {
+            return _evidenceStore.ReadAll(workspace.RootPath);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            warnings.Add($"Imported evidence could not be loaded: {exception.Message}");
+            return [];
+        }
+    }
+
+    private FirstRunMemoryGenerationResult? ReadFirstRunReport(ProjectWorkspace workspace, ICollection<string> warnings)
+    {
+        try
+        {
+            return _firstRunReportStore.Load(workspace.RootPath);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            warnings.Add($"First-run readiness report could not be loaded: {exception.Message}");
+            return null;
+        }
+    }
+
+    private static IReadOnlyList<string> ExtractEvidenceIds(
+        ArtifactDocument artifact,
+        IReadOnlyDictionary<string, ImportedEvidenceRecord> evidenceById)
+    {
+        var ids = new SortedSet<string>(StringComparer.Ordinal);
+
+        foreach (var relationship in artifact.Links.DerivedFrom)
+        {
+            ids.Add(relationship.TargetArtifactId);
+        }
+
+        foreach (var token in artifact.Provenance.Split([' ', ',', ';', '|', '\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var normalized = token.Trim('.', ':', '#', '[', ']', '(', ')');
+            if (normalized.StartsWith("evidence:", StringComparison.Ordinal))
+            {
+                ids.Add(normalized["evidence:".Length..]);
+                continue;
+            }
+
+            if (evidenceById.ContainsKey(normalized))
+            {
+                ids.Add(normalized);
+            }
+        }
+
+        return ids.ToArray();
+    }
+
+    private static bool ReferencesArtifact(
+        CandidateMemoryRecord candidate,
+        ArtifactDocument artifact,
+        IReadOnlyList<string> evidenceIds) =>
+        string.Equals(candidate.CandidateId, artifact.Provenance, StringComparison.Ordinal) ||
+        artifact.Provenance.Contains(candidate.CandidateId, StringComparison.Ordinal) ||
+        candidate.EvidenceStableIds.Intersect(evidenceIds, StringComparer.Ordinal).Any();
+
     private static string NormalizeRelativePath(string relativePath) =>
         relativePath
             .Trim()
@@ -259,13 +385,48 @@ public sealed record OperatorArtifactView(
     ArtifactDocument? CurrentApprovedArtifact,
     ArtifactRevisionDiff? RevisionDiff,
     IReadOnlyList<string> DiffIssues,
-    OperatorReviewQueueContext? ReviewQueueContext);
+    OperatorReviewQueueContext? ReviewQueueContext,
+    OperatorProvenanceReview ProvenanceReview);
 
 public sealed record OperatorReviewQueueContext(
     int Position,
     int TotalItems,
     OperatorPendingReviewItem? PreviousItem,
     OperatorPendingReviewItem? NextItem);
+
+public sealed record OperatorProvenanceReview(
+    bool RequiresImportedEvidence,
+    bool IsApprovalReady,
+    string ReadinessMessage,
+    string DeclaredProvenance,
+    IReadOnlyList<string> DeclaredEvidenceIds,
+    IReadOnlyList<string> MissingEvidenceIds,
+    IReadOnlyList<OperatorEvidenceProvenanceItem> DirectEvidence,
+    IReadOnlyList<OperatorCandidateProvenanceItem> CandidateNotes,
+    IReadOnlyList<string> Warnings);
+
+public sealed record OperatorEvidenceProvenanceItem(
+    string StableId,
+    ImportedEvidenceSourceType SourceType,
+    string SourceReference,
+    string Title,
+    string Summary,
+    string Provenance,
+    ImportedEvidenceTrustState TrustState,
+    DateTimeOffset ObservedAtUtc,
+    DateTimeOffset ImportedAtUtc);
+
+public sealed record OperatorCandidateProvenanceItem(
+    string CandidateId,
+    CandidateMemoryKind Kind,
+    CandidateMemorySource Source,
+    string Title,
+    string Summary,
+    double Confidence,
+    string Ambiguity,
+    string ExtractionReason,
+    CandidateMemoryDisposition Disposition,
+    IReadOnlyList<string> EvidenceStableIds);
 
 public sealed record OperatorArtifactEditInput(
     string? Title,

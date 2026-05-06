@@ -413,6 +413,8 @@ internal static class OperatorShellPageRenderer
                 : RenderApprovedSummary(view.CurrentApprovedArtifact)));
         body.AppendLine("</section>");
 
+        body.AppendLine(RenderProvenanceReview(view.ProvenanceReview));
+
         body.AppendLine("<section class=\"panel\">");
         body.AppendLine("<div class=\"panel-header\"><h2>Revision Diff</h2><p class=\"muted\">Field-level changes from the core diff model.</p></div>");
 
@@ -459,6 +461,104 @@ internal static class OperatorShellPageRenderer
         body.AppendLine(RenderScopeNote(options));
 
         return RenderLayout($"{artifact.Title} review", options, projects, view.Project.Workspace.ProjectId, body.ToString());
+    }
+
+    private static string RenderProvenanceReview(OperatorProvenanceReview review)
+    {
+        var html = new StringBuilder();
+        html.AppendLine("<section class=\"panel\">");
+        html.AppendLine("<div class=\"panel-header\"><h2>Evidence Provenance</h2><p class=\"muted\">Directly observed evidence is separated from inferred candidate meaning before approval readiness.</p></div>");
+        html.AppendLine(ReviewUiComponents.RenderMetadataGrid(
+        [
+            new("Declared provenance", review.DeclaredProvenance),
+            new("Evidence requirement", review.RequiresImportedEvidence ? "required for proposal approval readiness" : "optional for this review item"),
+            new("Approval readiness", review.IsApprovalReady ? "ready" : "blocked"),
+            new("Readiness reason", review.ReadinessMessage)
+        ]));
+
+        if (review.MissingEvidenceIds.Count > 0)
+        {
+            html.AppendLine("<div class=\"body-card alert\"><h3>Missing Or Invalid Provenance</h3><ul class=\"list\">");
+            foreach (var evidenceId in review.MissingEvidenceIds)
+            {
+                html.AppendLine($"<li><code>{Encode(evidenceId)}</code> does not resolve to imported evidence in this workspace.</li>");
+            }
+
+            html.AppendLine("</ul></div>");
+        }
+
+        if (review.Warnings.Count > 0)
+        {
+            html.AppendLine("<div class=\"body-card alert\"><h3>Provenance Diagnostics</h3><ul class=\"list\">");
+            foreach (var warning in review.Warnings)
+            {
+                html.AppendLine($"<li>{Encode(warning)}</li>");
+            }
+
+            html.AppendLine("</ul></div>");
+        }
+
+        html.AppendLine("<h3>Directly Observed Evidence</h3>");
+        html.AppendLine(RenderDirectEvidenceTable(review.DirectEvidence));
+        html.AppendLine("<h3>Inferred Meaning And Candidate Notes</h3>");
+        html.AppendLine(RenderCandidateProvenanceTable(review.CandidateNotes));
+        html.AppendLine("</section>");
+        return html.ToString();
+    }
+
+    private static string RenderDirectEvidenceTable(IReadOnlyList<OperatorEvidenceProvenanceItem> evidence)
+    {
+        if (evidence.Count == 0)
+        {
+            return "<p class=\"muted\">No imported evidence records resolved for this artifact.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"table-scroll\">");
+        html.AppendLine("<table><thead><tr><th>Evidence</th><th>Source Type</th><th>URL / Path / SHA / Issue / PR</th><th>Trust</th><th>Observed</th><th>Summary</th></tr></thead><tbody>");
+        foreach (var item in evidence)
+        {
+            html.AppendLine("<tr>");
+            html.AppendLine($"<td><code>{Encode(item.StableId)}</code><br><span class=\"muted\">{Encode(item.Provenance)}</span></td>");
+            html.AppendLine($"<td>{Encode(item.SourceType.ToSchemaValue())}</td>");
+            html.AppendLine($"<td><code>{Encode(item.SourceReference)}</code></td>");
+            html.AppendLine($"<td>{Encode(item.TrustState.ToSchemaValue())}</td>");
+            html.AppendLine($"<td>{Encode(item.ObservedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture))}</td>");
+            html.AppendLine($"<td><strong>{Encode(item.Title)}</strong><br><span class=\"muted\">{Encode(item.Summary)}</span></td>");
+            html.AppendLine("</tr>");
+        }
+
+        html.AppendLine("</tbody></table>");
+        html.AppendLine("</div>");
+        return html.ToString();
+    }
+
+    private static string RenderCandidateProvenanceTable(IReadOnlyList<OperatorCandidateProvenanceItem> candidates)
+    {
+        if (candidates.Count == 0)
+        {
+            return "<p class=\"muted\">No first-run candidate metadata is linked to this artifact.</p>";
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"table-scroll\">");
+        html.AppendLine("<table><thead><tr><th>Candidate</th><th>Kind</th><th>Source</th><th>Disposition</th><th>Confidence Notes</th><th>Extraction Reason</th><th>Evidence Ids</th></tr></thead><tbody>");
+        foreach (var candidate in candidates)
+        {
+            html.AppendLine("<tr>");
+            html.AppendLine($"<td><strong>{Encode(candidate.Title)}</strong><br><code>{Encode(candidate.CandidateId)}</code><br><span class=\"muted\">{Encode(candidate.Summary)}</span></td>");
+            html.AppendLine($"<td>{Encode(FormatCandidateKind(candidate.Kind))}</td>");
+            html.AppendLine($"<td>{Encode(FormatCandidateSource(candidate.Source))}</td>");
+            html.AppendLine($"<td>{Encode(FormatCandidateDisposition(candidate.Disposition))}</td>");
+            html.AppendLine($"<td>{Encode(candidate.Confidence.ToString("0.00", CultureInfo.InvariantCulture))}<br><span class=\"muted\">{Encode(candidate.Ambiguity)}</span></td>");
+            html.AppendLine($"<td>{Encode(candidate.ExtractionReason)}</td>");
+            html.AppendLine($"<td>{RenderProvenanceList(candidate.EvidenceStableIds)}</td>");
+            html.AppendLine("</tr>");
+        }
+
+        html.AppendLine("</tbody></table>");
+        html.AppendLine("</div>");
+        return html.ToString();
     }
 
     private static string RenderLayout(
