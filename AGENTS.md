@@ -343,8 +343,12 @@ For each issue in the milestone:
 ### 16.6 Dependency Rule
 
 - Respect explicit dependency order
+- Treat issue order as a merge-safety contract, not only an execution order
 - Prefer the thinnest real slice when multiple issues appear unblocked
 - Do not reorder issues arbitrarily
+- Before opening each stacked PR, verify that its base branch is the
+  immediately previous issue branch from the declared order, unless that
+  previous issue has already been merged to `main` before work resumes
 - If an issue is blocked and no clearly unblocked milestone issue can be taken next without violating dependency order, STOP and report the blocker
 
 ### 16.7 Failure Rule
@@ -358,6 +362,8 @@ Stop execution immediately if any of the following occurs:
 - architecture violation would be required to proceed
 - validation fails and cannot be resolved within issue scope
 - stacked branch state becomes inconsistent
+- a PR would need to target an out-of-order, deleted, or already-merged stack
+  branch in order to continue
 
 When stopping, report:
 
@@ -376,7 +382,28 @@ At milestone completion:
 - nothing has been merged during unattended execution
 - the stack is ready for human review
 
-### 16.9 Post-Review Cleanup
+### 16.9 Interrupted Session Recovery
+
+If an unattended stacked milestone session is interrupted and the operator
+merges any submitted PRs before work resumes:
+
+- fetch and prune remotes before continuing
+- inspect the merged/open PRs and issue states for the milestone
+- recompute the next branch base from actual remote state
+- continue from updated `main` only when all earlier issue changes are reachable
+  from `origin/main`
+- otherwise continue from the immediately previous still-open issue branch in
+  the declared issue order
+- do not restore deleted stack branches or retarget PRs out of order to make
+  progress
+- if earlier issue changes are only present on intermediate branches and are
+  not reachable from `origin/main` or the previous still-open issue branch,
+  STOP and report the recovery state
+
+The goal is that a human can merge the submitted PRs in issue order after any
+interruption without causing avoidable conflicts or hidden dependency gaps.
+
+### 16.10 Post-Review Cleanup
 
 After the milestone stack is reviewed and merged, return to the normal cleanup rules:
 
