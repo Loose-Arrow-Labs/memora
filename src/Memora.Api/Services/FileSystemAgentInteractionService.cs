@@ -15,7 +15,7 @@ using Memora.Storage.Workspaces;
 
 namespace Memora.Api.Services;
 
-public sealed class FileSystemAgentInteractionService : IAgentInteractionService
+public sealed class FileSystemAgentInteractionService : IAgentInteractionService, IReviewInboxService
 {
     private readonly string _workspacesRootPath;
     private readonly WorkspaceDiscovery _workspaceDiscovery = new();
@@ -49,6 +49,96 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
                 [],
                 workspace.Metadata.RepositoryAttachments,
                 BuildImportReadinessState(workspace));
+    }
+
+    public ReviewInboxResponse GetReviewInbox(string projectId)
+    {
+        var workspace = FindWorkspace(projectId);
+        if (workspace is null)
+        {
+            return new ReviewInboxResponse(
+                projectId,
+                [],
+                [new AgentInteractionError("project.not_found", $"Project '{projectId}' was not found.", "project_id")]);
+        }
+
+        var records = LoadReviewArtifactRecords(workspace, out var errors);
+        var items = records
+            .Where(record => record.Artifact.Status is ArtifactStatus.Draft or ArtifactStatus.Proposed)
+            .OrderBy(record => record.Artifact.Status == ArtifactStatus.Proposed ? 0 : 1)
+            .ThenBy(record => record.Artifact.UpdatedAtUtc)
+            .ThenBy(record => record.Artifact.Id, StringComparer.Ordinal)
+            .Select(record => MapReviewInboxItem(record))
+            .ToArray();
+
+        return new ReviewInboxResponse(workspace.ProjectId, items, errors);
+    }
+
+    public ReviewArtifactPreviewResponse GetReviewArtifactPreview(string projectId, string relativePath)
+    {
+        var workspace = FindWorkspace(projectId);
+        if (workspace is null)
+        {
+            return new ReviewArtifactPreviewResponse(
+                projectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                [new AgentInteractionError("project.not_found", $"Project '{projectId}' was not found.", "project_id")]);
+        }
+
+        if (!TryResolveWorkspacePath(workspace, relativePath, out var filePath))
+        {
+            return new ReviewArtifactPreviewResponse(
+                workspace.ProjectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                [new AgentInteractionError("review.path.invalid", "Review artifact path must stay inside the workspace.", "path")]);
+        }
+
+        if (!File.Exists(filePath))
+        {
+            return new ReviewArtifactPreviewResponse(
+                workspace.ProjectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                [new AgentInteractionError("review.artifact.not_found", $"Review artifact '{relativePath}' was not found.", "path")]);
+        }
+
+        var parsed = _markdownParser.Parse(File.ReadAllText(filePath));
+        if (!parsed.Validation.IsValid || parsed.Artifact is null)
+        {
+            return new ReviewArtifactPreviewResponse(
+                workspace.ProjectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                MapErrors(parsed.Validation));
+        }
+
+        if (parsed.Artifact.Status is not ArtifactStatus.Draft and not ArtifactStatus.Proposed)
+        {
+            return new ReviewArtifactPreviewResponse(
+                workspace.ProjectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                [new AgentInteractionError("review.status.not_reviewable", "Only draft or proposed artifacts are available in the review inbox.", "status")]);
+        }
+
+        var record = new ParsedReviewArtifactRecord(
+            parsed.Artifact,
+            Path.GetFullPath(filePath),
+            NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, filePath)));
+
+        return new ReviewArtifactPreviewResponse(
+            workspace.ProjectId,
+            MapReviewInboxItem(record),
+            parsed.Artifact.Body,
+            parsed.Artifact.Sections,
+            []);
     }
 
     public GetContextResponse GetContext(GetContextRequest request)
@@ -416,6 +506,69 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
         return artifacts;
     }
 
+    private IReadOnlyList<ParsedReviewArtifactRecord> LoadReviewArtifactRecords(
+        ProjectWorkspace workspace,
+        out IReadOnlyList<AgentInteractionError> errors)
+    {
+        var records = new List<ParsedReviewArtifactRecord>();
+        var collectedErrors = new List<AgentInteractionError>();
+
+        foreach (var filePath in EnumerateArtifactFiles(workspace, includeDrafts: true, includeSummaries: false))
+        {
+            var parsed = _markdownParser.Parse(File.ReadAllText(filePath));
+            if (!parsed.Validation.IsValid || parsed.Artifact is null)
+            {
+                collectedErrors.AddRange(parsed.Validation.Issues.Select(issue =>
+                    new AgentInteractionError(issue.Code, issue.DiagnosticMessage, issue.Path ?? filePath)));
+                continue;
+            }
+
+            records.Add(new ParsedReviewArtifactRecord(
+                parsed.Artifact,
+                Path.GetFullPath(filePath),
+                NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, filePath))));
+        }
+
+        errors = collectedErrors;
+        return records;
+    }
+
+    private static ReviewInboxItem MapReviewInboxItem(ParsedReviewArtifactRecord record) =>
+        new(
+            record.Artifact.Id,
+            record.Artifact.Type,
+            record.Artifact.Status,
+            record.Artifact.Title,
+            record.Artifact.Revision,
+            record.Artifact.Provenance,
+            record.Artifact.Reason,
+            record.RelativePath,
+            record.FilePath,
+            "valid",
+            record.Artifact.UpdatedAtUtc);
+
+    private static bool TryResolveWorkspacePath(ProjectWorkspace workspace, string relativePath, out string filePath)
+    {
+        filePath = string.Empty;
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return false;
+        }
+
+        var candidate = Path.GetFullPath(Path.Combine(workspace.RootPath, NormalizeRelativePath(relativePath)));
+        var workspaceRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(workspace.RootPath)) + Path.DirectorySeparatorChar;
+        if (!candidate.StartsWith(workspaceRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        filePath = candidate;
+        return true;
+    }
+
+    private static string NormalizeRelativePath(string relativePath) =>
+        relativePath.Trim().Replace('\\', '/');
+
     private static IReadOnlyList<string> EnumerateArtifactFiles(ProjectWorkspace workspace, bool includeDrafts, bool includeSummaries)
     {
         var files = new List<string>();
@@ -622,4 +775,9 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
         public ArtifactDocument? Artifact { get; } = Artifact;
         public IReadOnlyList<AgentInteractionError> Errors { get; } = Errors;
     }
+
+    private sealed record ParsedReviewArtifactRecord(
+        ArtifactDocument Artifact,
+        string FilePath,
+        string RelativePath);
 }

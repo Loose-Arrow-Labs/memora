@@ -3,7 +3,7 @@ using Memora.Core.Artifacts;
 
 namespace Memora.Api.Services;
 
-internal sealed class UnavailableAgentInteractionService : IAgentInteractionService
+internal sealed class UnavailableAgentInteractionService : IAgentInteractionService, IReviewInboxService
 {
     public ProjectLookupResponse GetProject(string projectId) =>
         new(
@@ -43,4 +43,18 @@ internal sealed class UnavailableAgentInteractionService : IAgentInteractionServ
             0,
             OutcomeKind.Mixed,
             [new AgentInteractionError("outcome.not_configured", "Outcome recording service is not configured.", "service")]);
+
+    public ReviewInboxResponse GetReviewInbox(string projectId) =>
+        new(
+            projectId,
+            [],
+            [new AgentInteractionError("review.not_configured", "Review inbox service is not configured.", "service")]);
+
+    public ReviewArtifactPreviewResponse GetReviewArtifactPreview(string projectId, string relativePath) =>
+        new(
+            projectId,
+            null,
+            null,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            [new AgentInteractionError("review.not_configured", "Review inbox service is not configured.", "service")]);
 }
