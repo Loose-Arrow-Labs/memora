@@ -3,6 +3,7 @@ using System.Text.Json;
 using Memora.Context.Assembly;
 using Memora.Context.Models;
 using Memora.Core.AgentInteraction;
+using Memora.Core.Approval;
 using Memora.Core.Artifacts;
 using Memora.Core.Automation;
 using Memora.Core.Import;
@@ -20,8 +21,10 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
     private readonly string _workspacesRootPath;
     private readonly WorkspaceDiscovery _workspaceDiscovery = new();
     private readonly ArtifactMarkdownParser _markdownParser = new();
+    private readonly ArtifactMarkdownWriter _markdownWriter = new();
     private readonly ArtifactFactory _artifactFactory = new();
     private readonly ArtifactFileStore _fileStore = new();
+    private readonly ArtifactApprovalWorkflow _approvalWorkflow = new();
     private readonly ContextBundleBuilder _contextBundleBuilder = new();
     private readonly ContextPackageCache _contextPackageCache = new();
     private readonly PolicyGovernedWriteSafetyValidator _writeSafetyValidator = new();
@@ -139,6 +142,37 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
             parsed.Artifact.Body,
             parsed.Artifact.Sections,
             []);
+    }
+
+    public ReviewDecisionResponse ApplyReviewDecision(string projectId, ReviewDecisionRequest request)
+    {
+        var workspace = FindWorkspace(projectId);
+        if (workspace is null)
+        {
+            return new ReviewDecisionResponse(
+                projectId,
+                request.Decision,
+                null,
+                null,
+                [new AgentInteractionError("project.not_found", $"Project '{projectId}' was not found.", "project_id")]);
+        }
+
+        if (!TryLoadReviewArtifactRecord(workspace, request.RelativePath, out var record, out var errors))
+        {
+            return new ReviewDecisionResponse(workspace.ProjectId, request.Decision, null, null, errors);
+        }
+
+        return request.Decision switch
+        {
+            "approve" => ApproveReviewRecord(workspace, record!),
+            "reject" => RejectReviewRecord(workspace, record!),
+            _ => new ReviewDecisionResponse(
+                workspace.ProjectId,
+                request.Decision,
+                null,
+                null,
+                [new AgentInteractionError("review.decision.invalid", "Review decision must be 'approve' or 'reject'.", "decision")])
+        };
     }
 
     public GetContextResponse GetContext(GetContextRequest request)
@@ -531,6 +565,155 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
 
         errors = collectedErrors;
         return records;
+    }
+
+    private bool TryLoadReviewArtifactRecord(
+        ProjectWorkspace workspace,
+        string relativePath,
+        out ParsedReviewArtifactRecord? record,
+        out IReadOnlyList<AgentInteractionError> errors)
+    {
+        record = null;
+
+        if (!TryResolveWorkspacePath(workspace, relativePath, out var filePath))
+        {
+            errors =
+            [
+                new AgentInteractionError("review.path.invalid", "Review artifact path must stay inside the workspace.", "path")
+            ];
+            return false;
+        }
+
+        if (!File.Exists(filePath))
+        {
+            errors =
+            [
+                new AgentInteractionError("review.artifact.not_found", $"Review artifact '{relativePath}' was not found.", "path")
+            ];
+            return false;
+        }
+
+        var parsed = _markdownParser.Parse(File.ReadAllText(filePath));
+        if (!parsed.Validation.IsValid || parsed.Artifact is null)
+        {
+            errors = MapErrors(parsed.Validation);
+            return false;
+        }
+
+        if (parsed.Artifact.Status is not ArtifactStatus.Draft and not ArtifactStatus.Proposed)
+        {
+            errors =
+            [
+                new AgentInteractionError("review.status.not_reviewable", "Only draft or proposed artifacts are available for review decisions.", "status")
+            ];
+            return false;
+        }
+
+        record = new ParsedReviewArtifactRecord(
+            parsed.Artifact,
+            Path.GetFullPath(filePath),
+            NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, filePath)));
+        errors = [];
+        return true;
+    }
+
+    private ReviewDecisionResponse ApproveReviewRecord(
+        ProjectWorkspace workspace,
+        ParsedReviewArtifactRecord record)
+    {
+        var currentApprovedArtifact = LoadArtifacts(workspace, includeDrafts: false, includeSummaries: false, out var loadErrors)
+            .Where(artifact => string.Equals(artifact.Id, record.Artifact.Id, StringComparison.Ordinal))
+            .Where(artifact => artifact.Status == ArtifactStatus.Approved)
+            .OrderByDescending(artifact => artifact.Revision)
+            .ThenByDescending(artifact => artifact.UpdatedAtUtc)
+            .FirstOrDefault();
+
+        if (loadErrors.Count > 0)
+        {
+            return new ReviewDecisionResponse(workspace.ProjectId, "approve", null, null, loadErrors);
+        }
+
+        var decision = _approvalWorkflow.Approve(
+            record.Artifact,
+            DateTimeOffset.UtcNow,
+            currentApprovedArtifact);
+
+        if (!decision.IsSuccess || decision.ApprovedArtifact is null)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "approve",
+                null,
+                null,
+                MapErrors(decision.Validation));
+        }
+
+        try
+        {
+            var approvedPath = _fileStore.Save(workspace, decision.ApprovedArtifact);
+            File.Delete(record.FilePath);
+            var approvedRecord = new ParsedReviewArtifactRecord(
+                decision.ApprovedArtifact,
+                Path.GetFullPath(approvedPath),
+                NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, approvedPath)));
+
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "approve",
+                MapReviewInboxItem(approvedRecord),
+                $"Approved {decision.ApprovedArtifact.Id} revision {decision.ApprovedArtifact.Revision}.",
+                []);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "approve",
+                null,
+                null,
+                [new AgentInteractionError("review.approval.persistence_failed", $"Approval persistence failed: {exception.Message}", "path")]);
+        }
+    }
+
+    private ReviewDecisionResponse RejectReviewRecord(
+        ProjectWorkspace workspace,
+        ParsedReviewArtifactRecord record)
+    {
+        var decision = _approvalWorkflow.Reject(record.Artifact, DateTimeOffset.UtcNow);
+        if (!decision.IsSuccess || decision.RejectedArtifact is null)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "reject",
+                null,
+                null,
+                MapErrors(decision.Validation));
+        }
+
+        try
+        {
+            File.WriteAllText(record.FilePath, _markdownWriter.Write(decision.RejectedArtifact));
+            var rejectedRecord = new ParsedReviewArtifactRecord(
+                decision.RejectedArtifact,
+                record.FilePath,
+                record.RelativePath);
+
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "reject",
+                MapReviewInboxItem(rejectedRecord),
+                $"Rejected {decision.RejectedArtifact.Id} revision {decision.RejectedArtifact.Revision}.",
+                []);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "reject",
+                null,
+                null,
+                [new AgentInteractionError("review.rejection.persistence_failed", $"Rejection persistence failed: {exception.Message}", "path")]);
+        }
     }
 
     private static ReviewInboxItem MapReviewInboxItem(ParsedReviewArtifactRecord record) =>

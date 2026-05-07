@@ -78,6 +78,11 @@ app.MapGet(
     (string projectId, string path, IReviewInboxService service) =>
         AgentInteractionHttpResults.FromReviewArtifactPreviewResponse(service.GetReviewArtifactPreview(projectId, path)));
 
+app.MapPost(
+    "/api/projects/{projectId}/review/decisions",
+    (string projectId, ReviewDecisionRequest request, IReviewInboxService service) =>
+        AgentInteractionHttpResults.FromReviewDecisionResponse(service.ApplyReviewDecision(projectId, request)));
+
 app.Run();
 
 public partial class Program;

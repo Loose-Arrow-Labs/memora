@@ -57,4 +57,12 @@ internal sealed class UnavailableAgentInteractionService : IAgentInteractionServ
             null,
             new Dictionary<string, string>(StringComparer.Ordinal),
             [new AgentInteractionError("review.not_configured", "Review inbox service is not configured.", "service")]);
+
+    public ReviewDecisionResponse ApplyReviewDecision(string projectId, ReviewDecisionRequest request) =>
+        new(
+            projectId,
+            request.Decision,
+            null,
+            null,
+            [new AgentInteractionError("review.not_configured", "Review decision service is not configured.", "service")]);
 }

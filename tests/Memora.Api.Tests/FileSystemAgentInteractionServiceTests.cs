@@ -6,6 +6,7 @@ using Memora.Core.Import;
 using Memora.Core.Projects;
 using Memora.Import.Evidence;
 using Memora.Import.Readiness;
+using Memora.Storage.Parsing;
 using Memora.Storage.Persistence;
 using Memora.Storage.Workspaces;
 
@@ -284,6 +285,62 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
 
         Assert.False(response.IsSuccess);
         Assert.Contains(response.Errors, error => error.Code == "review.status.not_reviewable");
+    }
+
+    [Fact]
+    public void ApplyReviewDecision_Approve_PersistsApprovedArtifactAndRemovesDraft()
+    {
+        var workspace = CreateWorkspace("memora");
+        var draftPath = _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-005", ArtifactStatus.Draft, "Draft decision"));
+        var relativePath = Path.GetRelativePath(workspace.RootPath, draftPath).Replace('\\', '/');
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.ApplyReviewDecision("memora", new ReviewDecisionRequest(relativePath, "approve"));
+
+        Assert.True(response.IsSuccess);
+        Assert.Equal("approve", response.Decision);
+        Assert.NotNull(response.Item);
+        Assert.Equal(ArtifactStatus.Approved, response.Item.Status);
+        Assert.Equal("canonical/decisions/ADR-005.r0001.md", response.Item.RelativePath);
+        Assert.False(File.Exists(draftPath));
+        Assert.True(File.Exists(Path.Combine(workspace.CanonicalDecisionsPath, "ADR-005.r0001.md")));
+    }
+
+    [Fact]
+    public void ApplyReviewDecision_Reject_PersistsDeprecatedArtifactInReviewPath()
+    {
+        var workspace = CreateWorkspace("memora");
+        var draftPath = _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-006", ArtifactStatus.Proposed, "Proposed decision"));
+        var relativePath = Path.GetRelativePath(workspace.RootPath, draftPath).Replace('\\', '/');
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.ApplyReviewDecision("memora", new ReviewDecisionRequest(relativePath, "reject"));
+
+        Assert.True(response.IsSuccess);
+        Assert.Equal("reject", response.Decision);
+        Assert.NotNull(response.Item);
+        Assert.Equal(ArtifactStatus.Deprecated, response.Item.Status);
+        Assert.Equal(relativePath, response.Item.RelativePath);
+        Assert.True(File.Exists(draftPath));
+        var parsed = new ArtifactMarkdownParser().Parse(File.ReadAllText(draftPath));
+        Assert.NotNull(parsed.Artifact);
+        Assert.Equal(ArtifactStatus.Deprecated, parsed.Artifact.Status);
+    }
+
+    [Fact]
+    public void ApplyReviewDecision_Approve_ReturnsLifecycleErrorForProposedArtifact()
+    {
+        var workspace = CreateWorkspace("memora");
+        var draftPath = _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-007", ArtifactStatus.Proposed, "Proposed decision"));
+        var relativePath = Path.GetRelativePath(workspace.RootPath, draftPath).Replace('\\', '/');
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.ApplyReviewDecision("memora", new ReviewDecisionRequest(relativePath, "approve"));
+
+        Assert.False(response.IsSuccess);
+        Assert.Contains(response.Errors, error => error.Code == "approval.approve.status.invalid");
+        Assert.True(File.Exists(draftPath));
+        Assert.False(File.Exists(Path.Combine(workspace.CanonicalDecisionsPath, "ADR-007.r0001.md")));
     }
 
     [Fact]

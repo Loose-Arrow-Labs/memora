@@ -27,6 +27,27 @@ public sealed record ReviewArtifactPreviewResponse(
             : new Dictionary<string, string>(Sections, StringComparer.Ordinal);
 }
 
+public sealed record ReviewDecisionRequest(
+    string RelativePath,
+    string Decision)
+{
+    public string RelativePath { get; } = AgentInteractionContractHelpers.RequireValue(RelativePath, nameof(RelativePath), "Relative path is required.");
+    public string Decision { get; } = AgentInteractionContractHelpers.RequireValue(Decision, nameof(Decision), "Decision is required.").ToLowerInvariant();
+}
+
+public sealed record ReviewDecisionResponse(
+    string ProjectId,
+    string Decision,
+    ReviewInboxItem? Item,
+    string? Message,
+    IReadOnlyList<AgentInteractionError> Errors)
+    : AgentInteractionResponse(Errors)
+{
+    public string ProjectId { get; } = AgentInteractionContractHelpers.RequireValue(ProjectId, nameof(ProjectId), "Project id is required.");
+    public string Decision { get; } = AgentInteractionContractHelpers.RequireValue(Decision, nameof(Decision), "Decision is required.").ToLowerInvariant();
+    public string? Message { get; } = string.IsNullOrWhiteSpace(Message) ? null : Message.Trim();
+}
+
 public sealed record ReviewInboxItem(
     string ArtifactId,
     ArtifactType ArtifactType,
@@ -54,4 +75,6 @@ public interface IReviewInboxService
     ReviewInboxResponse GetReviewInbox(string projectId);
 
     ReviewArtifactPreviewResponse GetReviewArtifactPreview(string projectId, string relativePath);
+
+    ReviewDecisionResponse ApplyReviewDecision(string projectId, ReviewDecisionRequest request);
 }

@@ -23,6 +23,8 @@ internal static class AgentInteractionHttpResults
 
     public static IResult FromReviewArtifactPreviewResponse(ReviewArtifactPreviewResponse response) => FromResponse(response);
 
+    public static IResult FromReviewDecisionResponse(ReviewDecisionResponse response) => FromResponse(response);
+
     private static IResult FromResponse(AgentInteractionResponse response)
     {
         if (response.IsSuccess)
