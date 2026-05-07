@@ -9,6 +9,7 @@ Exposes Memora capabilities through a local OpenAPI-compatible service.
 - artifact proposal endpoint
 - update proposal endpoint
 - outcome recording endpoint
+- review inbox and artifact preview endpoints for local IDE clients
 
 ## Does NOT contain
 - duplicated core rules
@@ -17,14 +18,14 @@ Exposes Memora capabilities through a local OpenAPI-compatible service.
 ## Key Areas
 
 - `Program.cs`: route registration and service wiring
-- `Services/FileSystemAgentInteractionService.cs`: file-backed project, cached context, proposal, outcome, and guarded session-summary write flow
+- `Services/FileSystemAgentInteractionService.cs`: file-backed project, cached context, proposal, outcome, review inbox, artifact preview, and guarded session-summary write flow
 - `Services/UnavailableAgentInteractionService.cs`: guarded fallback when no workspace root is configured
 - `AgentInteractionHttpResults.cs`: maps shared contract results to HTTP responses
 
 ## Current Scope
 
 - endpoints are minimal and focused on the shared agent interaction contract
-- current routes are project lookup, context retrieval, artifact proposal, update proposal, and outcome recording
+- current routes are project lookup, context retrieval, artifact proposal, update proposal, outcome recording, review inbox listing, and review artifact preview
 - project lookup includes repository attachment metadata plus imported readiness
   state when first-run import evidence and reports are present
 - the host publishes a companion OpenAPI document at `/openapi.json`
@@ -32,6 +33,7 @@ Exposes Memora capabilities through a local OpenAPI-compatible service.
 - context cache reuse is derived from freshly loaded filesystem artifacts and never replaces filesystem truth
 - runtime-facing proposal payloads normalize JSON-bound type-specific values before shared validation so companion-surface requests stay compatible with the shared contract
 - validation errors preserve structured code/path fields and use diagnostic messages from core validation
+- review inbox responses expose only draft or proposed artifacts, preserving the rule that pending review items are not canonical truth
 - the guarded direct-write prototype is limited to non-canonical session summaries in summary storage
 - this host is intentionally thin and does not claim a full production API surface
 - runtime-facing prototype and compatibility validation currently live in `tests/Memora.Api.Tests`

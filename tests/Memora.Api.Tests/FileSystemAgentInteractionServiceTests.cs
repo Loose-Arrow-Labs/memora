@@ -223,6 +223,70 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
+    public void GetReviewInbox_ReturnsReviewableDraftAndProposedArtifactsOnly()
+    {
+        var workspace = CreateWorkspace("memora");
+        _fileStore.Save(workspace, CreateApprovedDecisionArtifact());
+        _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-002", ArtifactStatus.Draft, "Draft context decision"));
+        _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-003", ArtifactStatus.Proposed, "Proposed context decision"));
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.GetReviewInbox("memora");
+
+        Assert.True(response.IsSuccess);
+        Assert.Equal("memora", response.ProjectId);
+        Assert.Collection(
+            response.Items,
+            item =>
+            {
+                Assert.Equal("ADR-003", item.ArtifactId);
+                Assert.Equal(ArtifactStatus.Proposed, item.Status);
+                Assert.Equal("drafts/decision/ADR-003.r0001.md", item.RelativePath);
+                Assert.Equal("valid", item.ValidationState);
+            },
+            item =>
+            {
+                Assert.Equal("ADR-002", item.ArtifactId);
+                Assert.Equal(ArtifactStatus.Draft, item.Status);
+                Assert.Equal("drafts/decision/ADR-002.r0001.md", item.RelativePath);
+                Assert.Equal("valid", item.ValidationState);
+            });
+        Assert.DoesNotContain(response.Items, item => item.ArtifactId == "ADR-001");
+    }
+
+    [Fact]
+    public void GetReviewArtifactPreview_ReturnsMetadataBodyAndSections()
+    {
+        var workspace = CreateWorkspace("memora");
+        var path = _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-004", ArtifactStatus.Draft, "Previewable decision"));
+        var relativePath = Path.GetRelativePath(workspace.RootPath, path).Replace('\\', '/');
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.GetReviewArtifactPreview("memora", relativePath);
+
+        Assert.True(response.IsSuccess);
+        Assert.NotNull(response.Item);
+        Assert.Equal("ADR-004", response.Item.ArtifactId);
+        Assert.Equal(ArtifactStatus.Draft, response.Item.Status);
+        Assert.Contains("## Context", response.Body, StringComparison.Ordinal);
+        Assert.Equal("Keep the contract explicit.", response.Sections["Decision"]);
+    }
+
+    [Fact]
+    public void GetReviewArtifactPreview_RejectsApprovedCanonicalArtifacts()
+    {
+        var workspace = CreateWorkspace("memora");
+        var path = _fileStore.Save(workspace, CreateApprovedDecisionArtifact());
+        var relativePath = Path.GetRelativePath(workspace.RootPath, path).Replace('\\', '/');
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.GetReviewArtifactPreview("memora", relativePath);
+
+        Assert.False(response.IsSuccess);
+        Assert.Contains(response.Errors, error => error.Code == "review.status.not_reviewable");
+    }
+
+    [Fact]
     public void WriteSessionSummary_ExplicitPolicyGovernedTrigger_PersistsToSummaryStorage()
     {
         var workspace = CreateWorkspace("memora");
@@ -497,6 +561,44 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
                 ["Decision"] = "Keep the current approved decision.",
                 ["Alternatives Considered"] = "Replacing approved truth directly.",
                 ["Consequences"] = "Updates must stay proposal-only."
+            },
+            "2026-04-17");
+
+    private static ArchitectureDecisionArtifact CreateReviewDecisionArtifact(
+        string id,
+        ArtifactStatus status,
+        string title) =>
+        new(
+            id,
+            "memora",
+            status,
+            title,
+            new DateTimeOffset(2026, 4, 17, 10, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 4, 17, 10, 30, 0, TimeSpan.Zero),
+            1,
+            ["context"],
+            "agent",
+            "review inbox test",
+            ArtifactLinks.Empty,
+            """
+            ## Context
+            Deterministic context is required.
+
+            ## Decision
+            Keep the contract explicit.
+
+            ## Alternatives Considered
+            Duplicated endpoint logic.
+
+            ## Consequences
+            Shared services stay reusable.
+            """,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Context"] = "Deterministic context is required.",
+                ["Decision"] = "Keep the contract explicit.",
+                ["Alternatives Considered"] = "Duplicated endpoint logic.",
+                ["Consequences"] = "Shared services stay reusable."
             },
             "2026-04-17");
 
