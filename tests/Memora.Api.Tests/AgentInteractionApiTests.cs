@@ -175,6 +175,27 @@ public sealed class AgentInteractionApiTests
     }
 
     [Fact]
+    public async Task ProposalConflicts_MapToConflict()
+    {
+        using var factory = CreateFactory(new ConflictingAgentInteractionService());
+        using var client = CreateAuthorizedClient(factory);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/artifacts/proposals",
+            new ProposeArtifactRequest(
+                "memora",
+                "ADR-001",
+                ArtifactType.Decision,
+                CreateContent()));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProposalResponse>();
+        Assert.NotNull(payload);
+        Assert.False(payload.IsSuccess);
+        Assert.Equal("proposal.conflict", payload.Errors[0].Code);
+    }
+
+    [Fact]
     public async Task RequestsWithoutLocalToken_ReturnUnauthorized()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
@@ -401,6 +422,24 @@ public sealed class AgentInteractionApiTests
 
         public OutcomeResponse RecordOutcome(RecordOutcomeRequest request) =>
             new(request.ProjectId, request.ArtifactId, ArtifactStatus.Proposed, 0, OutcomeKind.Mixed, [new AgentInteractionError("outcome.validation", "Invalid outcome.", "body")]);
+    }
+
+    private sealed class ConflictingAgentInteractionService : IAgentInteractionService
+    {
+        public ProjectLookupResponse GetProject(string projectId) =>
+            new(projectId, "Memora", "active", []);
+
+        public GetContextResponse GetContext(GetContextRequest request) =>
+            new(null, [new AgentInteractionError("context.not_configured", "Context service is not configured.", "service")]);
+
+        public ProposalResponse ProposeArtifact(ProposeArtifactRequest request) =>
+            new(request.ProjectId, request.ArtifactId, request.ArtifactType, ArtifactStatus.Proposed, 0, [new AgentInteractionError("proposal.conflict", "Proposal write conflicted with existing storage state.", "artifact_id")]);
+
+        public ProposalResponse ProposeUpdate(ProposeUpdateRequest request) =>
+            new(request.ProjectId, request.ArtifactId, ArtifactType.Decision, ArtifactStatus.Proposed, 0, [new AgentInteractionError("proposal.conflict", "Proposal write conflicted with existing storage state.", "artifact_id")]);
+
+        public OutcomeResponse RecordOutcome(RecordOutcomeRequest request) =>
+            new(request.ProjectId, request.ArtifactId, ArtifactStatus.Proposed, 0, OutcomeKind.Mixed, [new AgentInteractionError("outcome.not_configured", "Outcome service is not configured.", "service")]);
     }
 
     private sealed class EmptyReviewInboxService : IReviewInboxService

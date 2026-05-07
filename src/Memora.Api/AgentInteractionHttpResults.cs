@@ -44,6 +44,11 @@ internal static class AgentInteractionHttpResults
             return Results.Json(response, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
+        if (errorCode.EndsWith(".conflict", StringComparison.Ordinal))
+        {
+            return Results.Json(response, statusCode: StatusCodes.Status409Conflict);
+        }
+
         return Results.BadRequest(response);
     }
 }
