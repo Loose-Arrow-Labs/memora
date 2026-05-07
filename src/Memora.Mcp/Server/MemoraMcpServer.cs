@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Memora.Core.AgentInteraction;
 using Memora.Core.Artifacts;
 
@@ -150,7 +151,7 @@ public sealed class MemoraMcpServer
                 projectId,
                 null,
                 null,
-                [CreateResourceExecutionError("project_lookup", exception, "project_id")]);
+                [CreateBoundaryExecutionError(exception, "project_id")]);
         }
     }
 
@@ -216,7 +217,7 @@ public sealed class MemoraMcpServer
         {
             return new GetContextResponse(
                 null,
-                [CreateToolExecutionError("get_context", exception, "request")]);
+                [CreateBoundaryExecutionError(exception, "request")]);
         }
     }
 
@@ -236,7 +237,7 @@ public sealed class MemoraMcpServer
                 request.ArtifactType,
                 ArtifactStatus.Proposed,
                 0,
-                [CreateToolExecutionError("propose_artifact", exception, "request")]);
+                [CreateBoundaryExecutionError(exception, "request")]);
         }
     }
 
@@ -256,7 +257,7 @@ public sealed class MemoraMcpServer
                 ArtifactType.Plan,
                 ArtifactStatus.Proposed,
                 0,
-                [CreateToolExecutionError("propose_update", exception, "request")]);
+                [CreateBoundaryExecutionError(exception, "request")]);
         }
     }
 
@@ -276,7 +277,7 @@ public sealed class MemoraMcpServer
                 ArtifactStatus.Proposed,
                 0,
                 OutcomeKind.Mixed,
-                [CreateToolExecutionError("record_outcome", exception, "request")]);
+                [CreateBoundaryExecutionError(exception, "request")]);
         }
     }
 
@@ -299,17 +300,12 @@ public sealed class MemoraMcpServer
         return true;
     }
 
-    private static AgentInteractionError CreateResourceExecutionError(string resourceName, Exception exception, string path) =>
-        new(
-            "mcp.resource.read.failed",
-            $"Resource '{resourceName}' failed: {exception.Message}",
-            path);
-
-    private static AgentInteractionError CreateToolExecutionError(string toolName, Exception exception, string path) =>
-        new(
-            "mcp.tool.execution.failed",
-            $"Tool '{toolName}' failed: {exception.Message}",
-            path);
+    private static AgentInteractionError CreateBoundaryExecutionError(Exception exception, string path)
+    {
+        var sanitized = AgentInteractionExceptionSanitizer.Sanitize(exception);
+        Trace.TraceError("MCP boundary exception sanitized as {0}: {1}", sanitized.Code, exception);
+        return sanitized.ToError(path);
+    }
 
     private sealed record McpToolBinding(
         McpToolDefinition Definition,
