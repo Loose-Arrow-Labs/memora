@@ -18,3 +18,5 @@ jobs:
         run: dotnet restore Memora.sln
       - name: Build
         run: dotnet build Memora.sln --no-restore
+      - name: Test
+        run: dotnet test Memora.sln --no-build --nologo

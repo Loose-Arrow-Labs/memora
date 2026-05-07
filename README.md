@@ -1,5 +1,7 @@
 # Memora
 
+[![Validate Platform Readiness](https://github.com/alucero270/memora/actions/workflows/validate-platform-readiness.yml/badge.svg)](https://github.com/alucero270/memora/actions/workflows/validate-platform-readiness.yml)
+
 Governed project memory for AI-assisted legacy codebases.
 
 `local-first` · `filesystem truth` · `MCP + OpenAPI` · `.NET 10` · `no vector DB in core`
