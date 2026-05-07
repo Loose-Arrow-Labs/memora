@@ -101,9 +101,37 @@ public sealed class ArtifactFileStoreTests : IDisposable
 
         _store.Save(workspace, artifact);
 
-        var exception = Assert.Throws<IOException>(() => _store.Save(workspace, artifact));
+        var exception = Assert.Throws<ArtifactPersistenceException>(() => _store.Save(workspace, artifact));
 
+        Assert.Equal("artifact.revision.exists", exception.Code);
         Assert.Contains("already exists", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Save_ConcurrentDuplicateRevision_AllowsOnlyOneWriterAndLeavesNoTempFiles()
+    {
+        var workspace = CreateWorkspace();
+        var artifact = CreatePlanArtifact(status: ArtifactStatus.Approved, revision: 1);
+
+        var results = await Task.WhenAll(
+            Enumerable.Range(0, 16)
+                .Select(_ => Task.Run(() =>
+                {
+                    try
+                    {
+                        _store.Save(workspace, artifact);
+                        return "created";
+                    }
+                    catch (ArtifactPersistenceException exception)
+                    {
+                        return exception.Code;
+                    }
+                })));
+
+        Assert.Equal(1, results.Count(result => result == "created"));
+        Assert.Equal(15, results.Count(result => result == "artifact.revision.exists"));
+        Assert.Single(Directory.EnumerateFiles(workspace.CanonicalPlansPath, "PLN-001.r0001.md"));
+        Assert.Empty(Directory.EnumerateFiles(workspace.RootPath, "*.tmp", SearchOption.AllDirectories));
     }
 
     public void Dispose()

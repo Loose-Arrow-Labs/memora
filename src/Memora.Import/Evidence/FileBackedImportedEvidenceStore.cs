@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Memora.Core.Import;
+using Memora.Storage.Persistence;
 
 namespace Memora.Import.Evidence;
 
@@ -28,13 +29,15 @@ public sealed class FileBackedImportedEvidenceStore : IImportedEvidenceStore
             Directory.CreateDirectory(sourceDirectory);
             var targetPath = Path.Combine(sourceDirectory, $"{record.StableId}.json");
 
-            if (File.Exists(targetPath))
+            var result = AtomicFileWriter.WriteNewText(
+                targetPath,
+                JsonSerializer.Serialize(ToSerializable(record), JsonOptions));
+            if (result == AtomicFileWriteResult.TargetAlreadyExists)
             {
                 existingCount++;
                 continue;
             }
 
-            File.WriteAllText(targetPath, JsonSerializer.Serialize(ToSerializable(record), JsonOptions));
             createdCount++;
             writtenPaths.Add(targetPath);
         }
