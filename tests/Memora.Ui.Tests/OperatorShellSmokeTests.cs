@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Memora.Core.Artifacts;
 using Memora.Core.Import;
 using Memora.Import.Evidence;
 using Memora.Import.Readiness;
@@ -235,6 +236,44 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
+    public async Task Review_approve_update_persists_superseded_revision_and_single_approved_baseline()
+    {
+        using var factory = new OperatorShellFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        await OperatorShellFactory.WritePlanAsync(
+            workspaceRoot,
+            "PLN-995",
+            ArtifactStatus.Approved,
+            revision: 1,
+            "Existing approved plan");
+        await OperatorShellFactory.WritePlanAsync(
+            workspaceRoot,
+            "PLN-995",
+            ArtifactStatus.Draft,
+            revision: 2,
+            "Updated draft plan");
+        var currentApprovedPath = Path.Combine(workspaceRoot, "canonical", "plans", "PLN-995.r0001.md");
+        var approvedPath = Path.Combine(workspaceRoot, "canonical", "plans", "PLN-995.r0002.md");
+        var supersededPath = Path.Combine(workspaceRoot, "drafts", "plan", "PLN-995.r0002.md");
+
+        var response = await client.PostAsync(
+            "/projects/demo-project/review/decision",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["path"] = "drafts/plan/PLN-995.r0002.md",
+                ["decision"] = "Approve"
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.False(File.Exists(currentApprovedPath));
+        Assert.True(File.Exists(approvedPath));
+        Assert.True(File.Exists(supersededPath));
+        Assert.Contains("status: approved", await File.ReadAllTextAsync(approvedPath), StringComparison.Ordinal);
+        Assert.Contains("status: superseded", await File.ReadAllTextAsync(supersededPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Review_reject_proposal_persists_deprecated_pending_record()
     {
         using var factory = new OperatorShellFactory();
@@ -385,6 +424,56 @@ public sealed class OperatorShellFactory : WebApplicationFactory<Program>
 
             ## Notes
             This is review-only input.
+            """);
+    }
+
+    public static async Task WritePlanAsync(
+        string workspaceRoot,
+        string artifactId,
+        ArtifactStatus status,
+        int revision,
+        string title)
+    {
+        var relativeDirectory = status == ArtifactStatus.Approved
+            ? Path.Combine("canonical", "plans")
+            : Path.Combine("drafts", "plan");
+        var planDirectory = Path.Combine(workspaceRoot, relativeDirectory);
+        Directory.CreateDirectory(planDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(planDirectory, $"{artifactId}.r{revision:D4}.md"),
+            $$"""
+            ---
+            id: {{artifactId}}
+            project_id: demo-project
+            type: plan
+            status: {{status.ToSchemaValue()}}
+            title: {{title}}
+            created_at: 2026-05-06T10:00:00Z
+            updated_at: 2026-05-06T10:{{revision:D2}}:00Z
+            revision: {{revision}}
+            tags:
+              - review
+            provenance: user
+            reason: review approval workflow test
+            links:
+              depends_on: []
+              affects: []
+              derived_from: []
+              supersedes: []
+            priority: normal
+            active: false
+            ---
+            ## Goal
+            Verify approval persistence.
+
+            ## Scope
+            Keep lifecycle files consistent.
+
+            ## Acceptance Criteria
+            - approval persistence is complete
+
+            ## Notes
+            Test fixture.
             """);
     }
 
