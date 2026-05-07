@@ -35,6 +35,12 @@ dotnet run --project src/Memora.Api
 
 Open `http://127.0.0.1:5081/openapi.json`.
 
+The API binds to loopback by default and rejects non-loopback URL overrides.
+It also requires the `X-Memora-Local-Token` header on every request. On first
+run, Memora writes the shared local token to
+`<workspaces-root>/.memora/local-access-token`; keep that file local to the
+current user.
+
 When no workspace root is configured, the UI uses a writable local copy of
 `samples/workspaces` so you can inspect the demo project immediately.
 
