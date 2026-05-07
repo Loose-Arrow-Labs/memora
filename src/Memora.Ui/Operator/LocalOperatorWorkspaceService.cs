@@ -3,11 +3,13 @@ using Memora.Core.Artifacts;
 using Memora.Core.Editing;
 using Memora.Core.Import;
 using Memora.Core.Revisions;
+using Memora.Index.Rebuild;
 using Memora.Import.Evidence;
 using Memora.Import.Readiness;
 using Memora.Storage.Parsing;
 using Memora.Storage.Persistence;
 using Memora.Storage.Workspaces;
+using Microsoft.Data.Sqlite;
 
 namespace Memora.Ui.Operator;
 
@@ -21,6 +23,7 @@ public sealed class LocalOperatorWorkspaceService
     private readonly ArtifactApprovalWorkflow _approvalWorkflow = new();
     private readonly DraftArtifactEditor _draftArtifactEditor = new();
     private readonly ArtifactRevisionDiffBuilder _diffBuilder = new();
+    private readonly SqliteIndexRebuilder _indexRebuilder = new();
     private readonly FileBackedImportedEvidenceStore _evidenceStore = new();
     private readonly FileBackedFirstRunReportStore _firstRunReportStore = new();
     private readonly OperatorShellOptions _options;
@@ -302,6 +305,91 @@ public sealed class LocalOperatorWorkspaceService
         }
     }
 
+    public OperatorTrustDashboard? TryBuildTrustDashboard(string projectId)
+    {
+        var snapshot = TryGetProject(projectId);
+        if (snapshot is null)
+        {
+            return null;
+        }
+
+        var importWarnings = new List<string>();
+        var firstRunReport = ReadFirstRunReport(snapshot.Workspace, importWarnings);
+        var rebuildResult = BuildRebuildDiagnostics(importWarnings);
+        var staleCutoff = DateTimeOffset.UtcNow.AddDays(-30);
+        var staleDraftCount = snapshot.Artifacts.Count(record =>
+            record.Artifact.Status == ArtifactStatus.Draft &&
+            record.Artifact.UpdatedAtUtc < staleCutoff);
+        var missingMemoryCount = firstRunReport is null
+            ? 1
+            : firstRunReport.ReadinessReport.MissingContext.Count;
+        var relationshipDiagnosticCount = rebuildResult.Diagnostics.Count(diagnostic => diagnostic.Code == "index.relationship.target.invalid");
+
+        var metrics = new[]
+        {
+            new OperatorTrustDashboardMetric(
+                "Pending proposals",
+                snapshot.ProposedItems.Count,
+                snapshot.ProposedItems.Count == 0 ? OperatorTrustMetricState.Ready : OperatorTrustMetricState.NeedsReview,
+                "Reviewable proposed artifacts waiting for human inspection.",
+                $"/projects/{Uri.EscapeDataString(snapshot.Workspace.ProjectId)}/proposals"),
+            new OperatorTrustDashboardMetric(
+                "Stale drafts",
+                staleDraftCount,
+                staleDraftCount == 0 ? OperatorTrustMetricState.Ready : OperatorTrustMetricState.NeedsReview,
+                "Draft artifacts older than 30 days from their last filesystem-backed update.",
+                $"/projects/{Uri.EscapeDataString(snapshot.Workspace.ProjectId)}/queue"),
+            new OperatorTrustDashboardMetric(
+                "Broken relationships",
+                relationshipDiagnosticCount,
+                relationshipDiagnosticCount == 0 ? OperatorTrustMetricState.Ready : OperatorTrustMetricState.Blocked,
+                "Approved relationship references that fail derived-index rebuild validation.",
+                $"/understanding?projectId={Uri.EscapeDataString(snapshot.Workspace.ProjectId)}"),
+            new OperatorTrustDashboardMetric(
+                "Rebuild diagnostics",
+                rebuildResult.Diagnostics.Count,
+                rebuildResult.Success ? OperatorTrustMetricState.Ready : OperatorTrustMetricState.Blocked,
+                rebuildResult.Summary,
+                $"/understanding?projectId={Uri.EscapeDataString(snapshot.Workspace.ProjectId)}"),
+            new OperatorTrustDashboardMetric(
+                "Missing project memory",
+                missingMemoryCount,
+                missingMemoryCount == 0 ? OperatorTrustMetricState.Ready : OperatorTrustMetricState.NeedsReview,
+                firstRunReport is null ? "No first-run readiness report is stored for this workspace." : "Missing context items reported by first-run readiness.",
+                $"/projects/{Uri.EscapeDataString(snapshot.Workspace.ProjectId)}/first-run-import"),
+            new OperatorTrustDashboardMetric(
+                "Recent import warnings",
+                importWarnings.Count,
+                importWarnings.Count == 0 ? OperatorTrustMetricState.Ready : OperatorTrustMetricState.NeedsReview,
+                importWarnings.Count == 0 ? "No import loading warnings were reported while building this dashboard." : string.Join("; ", importWarnings),
+                $"/projects/{Uri.EscapeDataString(snapshot.Workspace.ProjectId)}/first-run-import")
+        };
+
+        return new OperatorTrustDashboard(snapshot.Workspace.ProjectId, snapshot.Workspace.Metadata.Name, metrics);
+    }
+
+    private IndexRebuildResult BuildRebuildDiagnostics(ICollection<string> warnings)
+    {
+        try
+        {
+            using var connection = new SqliteConnection("Data Source=:memory:");
+            connection.Open();
+            return _indexRebuilder.Rebuild(connection, _options.NormalizedWorkspacesRootPath);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or SqliteException)
+        {
+            warnings.Add($"Derived rebuild diagnostics could not be loaded: {exception.Message}");
+            return new IndexRebuildResult(
+                0,
+                0,
+                0,
+                0,
+                [new IndexRebuildDiagnostic(_options.NormalizedWorkspacesRootPath, "trust.rebuild.failed", exception.Message, "workspacesRoot")],
+                0,
+                0);
+        }
+    }
+
     private ProjectWorkspace? TryGetWorkspace(string projectId) =>
         _workspaceDiscovery
             .Discover(_options.NormalizedWorkspacesRootPath)
@@ -556,6 +644,25 @@ public sealed record OperatorReviewQueueContext(
     int TotalItems,
     OperatorPendingReviewItem? PreviousItem,
     OperatorPendingReviewItem? NextItem);
+
+public sealed record OperatorTrustDashboard(
+    string ProjectId,
+    string ProjectName,
+    IReadOnlyList<OperatorTrustDashboardMetric> Metrics);
+
+public sealed record OperatorTrustDashboardMetric(
+    string Label,
+    int Count,
+    OperatorTrustMetricState State,
+    string Detail,
+    string Url);
+
+public enum OperatorTrustMetricState
+{
+    Ready,
+    NeedsReview,
+    Blocked
+}
 
 public sealed record OperatorProvenanceReview(
     bool RequiresImportedEvidence,
