@@ -1,0 +1,105 @@
+{
+  "name": "memora-review-inbox",
+  "displayName": "Memora Review Inbox",
+  "description": "VS Code and Cursor review inbox for Memora draft and proposed artifacts.",
+  "version": "0.1.0",
+  "publisher": "memora",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:memoraReviewInbox",
+    "onCommand:memoraReviewInbox.refresh",
+    "onCommand:memoraReviewInbox.openPreview",
+    "onCommand:memoraReviewInbox.openFile",
+    "onCommand:memoraReviewInbox.approve",
+    "onCommand:memoraReviewInbox.reject"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Memora",
+      "properties": {
+        "memora.apiBaseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:5081",
+          "description": "Base URL for the local Memora OpenAPI companion service."
+        },
+        "memora.projectId": {
+          "type": "string",
+          "default": "",
+          "description": "Memora project id whose review inbox should be shown."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "memoraReviewInbox.refresh",
+        "title": "Refresh Memora Review Inbox",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "memoraReviewInbox.openPreview",
+        "title": "Open Memora Artifact Preview",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "memoraReviewInbox.openFile",
+        "title": "Open Memora Artifact File",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "memoraReviewInbox.approve",
+        "title": "Approve Memora Artifact",
+        "icon": "$(check)"
+      },
+      {
+        "command": "memoraReviewInbox.reject",
+        "title": "Reject Memora Artifact",
+        "icon": "$(close)"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "memoraReviewInbox",
+          "name": "Memora Review Inbox"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "memoraReviewInbox.refresh",
+          "when": "view == memoraReviewInbox",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "memoraReviewInbox.approve",
+          "when": "view == memoraReviewInbox && viewItem == memoraReviewInboxItem",
+          "group": "inline"
+        },
+        {
+          "command": "memoraReviewInbox.reject",
+          "when": "view == memoraReviewInbox && viewItem == memoraReviewInboxItem",
+          "group": "inline"
+        },
+        {
+          "command": "memoraReviewInbox.openPreview",
+          "when": "view == memoraReviewInbox && viewItem == memoraReviewInboxItem",
+          "group": "navigation"
+        },
+        {
+          "command": "memoraReviewInbox.openFile",
+          "when": "view == memoraReviewInbox && viewItem == memoraReviewInboxItem",
+          "group": "navigation"
+        }
+      ]
+    }
+  }
+}

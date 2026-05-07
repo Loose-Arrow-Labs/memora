@@ -19,6 +19,12 @@ internal static class AgentInteractionHttpResults
             ? Results.Json(response, statusCode: StatusCodes.Status202Accepted)
             : FromResponse(response);
 
+    public static IResult FromReviewInboxResponse(ReviewInboxResponse response) => FromResponse(response);
+
+    public static IResult FromReviewArtifactPreviewResponse(ReviewArtifactPreviewResponse response) => FromResponse(response);
+
+    public static IResult FromReviewDecisionResponse(ReviewDecisionResponse response) => FromResponse(response);
+
     private static IResult FromResponse(AgentInteractionResponse response)
     {
         if (response.IsSuccess)

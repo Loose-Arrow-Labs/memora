@@ -26,6 +26,9 @@ public sealed class AgentInteractionApiTests
         Assert.StartsWith("3.", root.GetProperty("openapi").GetString());
         Assert.True(root.GetProperty("paths").TryGetProperty("/api/context", out _));
         Assert.True(root.GetProperty("paths").TryGetProperty("/api/outcomes", out _));
+        Assert.True(root.GetProperty("paths").TryGetProperty("/api/projects/{projectId}/review/inbox", out _));
+        Assert.True(root.GetProperty("paths").TryGetProperty("/api/projects/{projectId}/review/preview", out _));
+        Assert.True(root.GetProperty("paths").TryGetProperty("/api/projects/{projectId}/review/decisions", out _));
     }
 
     [Fact]
@@ -98,6 +101,60 @@ public sealed class AgentInteractionApiTests
     }
 
     [Fact]
+    public async Task GetReviewInbox_ReturnsReviewableArtifactsForIdeClients()
+    {
+        using var factory = CreateFactory(new TestAgentInteractionService());
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/projects/memora/review/inbox");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ReviewInboxResponse>();
+        Assert.NotNull(payload);
+        var item = Assert.Single(payload.Items);
+        Assert.Equal("ADR-002", item.ArtifactId);
+        Assert.Equal(ArtifactStatus.Proposed, item.Status);
+        Assert.Equal("drafts/decision/ADR-002.r0001.md", item.RelativePath);
+    }
+
+    [Fact]
+    public async Task GetReviewPreview_ReturnsArtifactPreviewForIdeClients()
+    {
+        using var factory = CreateFactory(new TestAgentInteractionService());
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/projects/memora/review/preview?path={Uri.EscapeDataString("drafts/decision/ADR-002.r0001.md")}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ReviewArtifactPreviewResponse>();
+        Assert.NotNull(payload);
+        Assert.NotNull(payload.Item);
+        Assert.Equal("ADR-002", payload.Item.ArtifactId);
+        Assert.Contains("## Decision", payload.Body, StringComparison.Ordinal);
+        Assert.Equal("Reuse the shared service contract.", payload.Sections["Decision"]);
+    }
+
+    [Fact]
+    public async Task PostReviewDecision_ReturnsGovernedDecisionContractForIdeClients()
+    {
+        using var factory = CreateFactory(new TestAgentInteractionService());
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/projects/memora/review/decisions",
+            new ReviewDecisionRequest("drafts/decision/ADR-002.r0001.md", "reject"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ReviewDecisionResponse>();
+        Assert.NotNull(payload);
+        Assert.True(payload.IsSuccess);
+        Assert.Equal("reject", payload.Decision);
+        Assert.NotNull(payload.Item);
+        Assert.Equal(ArtifactStatus.Deprecated, payload.Item.Status);
+        Assert.Equal("Rejected ADR-002 revision 1.", payload.Message);
+    }
+
+    [Fact]
     public async Task ValidationErrors_MapToBadRequest()
     {
         using var factory = CreateFactory(new FailingAgentInteractionService());
@@ -120,7 +177,12 @@ public sealed class AgentInteractionApiTests
                 builder.ConfigureServices(services =>
                 {
                     services.RemoveAll<IAgentInteractionService>();
+                    services.RemoveAll<IReviewInboxService>();
                     services.AddSingleton(service);
+                    if (service is IReviewInboxService reviewInboxService)
+                    {
+                        services.AddSingleton(reviewInboxService);
+                    }
                 }));
 
     private static ArtifactProposalContent CreateContent() =>
@@ -135,7 +197,7 @@ public sealed class AgentInteractionApiTests
                 ["Decision"] = "Keep the contract explicit."
             });
 
-    private sealed class TestAgentInteractionService : IAgentInteractionService
+    private sealed class TestAgentInteractionService : IAgentInteractionService, IReviewInboxService
     {
         public ProjectLookupResponse GetProject(string projectId) =>
             new(projectId, "Memora", "active", []);
@@ -159,6 +221,49 @@ public sealed class AgentInteractionApiTests
 
         public OutcomeResponse RecordOutcome(RecordOutcomeRequest request) =>
             new(request.ProjectId, request.ArtifactId, ArtifactStatus.Proposed, 1, OutcomeKind.Success, []);
+
+        public ReviewInboxResponse GetReviewInbox(string projectId) =>
+            new(projectId, [CreateReviewInboxItem()], []);
+
+        public ReviewArtifactPreviewResponse GetReviewArtifactPreview(string projectId, string relativePath) =>
+            new(
+                projectId,
+                CreateReviewInboxItem(),
+                """
+                ## Context
+                Deterministic context is required.
+
+                ## Decision
+                Reuse the shared service contract.
+                """,
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["Context"] = "Deterministic context is required.",
+                    ["Decision"] = "Reuse the shared service contract."
+                },
+                []);
+
+        public ReviewDecisionResponse ApplyReviewDecision(string projectId, ReviewDecisionRequest request) =>
+            new(
+                projectId,
+                request.Decision,
+                CreateReviewInboxItem(ArtifactStatus.Deprecated),
+                "Rejected ADR-002 revision 1.",
+                []);
+
+        private static ReviewInboxItem CreateReviewInboxItem(ArtifactStatus status = ArtifactStatus.Proposed) =>
+            new(
+                "ADR-002",
+                ArtifactType.Decision,
+                status,
+                "Reviewable decision",
+                1,
+                "agent",
+                "api tests",
+                "drafts/decision/ADR-002.r0001.md",
+                @"C:\memora\memora\memora\memora\memora\drafts\decision\ADR-002.r0001.md",
+                "valid",
+                new DateTimeOffset(2026, 4, 17, 10, 15, 0, TimeSpan.Zero));
 
         private static AgentContextArtifact CreateArtifact(string id) =>
             new(

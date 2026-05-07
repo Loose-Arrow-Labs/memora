@@ -3,6 +3,7 @@ using System.Text.Json;
 using Memora.Context.Assembly;
 using Memora.Context.Models;
 using Memora.Core.AgentInteraction;
+using Memora.Core.Approval;
 using Memora.Core.Artifacts;
 using Memora.Core.Automation;
 using Memora.Core.Import;
@@ -15,13 +16,15 @@ using Memora.Storage.Workspaces;
 
 namespace Memora.Api.Services;
 
-public sealed class FileSystemAgentInteractionService : IAgentInteractionService
+public sealed class FileSystemAgentInteractionService : IAgentInteractionService, IReviewInboxService
 {
     private readonly string _workspacesRootPath;
     private readonly WorkspaceDiscovery _workspaceDiscovery = new();
     private readonly ArtifactMarkdownParser _markdownParser = new();
+    private readonly ArtifactMarkdownWriter _markdownWriter = new();
     private readonly ArtifactFactory _artifactFactory = new();
     private readonly ArtifactFileStore _fileStore = new();
+    private readonly ArtifactApprovalWorkflow _approvalWorkflow = new();
     private readonly ContextBundleBuilder _contextBundleBuilder = new();
     private readonly ContextPackageCache _contextPackageCache = new();
     private readonly PolicyGovernedWriteSafetyValidator _writeSafetyValidator = new();
@@ -49,6 +52,127 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
                 [],
                 workspace.Metadata.RepositoryAttachments,
                 BuildImportReadinessState(workspace));
+    }
+
+    public ReviewInboxResponse GetReviewInbox(string projectId)
+    {
+        var workspace = FindWorkspace(projectId);
+        if (workspace is null)
+        {
+            return new ReviewInboxResponse(
+                projectId,
+                [],
+                [new AgentInteractionError("project.not_found", $"Project '{projectId}' was not found.", "project_id")]);
+        }
+
+        var records = LoadReviewArtifactRecords(workspace, out var errors);
+        var items = records
+            .Where(record => record.Artifact.Status is ArtifactStatus.Draft or ArtifactStatus.Proposed)
+            .OrderBy(record => record.Artifact.Status == ArtifactStatus.Proposed ? 0 : 1)
+            .ThenBy(record => record.Artifact.UpdatedAtUtc)
+            .ThenBy(record => record.Artifact.Id, StringComparer.Ordinal)
+            .Select(record => MapReviewInboxItem(record))
+            .ToArray();
+
+        return new ReviewInboxResponse(workspace.ProjectId, items, errors);
+    }
+
+    public ReviewArtifactPreviewResponse GetReviewArtifactPreview(string projectId, string relativePath)
+    {
+        var workspace = FindWorkspace(projectId);
+        if (workspace is null)
+        {
+            return new ReviewArtifactPreviewResponse(
+                projectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                [new AgentInteractionError("project.not_found", $"Project '{projectId}' was not found.", "project_id")]);
+        }
+
+        if (!TryResolveWorkspacePath(workspace, relativePath, out var filePath))
+        {
+            return new ReviewArtifactPreviewResponse(
+                workspace.ProjectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                [new AgentInteractionError("review.path.invalid", "Review artifact path must stay inside the workspace.", "path")]);
+        }
+
+        if (!File.Exists(filePath))
+        {
+            return new ReviewArtifactPreviewResponse(
+                workspace.ProjectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                [new AgentInteractionError("review.artifact.not_found", $"Review artifact '{relativePath}' was not found.", "path")]);
+        }
+
+        var parsed = _markdownParser.Parse(File.ReadAllText(filePath));
+        if (!parsed.Validation.IsValid || parsed.Artifact is null)
+        {
+            return new ReviewArtifactPreviewResponse(
+                workspace.ProjectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                MapErrors(parsed.Validation));
+        }
+
+        if (parsed.Artifact.Status is not ArtifactStatus.Draft and not ArtifactStatus.Proposed)
+        {
+            return new ReviewArtifactPreviewResponse(
+                workspace.ProjectId,
+                null,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                [new AgentInteractionError("review.status.not_reviewable", "Only draft or proposed artifacts are available in the review inbox.", "status")]);
+        }
+
+        var record = new ParsedReviewArtifactRecord(
+            parsed.Artifact,
+            Path.GetFullPath(filePath),
+            NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, filePath)));
+
+        return new ReviewArtifactPreviewResponse(
+            workspace.ProjectId,
+            MapReviewInboxItem(record),
+            parsed.Artifact.Body,
+            parsed.Artifact.Sections,
+            []);
+    }
+
+    public ReviewDecisionResponse ApplyReviewDecision(string projectId, ReviewDecisionRequest request)
+    {
+        var workspace = FindWorkspace(projectId);
+        if (workspace is null)
+        {
+            return new ReviewDecisionResponse(
+                projectId,
+                request.Decision,
+                null,
+                null,
+                [new AgentInteractionError("project.not_found", $"Project '{projectId}' was not found.", "project_id")]);
+        }
+
+        if (!TryLoadReviewArtifactRecord(workspace, request.RelativePath, out var record, out var errors))
+        {
+            return new ReviewDecisionResponse(workspace.ProjectId, request.Decision, null, null, errors);
+        }
+
+        return request.Decision switch
+        {
+            "approve" => ApproveReviewRecord(workspace, record!),
+            "reject" => RejectReviewRecord(workspace, record!),
+            _ => new ReviewDecisionResponse(
+                workspace.ProjectId,
+                request.Decision,
+                null,
+                null,
+                [new AgentInteractionError("review.decision.invalid", "Review decision must be 'approve' or 'reject'.", "decision")])
+        };
     }
 
     public GetContextResponse GetContext(GetContextRequest request)
@@ -416,6 +540,218 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
         return artifacts;
     }
 
+    private IReadOnlyList<ParsedReviewArtifactRecord> LoadReviewArtifactRecords(
+        ProjectWorkspace workspace,
+        out IReadOnlyList<AgentInteractionError> errors)
+    {
+        var records = new List<ParsedReviewArtifactRecord>();
+        var collectedErrors = new List<AgentInteractionError>();
+
+        foreach (var filePath in EnumerateArtifactFiles(workspace, includeDrafts: true, includeSummaries: false))
+        {
+            var parsed = _markdownParser.Parse(File.ReadAllText(filePath));
+            if (!parsed.Validation.IsValid || parsed.Artifact is null)
+            {
+                collectedErrors.AddRange(parsed.Validation.Issues.Select(issue =>
+                    new AgentInteractionError(issue.Code, issue.DiagnosticMessage, issue.Path ?? filePath)));
+                continue;
+            }
+
+            records.Add(new ParsedReviewArtifactRecord(
+                parsed.Artifact,
+                Path.GetFullPath(filePath),
+                NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, filePath))));
+        }
+
+        errors = collectedErrors;
+        return records;
+    }
+
+    private bool TryLoadReviewArtifactRecord(
+        ProjectWorkspace workspace,
+        string relativePath,
+        out ParsedReviewArtifactRecord? record,
+        out IReadOnlyList<AgentInteractionError> errors)
+    {
+        record = null;
+
+        if (!TryResolveWorkspacePath(workspace, relativePath, out var filePath))
+        {
+            errors =
+            [
+                new AgentInteractionError("review.path.invalid", "Review artifact path must stay inside the workspace.", "path")
+            ];
+            return false;
+        }
+
+        if (!File.Exists(filePath))
+        {
+            errors =
+            [
+                new AgentInteractionError("review.artifact.not_found", $"Review artifact '{relativePath}' was not found.", "path")
+            ];
+            return false;
+        }
+
+        var parsed = _markdownParser.Parse(File.ReadAllText(filePath));
+        if (!parsed.Validation.IsValid || parsed.Artifact is null)
+        {
+            errors = MapErrors(parsed.Validation);
+            return false;
+        }
+
+        if (parsed.Artifact.Status is not ArtifactStatus.Draft and not ArtifactStatus.Proposed)
+        {
+            errors =
+            [
+                new AgentInteractionError("review.status.not_reviewable", "Only draft or proposed artifacts are available for review decisions.", "status")
+            ];
+            return false;
+        }
+
+        record = new ParsedReviewArtifactRecord(
+            parsed.Artifact,
+            Path.GetFullPath(filePath),
+            NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, filePath)));
+        errors = [];
+        return true;
+    }
+
+    private ReviewDecisionResponse ApproveReviewRecord(
+        ProjectWorkspace workspace,
+        ParsedReviewArtifactRecord record)
+    {
+        var currentApprovedArtifact = LoadArtifacts(workspace, includeDrafts: false, includeSummaries: false, out var loadErrors)
+            .Where(artifact => string.Equals(artifact.Id, record.Artifact.Id, StringComparison.Ordinal))
+            .Where(artifact => artifact.Status == ArtifactStatus.Approved)
+            .OrderByDescending(artifact => artifact.Revision)
+            .ThenByDescending(artifact => artifact.UpdatedAtUtc)
+            .FirstOrDefault();
+
+        if (loadErrors.Count > 0)
+        {
+            return new ReviewDecisionResponse(workspace.ProjectId, "approve", null, null, loadErrors);
+        }
+
+        var decision = _approvalWorkflow.Approve(
+            record.Artifact,
+            DateTimeOffset.UtcNow,
+            currentApprovedArtifact);
+
+        if (!decision.IsSuccess || decision.ApprovedArtifact is null)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "approve",
+                null,
+                null,
+                MapErrors(decision.Validation));
+        }
+
+        try
+        {
+            var approvedPath = _fileStore.Save(workspace, decision.ApprovedArtifact);
+            File.Delete(record.FilePath);
+            var approvedRecord = new ParsedReviewArtifactRecord(
+                decision.ApprovedArtifact,
+                Path.GetFullPath(approvedPath),
+                NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, approvedPath)));
+
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "approve",
+                MapReviewInboxItem(approvedRecord),
+                $"Approved {decision.ApprovedArtifact.Id} revision {decision.ApprovedArtifact.Revision}.",
+                []);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "approve",
+                null,
+                null,
+                [new AgentInteractionError("review.approval.persistence_failed", $"Approval persistence failed: {exception.Message}", "path")]);
+        }
+    }
+
+    private ReviewDecisionResponse RejectReviewRecord(
+        ProjectWorkspace workspace,
+        ParsedReviewArtifactRecord record)
+    {
+        var decision = _approvalWorkflow.Reject(record.Artifact, DateTimeOffset.UtcNow);
+        if (!decision.IsSuccess || decision.RejectedArtifact is null)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "reject",
+                null,
+                null,
+                MapErrors(decision.Validation));
+        }
+
+        try
+        {
+            File.WriteAllText(record.FilePath, _markdownWriter.Write(decision.RejectedArtifact));
+            var rejectedRecord = new ParsedReviewArtifactRecord(
+                decision.RejectedArtifact,
+                record.FilePath,
+                record.RelativePath);
+
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "reject",
+                MapReviewInboxItem(rejectedRecord),
+                $"Rejected {decision.RejectedArtifact.Id} revision {decision.RejectedArtifact.Revision}.",
+                []);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "reject",
+                null,
+                null,
+                [new AgentInteractionError("review.rejection.persistence_failed", $"Rejection persistence failed: {exception.Message}", "path")]);
+        }
+    }
+
+    private static ReviewInboxItem MapReviewInboxItem(ParsedReviewArtifactRecord record) =>
+        new(
+            record.Artifact.Id,
+            record.Artifact.Type,
+            record.Artifact.Status,
+            record.Artifact.Title,
+            record.Artifact.Revision,
+            record.Artifact.Provenance,
+            record.Artifact.Reason,
+            record.RelativePath,
+            record.FilePath,
+            "valid",
+            record.Artifact.UpdatedAtUtc);
+
+    private static bool TryResolveWorkspacePath(ProjectWorkspace workspace, string relativePath, out string filePath)
+    {
+        filePath = string.Empty;
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return false;
+        }
+
+        var candidate = Path.GetFullPath(Path.Combine(workspace.RootPath, NormalizeRelativePath(relativePath)));
+        var workspaceRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(workspace.RootPath)) + Path.DirectorySeparatorChar;
+        if (!candidate.StartsWith(workspaceRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        filePath = candidate;
+        return true;
+    }
+
+    private static string NormalizeRelativePath(string relativePath) =>
+        relativePath.Trim().Replace('\\', '/');
+
     private static IReadOnlyList<string> EnumerateArtifactFiles(ProjectWorkspace workspace, bool includeDrafts, bool includeSummaries)
     {
         var files = new List<string>();
@@ -622,4 +958,9 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
         public ArtifactDocument? Artifact { get; } = Artifact;
         public IReadOnlyList<AgentInteractionError> Errors { get; } = Errors;
     }
+
+    private sealed record ParsedReviewArtifactRecord(
+        ArtifactDocument Artifact,
+        string FilePath,
+        string RelativePath);
 }
