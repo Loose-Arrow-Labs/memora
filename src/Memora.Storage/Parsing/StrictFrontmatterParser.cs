@@ -16,6 +16,8 @@ internal static class StrictFrontmatterParser
 
     private sealed class Parser
     {
+        private const int MaxDepth = 32;
+
         private readonly string[] _lines;
         private readonly List<ArtifactValidationIssue> _issues = [];
         private int _index;
@@ -27,7 +29,7 @@ internal static class StrictFrontmatterParser
 
         public FrontmatterOnlyParseResult Parse()
         {
-            var frontmatter = ParseMapping(0);
+            var frontmatter = ParseMapping(0, depth: 0);
 
             if (_issues.Count > 0)
             {
@@ -37,9 +39,14 @@ internal static class StrictFrontmatterParser
             return new FrontmatterOnlyParseResult(frontmatter, ArtifactValidationResult.Success);
         }
 
-        private Dictionary<string, object?> ParseMapping(int indent)
+        private Dictionary<string, object?> ParseMapping(int indent, int depth)
         {
             var values = new Dictionary<string, object?>(StringComparer.Ordinal);
+
+            if (DepthExceeded(depth))
+            {
+                return values;
+            }
 
             while (_index < _lines.Length)
             {
@@ -110,16 +117,21 @@ internal static class StrictFrontmatterParser
 
                 var nextContent = _lines[_index][nextIndent..];
                 values[key] = nextContent.StartsWith("- ", StringComparison.Ordinal)
-                    ? ParseSequence(nextIndent)
-                    : ParseMapping(nextIndent);
+                    ? ParseSequence(nextIndent, depth + 1)
+                    : ParseMapping(nextIndent, depth + 1);
             }
 
             return values;
         }
 
-        private List<object?> ParseSequence(int indent)
+        private List<object?> ParseSequence(int indent, int depth)
         {
             var values = new List<object?>();
+
+            if (DepthExceeded(depth))
+            {
+                return values;
+            }
 
             while (_index < _lines.Length)
             {
@@ -212,6 +224,21 @@ internal static class StrictFrontmatterParser
             }
 
             return count;
+        }
+
+        private bool DepthExceeded(int depth)
+        {
+            if (depth <= MaxDepth)
+            {
+                return false;
+            }
+
+            var lineNumber = Math.Min(_index + 1, _lines.Length);
+            AddIssue(
+                "frontmatter.parse.depth_exceeded",
+                $"Frontmatter nesting exceeds maximum depth of {MaxDepth} on line {lineNumber}.",
+                $"frontmatter.line.{lineNumber}");
+            return true;
         }
 
         private void AddIssue(string code, string message, string path)
