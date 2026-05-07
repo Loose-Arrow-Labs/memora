@@ -173,13 +173,46 @@ public sealed class LocalOperatorWorkspaceService
                 decision.Validation.Issues.Select(issue => issue.DiagnosticMessage));
         }
 
+        var pendingPath = artifactView.SelectedArtifact.FilePath;
+        var pendingBackupPath = CreateBackupPath(pendingPath, ".approving");
+        var currentApprovedRecord = decision.SupersededArtifact is null
+            ? null
+            : FindCurrentApprovedRecord(artifactView);
+        var currentApprovedPath = currentApprovedRecord?.FilePath;
+        var currentApprovedBackupPath = currentApprovedPath is null
+            ? null
+            : CreateBackupPath(currentApprovedPath, ".superseding");
+        string? approvedPath = null;
+        string? supersededPath = null;
+
         try
         {
-            _artifactFileStore.Save(artifactView.Project.Workspace, decision.ApprovedArtifact);
-            File.Delete(artifactView.SelectedArtifact.FilePath);
+            File.Move(pendingPath, pendingBackupPath);
+
+            if (currentApprovedPath is not null && currentApprovedBackupPath is not null)
+            {
+                File.Move(currentApprovedPath, currentApprovedBackupPath);
+            }
+
+            if (decision.SupersededArtifact is not null)
+            {
+                supersededPath = _artifactFileStore.Save(artifactView.Project.Workspace, decision.SupersededArtifact);
+            }
+
+            approvedPath = _artifactFileStore.Save(artifactView.Project.Workspace, decision.ApprovedArtifact);
+            DeleteIfExists(pendingBackupPath);
+            DeleteIfExists(currentApprovedBackupPath);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
+            RollBackApprovalPersistence(
+                pendingPath,
+                pendingBackupPath,
+                currentApprovedPath,
+                currentApprovedBackupPath,
+                approvedPath,
+                supersededPath);
+
             return OperatorReviewDecisionResult.Invalid([$"Approval persistence failed: {exception.Message}"]);
         }
 
@@ -212,6 +245,61 @@ public sealed class LocalOperatorWorkspaceService
 
         return OperatorReviewDecisionResult.Success(
             $"Rejected {decision.RejectedArtifact.Id} revision {decision.RejectedArtifact.Revision}.");
+    }
+
+    private static OperatorArtifactRecord? FindCurrentApprovedRecord(OperatorArtifactView artifactView) =>
+        artifactView.CurrentApprovedArtifact is null
+            ? null
+            : artifactView.Project.Artifacts.Single(record =>
+                string.Equals(record.Artifact.Id, artifactView.CurrentApprovedArtifact.Id, StringComparison.Ordinal) &&
+                record.Artifact.Status == ArtifactStatus.Approved &&
+                record.Artifact.Revision == artifactView.CurrentApprovedArtifact.Revision &&
+                record.Artifact.UpdatedAtUtc == artifactView.CurrentApprovedArtifact.UpdatedAtUtc);
+
+    private static string CreateBackupPath(string path, string suffix)
+    {
+        var backupPath = path + suffix;
+        if (File.Exists(backupPath))
+        {
+            throw new IOException($"Approval backup file '{backupPath}' already exists.");
+        }
+
+        return backupPath;
+    }
+
+    private static void RollBackApprovalPersistence(
+        string pendingPath,
+        string pendingBackupPath,
+        string? currentApprovedPath,
+        string? currentApprovedBackupPath,
+        string? approvedPath,
+        string? supersededPath)
+    {
+        DeleteIfExists(approvedPath);
+        DeleteIfExists(supersededPath);
+        RestoreIfMissing(currentApprovedBackupPath, currentApprovedPath);
+        RestoreIfMissing(pendingBackupPath, pendingPath);
+    }
+
+    private static void RestoreIfMissing(string? backupPath, string? restorePath)
+    {
+        if (string.IsNullOrWhiteSpace(backupPath) || string.IsNullOrWhiteSpace(restorePath))
+        {
+            return;
+        }
+
+        if (File.Exists(backupPath) && !File.Exists(restorePath))
+        {
+            File.Move(backupPath, restorePath);
+        }
+    }
+
+    private static void DeleteIfExists(string? path)
+    {
+        if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+        {
+            File.Delete(path);
+        }
     }
 
     private ProjectWorkspace? TryGetWorkspace(string projectId) =>
