@@ -14,6 +14,7 @@ public sealed record GitHubPullRequestEvidence(
     string Title,
     string State,
     string? MergeCommitSha,
+    DateTimeOffset? MergedAtUtc,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc);
 
@@ -23,7 +24,7 @@ public sealed record GitHubReviewEvidence(
     string Url,
     string State,
     string? Author,
-    DateTimeOffset SubmittedAtUtc);
+    DateTimeOffset? SubmittedAtUtc);
 
 public sealed record GitHubReviewCommentEvidence(
     int PullRequestNumber,
