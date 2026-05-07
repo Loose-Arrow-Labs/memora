@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -82,7 +83,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
         Assert.Contains("Previous item", html);
         Assert.Contains("Next item", html);
         Assert.Contains("Current UI boundary", html);
-        Assert.Contains("approval and rejection persistence remain outside this UI slice", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("persist through the governed core workflow", html, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -208,6 +209,57 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
         Assert.Contains(">ready<", html, StringComparison.Ordinal);
         Assert.DoesNotContain("ADR-001", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Missing Or Invalid Provenance", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Review_approve_draft_persists_approved_revision_through_workflow()
+    {
+        using var factory = new OperatorShellFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        var draftPath = Path.Combine(workspaceRoot, "drafts", "plan", "PLN-001.r0001.md");
+        var approvedPath = Path.Combine(workspaceRoot, "canonical", "plans", "PLN-001.r0001.md");
+
+        var response = await client.PostAsync(
+            "/projects/demo-project/review/decision",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["path"] = "drafts/plan/PLN-001.r0001.md",
+                ["decision"] = "Approve"
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.True(File.Exists(approvedPath));
+        Assert.False(File.Exists(draftPath));
+        Assert.Contains("status: approved", await File.ReadAllTextAsync(approvedPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Review_reject_proposal_persists_deprecated_pending_record()
+    {
+        using var factory = new OperatorShellFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        await OperatorShellFactory.WriteProposedPlanAsync(
+            workspaceRoot,
+            "PLN-996",
+            "Rejectable proposal",
+            "evidence:missing-evidence",
+            "missing-evidence");
+        var draftPath = Path.Combine(workspaceRoot, "drafts", "plan", "PLN-996.r0001.md");
+
+        var response = await client.PostAsync(
+            "/projects/demo-project/review/decision",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["path"] = "drafts/plan/PLN-996.r0001.md",
+                ["decision"] = "Reject"
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.True(File.Exists(draftPath));
+        Assert.Contains("status: deprecated", await File.ReadAllTextAsync(draftPath), StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(workspaceRoot, "canonical", "plans", "PLN-996.r0001.md")));
     }
 }
 

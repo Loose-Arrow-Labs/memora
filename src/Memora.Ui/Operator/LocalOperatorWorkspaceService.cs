@@ -16,7 +16,9 @@ public sealed class LocalOperatorWorkspaceService
     private readonly WorkspaceDiscovery _workspaceDiscovery = new();
     private readonly ArtifactMarkdownParser _markdownParser = new();
     private readonly ArtifactFileStore _artifactFileStore = new();
+    private readonly ArtifactMarkdownWriter _artifactMarkdownWriter = new();
     private readonly ApprovalQueueBuilder _approvalQueueBuilder = new();
+    private readonly ArtifactApprovalWorkflow _approvalWorkflow = new();
     private readonly DraftArtifactEditor _draftArtifactEditor = new();
     private readonly ArtifactRevisionDiffBuilder _diffBuilder = new();
     private readonly FileBackedImportedEvidenceStore _evidenceStore = new();
@@ -132,6 +134,84 @@ public sealed class LocalOperatorWorkspaceService
         var savedRelativePath = NormalizeRelativePath(Path.GetRelativePath(artifactView.Project.Workspace.RootPath, savedPath));
 
         return OperatorMutationResult.Success(savedRelativePath);
+    }
+
+    public OperatorReviewDecisionResult ApplyReviewDecision(
+        string projectId,
+        string relativePath,
+        OperatorReviewDecision decision)
+    {
+        var artifactView = TryGetArtifactView(projectId, relativePath);
+        if (artifactView is null || !artifactView.SelectedArtifact.IsPendingReview)
+        {
+            return OperatorReviewDecisionResult.NotFound();
+        }
+
+        return decision switch
+        {
+            OperatorReviewDecision.Approve => ApproveReviewItem(artifactView),
+            OperatorReviewDecision.Reject => RejectReviewItem(artifactView),
+            _ => OperatorReviewDecisionResult.Invalid(["Unsupported review decision."])
+        };
+    }
+
+    private OperatorReviewDecisionResult ApproveReviewItem(OperatorArtifactView artifactView)
+    {
+        if (!artifactView.ProvenanceReview.IsApprovalReady)
+        {
+            return OperatorReviewDecisionResult.Invalid([artifactView.ProvenanceReview.ReadinessMessage]);
+        }
+
+        var decision = _approvalWorkflow.Approve(
+            artifactView.SelectedArtifact.Artifact,
+            DateTimeOffset.UtcNow,
+            artifactView.CurrentApprovedArtifact);
+
+        if (!decision.IsSuccess || decision.ApprovedArtifact is null)
+        {
+            return OperatorReviewDecisionResult.Invalid(
+                decision.Validation.Issues.Select(issue => issue.DiagnosticMessage));
+        }
+
+        try
+        {
+            _artifactFileStore.Save(artifactView.Project.Workspace, decision.ApprovedArtifact);
+            File.Delete(artifactView.SelectedArtifact.FilePath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return OperatorReviewDecisionResult.Invalid([$"Approval persistence failed: {exception.Message}"]);
+        }
+
+        return OperatorReviewDecisionResult.Success(
+            $"Approved {decision.ApprovedArtifact.Id} revision {decision.ApprovedArtifact.Revision}.");
+    }
+
+    private OperatorReviewDecisionResult RejectReviewItem(OperatorArtifactView artifactView)
+    {
+        var decision = _approvalWorkflow.Reject(
+            artifactView.SelectedArtifact.Artifact,
+            DateTimeOffset.UtcNow);
+
+        if (!decision.IsSuccess || decision.RejectedArtifact is null)
+        {
+            return OperatorReviewDecisionResult.Invalid(
+                decision.Validation.Issues.Select(issue => issue.DiagnosticMessage));
+        }
+
+        try
+        {
+            File.WriteAllText(
+                artifactView.SelectedArtifact.FilePath,
+                _artifactMarkdownWriter.Write(decision.RejectedArtifact));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return OperatorReviewDecisionResult.Invalid([$"Rejection persistence failed: {exception.Message}"]);
+        }
+
+        return OperatorReviewDecisionResult.Success(
+            $"Rejected {decision.RejectedArtifact.Id} revision {decision.RejectedArtifact.Revision}.");
     }
 
     private ProjectWorkspace? TryGetWorkspace(string projectId) =>
@@ -455,6 +535,44 @@ public sealed record OperatorArtifactEditInput(
                 .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
+}
+
+public enum OperatorReviewDecision
+{
+    Approve,
+    Reject
+}
+
+public sealed class OperatorReviewDecisionResult
+{
+    private OperatorReviewDecisionResult(
+        bool isSuccess,
+        bool isNotFound,
+        string? message,
+        IReadOnlyList<string> validationErrors)
+    {
+        IsSuccess = isSuccess;
+        IsNotFound = isNotFound;
+        Message = message;
+        ValidationErrors = validationErrors;
+    }
+
+    public bool IsSuccess { get; }
+
+    public bool IsNotFound { get; }
+
+    public string? Message { get; }
+
+    public IReadOnlyList<string> ValidationErrors { get; }
+
+    public static OperatorReviewDecisionResult Success(string message) =>
+        new(true, false, message, []);
+
+    public static OperatorReviewDecisionResult Invalid(IEnumerable<string> validationErrors) =>
+        new(false, false, null, validationErrors.ToArray());
+
+    public static OperatorReviewDecisionResult NotFound() =>
+        new(false, true, null, []);
 }
 
 public sealed class OperatorMutationResult
