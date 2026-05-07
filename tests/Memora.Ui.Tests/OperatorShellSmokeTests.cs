@@ -7,6 +7,7 @@ using Memora.Core.Artifacts;
 using Memora.Core.Import;
 using Memora.Import.Evidence;
 using Memora.Import.Readiness;
+using Memora.Ui.Operator;
 
 namespace Memora.Ui.Tests;
 
@@ -228,6 +229,52 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
         Assert.Contains("Recent import warnings", html, StringComparison.Ordinal);
         Assert.Contains("/projects/demo-project/proposals", html, StringComparison.Ordinal);
         Assert.Contains("/understanding?projectId=demo-project", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Trust_dashboard_scopes_rebuild_diagnostics_to_selected_project()
+    {
+        using var factory = new OperatorShellFactory();
+        var service = new LocalOperatorWorkspaceService(new OperatorShellOptions(factory.WorkspacesRootPath, UsesSeededSampleRoot: false));
+        var baselineDashboard = service.TryBuildTrustDashboard("demo-project");
+        Assert.NotNull(baselineDashboard);
+        var baselineBrokenRelationships = Assert.Single(
+            baselineDashboard!.Metrics,
+            metric => metric.Label == "Broken relationships").Count;
+        OperatorShellFactory.WriteWorkspaceWithBrokenRelationship(factory.WorkspacesRootPath, "other-project");
+
+        var dashboard = service.TryBuildTrustDashboard("demo-project");
+        Assert.NotNull(dashboard);
+
+        var brokenRelationships = Assert.Single(
+            dashboard!.Metrics,
+            metric => metric.Label == "Broken relationships");
+        Assert.Equal(baselineBrokenRelationships, brokenRelationships.Count);
+    }
+
+    [Fact]
+    public void Trust_dashboard_counts_first_run_readiness_warnings()
+    {
+        using var factory = new OperatorShellFactory();
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        OperatorShellFactory.SeedReadinessReport(
+            workspaceRoot,
+            "local-commit-997",
+            missingContext: ["No approved import baseline has been reviewed yet."],
+            missingTests: ["No deterministic test command candidate was found."],
+            riskyModules: ["src/Memora.Ui"],
+            advisoryDiscoveryGaps: ["Advisory discovery could inspect CI files."]);
+        var service = new LocalOperatorWorkspaceService(new OperatorShellOptions(factory.WorkspacesRootPath, UsesSeededSampleRoot: false));
+
+        var dashboard = service.TryBuildTrustDashboard("demo-project");
+        Assert.NotNull(dashboard);
+
+        var importWarnings = Assert.Single(
+            dashboard!.Metrics,
+            metric => metric.Label == "Recent import warnings");
+        Assert.Equal(4, importWarnings.Count);
+        Assert.Equal(OperatorTrustMetricState.NeedsReview, importWarnings.State);
+        Assert.Contains("No approved import baseline has been reviewed yet.", importWarnings.Detail, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -518,6 +565,23 @@ public sealed class OperatorShellFactory : WebApplicationFactory<Program>
 
     public static void SeedReadinessReport(string workspaceRoot, string evidenceId)
     {
+        SeedReadinessReport(
+            workspaceRoot,
+            evidenceId,
+            missingContext: [],
+            missingTests: [],
+            riskyModules: [],
+            advisoryDiscoveryGaps: []);
+    }
+
+    public static void SeedReadinessReport(
+        string workspaceRoot,
+        string evidenceId,
+        IReadOnlyList<string> missingContext,
+        IReadOnlyList<string> missingTests,
+        IReadOnlyList<string> riskyModules,
+        IReadOnlyList<string> advisoryDiscoveryGaps)
+    {
         var generatedAtUtc = new DateTimeOffset(2026, 5, 6, 10, 5, 0, TimeSpan.Zero);
         var candidate = new CandidateMemoryRecord(
             "candidate-provenance",
@@ -536,13 +600,65 @@ public sealed class OperatorShellFactory : WebApplicationFactory<Program>
             1,
             1,
             ReadyForAgentUse: false,
-            MissingContext: [],
-            MissingTests: [],
-            RiskyModules: [],
-            AdvisoryDiscoveryGaps: [],
+            MissingContext: missingContext,
+            MissingTests: missingTests,
+            RiskyModules: riskyModules,
+            AdvisoryDiscoveryGaps: advisoryDiscoveryGaps,
             NextReviewSteps: ["Review inferred candidate before promotion."]);
 
         new FileBackedFirstRunReportStore()
             .Save(workspaceRoot, new FirstRunMemoryGenerationResult([candidate], report));
+    }
+
+    public static void WriteWorkspaceWithBrokenRelationship(string workspacesRoot, string projectId)
+    {
+        var workspaceRoot = Path.Combine(workspacesRoot, projectId);
+        Directory.CreateDirectory(Path.Combine(workspaceRoot, "canonical", "plans"));
+        File.WriteAllText(
+            Path.Combine(workspaceRoot, "project.json"),
+            $$"""
+            {
+              "projectId": "{{projectId}}",
+              "name": "Other Project",
+              "status": "active"
+            }
+            """);
+        File.WriteAllText(
+            Path.Combine(workspaceRoot, "canonical", "plans", "PLN-BAD.r0001.md"),
+            $$"""
+            ---
+            id: PLN-BAD
+            project_id: {{projectId}}
+            type: plan
+            status: approved
+            title: Bad relationship fixture
+            created_at: 2026-05-06T10:00:00Z
+            updated_at: 2026-05-06T10:00:00Z
+            revision: 1
+            tags:
+              - review
+            provenance: user
+            reason: cross-project diagnostic fixture
+            links:
+              depends_on:
+                - MISSING-ARTIFACT
+              affects: []
+              derived_from: []
+              supersedes: []
+            priority: normal
+            active: false
+            ---
+            ## Goal
+            Trigger an index diagnostic in a different project.
+
+            ## Scope
+            Keep this diagnostic outside the selected dashboard project.
+
+            ## Acceptance Criteria
+            - selected project trust metrics stay scoped
+
+            ## Notes
+            Test fixture.
+            """);
     }
 }

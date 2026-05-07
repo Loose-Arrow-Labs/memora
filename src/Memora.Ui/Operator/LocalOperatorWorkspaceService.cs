@@ -315,7 +315,8 @@ public sealed class LocalOperatorWorkspaceService
 
         var importWarnings = new List<string>();
         var firstRunReport = ReadFirstRunReport(snapshot.Workspace, importWarnings);
-        var rebuildResult = BuildRebuildDiagnostics(importWarnings);
+        AddReadinessWarnings(firstRunReport, importWarnings);
+        var rebuildResult = BuildRebuildDiagnostics(snapshot, importWarnings);
         var staleCutoff = DateTimeOffset.UtcNow.AddDays(-30);
         var staleDraftCount = snapshot.Artifacts.Count(record =>
             record.Artifact.Status == ArtifactStatus.Draft &&
@@ -368,13 +369,16 @@ public sealed class LocalOperatorWorkspaceService
         return new OperatorTrustDashboard(snapshot.Workspace.ProjectId, snapshot.Workspace.Metadata.Name, metrics);
     }
 
-    private IndexRebuildResult BuildRebuildDiagnostics(ICollection<string> warnings)
+    private IndexRebuildResult BuildRebuildDiagnostics(
+        OperatorProjectSnapshot snapshot,
+        ICollection<string> warnings)
     {
         try
         {
             using var connection = new SqliteConnection("Data Source=:memory:");
             connection.Open();
-            return _indexRebuilder.Rebuild(connection, _options.NormalizedWorkspacesRootPath);
+            var result = _indexRebuilder.Rebuild(connection, _options.NormalizedWorkspacesRootPath);
+            return ScopeRebuildResult(result, snapshot);
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or SqliteException)
         {
@@ -387,6 +391,57 @@ public sealed class LocalOperatorWorkspaceService
                 [new IndexRebuildDiagnostic(_options.NormalizedWorkspacesRootPath, "trust.rebuild.failed", exception.Message, "workspacesRoot")],
                 0,
                 0);
+        }
+    }
+
+    private static IndexRebuildResult ScopeRebuildResult(
+        IndexRebuildResult result,
+        OperatorProjectSnapshot snapshot)
+    {
+        var diagnostics = result.Diagnostics
+            .Where(diagnostic => IsUnderRoot(diagnostic.FilePath, snapshot.Workspace.RootPath))
+            .ToArray();
+        var filesystemArtifactFileCount = snapshot.Artifacts.Count;
+
+        if (diagnostics.Length > 0)
+        {
+            return new IndexRebuildResult(0, 0, 0, 0, diagnostics, 1, filesystemArtifactFileCount);
+        }
+
+        var artifactCount = snapshot.Artifacts
+            .Select(record => record.Artifact.Id)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        var relationshipCount = snapshot.Artifacts
+            .Where(record => record.Artifact.Status == ArtifactStatus.Approved)
+            .Where(record => record.RelativePath.StartsWith("canonical/", StringComparison.Ordinal))
+            .Sum(record => record.Artifact.Links.Relationships.Count);
+
+        return new IndexRebuildResult(
+            1,
+            artifactCount,
+            snapshot.Artifacts.Count,
+            relationshipCount,
+            diagnostics,
+            1,
+            filesystemArtifactFileCount);
+    }
+
+    private static void AddReadinessWarnings(
+        FirstRunMemoryGenerationResult? firstRunReport,
+        ICollection<string> warnings)
+    {
+        if (firstRunReport is null)
+        {
+            return;
+        }
+
+        foreach (var warning in firstRunReport.ReadinessReport.MissingContext
+                     .Concat(firstRunReport.ReadinessReport.MissingTests)
+                     .Concat(firstRunReport.ReadinessReport.RiskyModules)
+                     .Concat(firstRunReport.ReadinessReport.AdvisoryDiscoveryGaps))
+        {
+            warnings.Add(warning);
         }
     }
 
@@ -597,6 +652,13 @@ public sealed class LocalOperatorWorkspaceService
         relativePath
             .Trim()
             .Replace('\\', '/');
+
+    private static bool IsUnderRoot(string filePath, string rootPath)
+    {
+        var fullPath = Path.GetFullPath(filePath);
+        var normalizedRootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath)) + Path.DirectorySeparatorChar;
+        return fullPath.StartsWith(normalizedRootPath, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public sealed record OperatorProjectSummary(
