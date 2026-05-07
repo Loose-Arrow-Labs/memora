@@ -33,7 +33,7 @@ public sealed class ContextViewerTests : IDisposable
                         ["Memora:WorkspacesRootPath"] = _workspacesRootPath
                     })));
 
-        using var client = factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
 
         var response = await client.GetAsync("/context-viewer?projectId=memora&taskDescription=Prepare%20milestone%203%20context");
 
