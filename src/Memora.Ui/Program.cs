@@ -117,6 +117,20 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/projects/{projectId}/proposals",
+    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    {
+        var snapshot = service.TryGetProject(projectId);
+        if (snapshot is null)
+        {
+            return Results.NotFound();
+        }
+
+        var html = OperatorShellPageRenderer.RenderProposalReview(options, service.GetProjects(), snapshot);
+        return Results.Content(html, "text/html");
+    });
+
+app.MapGet(
     "/projects/{projectId}/first-run-import",
     (string projectId, string? importMode, FileSystemFirstRunImportStatusService importStatusService, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
     {
