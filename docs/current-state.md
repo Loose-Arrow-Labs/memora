@@ -65,6 +65,7 @@ It is intentionally separate from roadmap and milestone planning docs.
   - artifact proposals
   - artifact updates
   - outcome recording
+  - review inbox listing and artifact preview for IDE clients
 - a thin MCP adapter in `Memora.Mcp` over the shared agent interaction contract
 - MCP tools for `get_context`, `propose_artifact`, `propose_update`, and `record_outcome`
 - MCP resource template `memora://projects/{projectId}` exposing project
@@ -78,6 +79,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - Codex external workflow sample that performs project lookup, context retrieval, proposal submission, and outcome recording
 - ChatGPT-oriented sample that validates the current read-only state-view path
 - shared compatibility validation across the current MCP and OpenAPI runtime-facing surfaces
+- VS Code/Cursor review inbox extension that lists draft/proposed artifacts and
+  opens API-backed read-only previews without promoting them to canonical truth
 
 ### Controlled Automation
 
@@ -93,7 +96,13 @@ It is intentionally separate from roadmap and milestone planning docs.
 - project selection from discovered workspaces
 - artifact browsing and draft editing
 - approval queue navigation, proposal review listing, revision review previews,
-  and decision-readiness context
+  evidence provenance inspection, and decision-readiness context
+- UI approval and rejection actions routed through the existing governed
+  approval workflow with filesystem-backed persistence
+- trust dashboard summary for pending proposals, stale drafts, relationship and
+  rebuild diagnostics, missing project memory, and import warnings
+- grouped operator navigation for review, observe, trust, and configure
+  surfaces
 - first-run import status page showing attached repository identity, selected
   import mode, progress, evidence counts, warnings, candidate source and
   disposition, readiness report details, and next actions
@@ -109,7 +118,9 @@ It is intentionally separate from roadmap and milestone planning docs.
 
 ## Still Intentionally Thin
 
-- UI review is preview-oriented and does not persist approval or rejection decisions
+- UI review persists approval and rejection decisions through the governed core
+  workflow, while proposed artifacts and drafts remain non-canonical until a
+  successful approval writes an approved canonical revision
 - API is a minimal HTTP surface, not a fully documented production service
 - MCP is currently an in-process adapter surface, not a complete hosted server transport
 - runtime alignment is grounded in the shared contract, but hosted transport, remote reachability, authentication, and provider-specific attachments still remain follow-up work
@@ -119,7 +130,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - cached context packages are derived convenience and never replace filesystem truth
 - rebuild diagnostics identify filesystem issues, but they do not auto-repair artifacts or indexes
 - controlled automation does not provide a general direct-write path and does not write canonical artifacts
-- IDE review is captured as draft/sample planning state, not implemented product behavior
+- IDE review currently supports inbox inspection and preview only; approve and
+  reject actions remain outside the IDE extension in this slice
 - first-run import UI is status and inspection only; it does not execute imports,
   persist approval decisions, or promote candidate memory to canonical truth
 
@@ -133,6 +145,7 @@ It is intentionally separate from roadmap and milestone planning docs.
 - `src/Memora.Core/Automation/`
 - `src/Memora.Core/Revisions/`
 - `src/Memora.Core/AgentInteraction/AgentInteractionContract.cs`
+- `src/Memora.Core/AgentInteraction/ReviewInboxContract.cs`
 - `src/Memora.Core/AgentInteraction/ExternalRuntimeContract.cs`
 - `src/Memora.Core/AgentInteraction/ProjectStateViewSerializer.cs`
 - `src/Memora.Core/Import/`
@@ -183,6 +196,11 @@ It is intentionally separate from roadmap and milestone planning docs.
 - `src/Memora.Api/AgentInteractionHttpResults.cs`
 - `tests/Memora.Api.Tests/RuntimeFacingPrototypeTests.cs`
 - `tests/Memora.Api.Tests/RuntimeContractCompatibilityTests.cs`
+
+### IDE Integration
+
+- `integrations/vscode-memora/extension.js`
+- `integrations/vscode-memora/package.json`
 
 ### Controlled Automation Docs
 

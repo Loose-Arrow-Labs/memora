@@ -23,12 +23,20 @@ var workspacesRootPath = builder.Configuration["Memora:WorkspacesRootPath"] ??
 
 if (string.IsNullOrWhiteSpace(workspacesRootPath))
 {
-    builder.Services.AddSingleton<IAgentInteractionService, UnavailableAgentInteractionService>();
+    builder.Services.AddSingleton<UnavailableAgentInteractionService>();
+    builder.Services.AddSingleton<IAgentInteractionService>(serviceProvider =>
+        serviceProvider.GetRequiredService<UnavailableAgentInteractionService>());
+    builder.Services.AddSingleton<IReviewInboxService>(serviceProvider =>
+        serviceProvider.GetRequiredService<UnavailableAgentInteractionService>());
 }
 else
 {
-    builder.Services.AddSingleton<IAgentInteractionService>(_ =>
+    builder.Services.AddSingleton(_ =>
         new FileSystemAgentInteractionService(workspacesRootPath));
+    builder.Services.AddSingleton<IAgentInteractionService>(serviceProvider =>
+        serviceProvider.GetRequiredService<FileSystemAgentInteractionService>());
+    builder.Services.AddSingleton<IReviewInboxService>(serviceProvider =>
+        serviceProvider.GetRequiredService<FileSystemAgentInteractionService>());
 }
 
 var app = builder.Build();
@@ -59,6 +67,16 @@ app.MapPost(
     "/api/outcomes",
     (RecordOutcomeRequest request, IAgentInteractionService service) =>
         AgentInteractionHttpResults.FromOutcomeResponse(service.RecordOutcome(request)));
+
+app.MapGet(
+    "/api/projects/{projectId}/review/inbox",
+    (string projectId, IReviewInboxService service) =>
+        AgentInteractionHttpResults.FromReviewInboxResponse(service.GetReviewInbox(projectId)));
+
+app.MapGet(
+    "/api/projects/{projectId}/review/preview",
+    (string projectId, string path, IReviewInboxService service) =>
+        AgentInteractionHttpResults.FromReviewArtifactPreviewResponse(service.GetReviewArtifactPreview(projectId, path)));
 
 app.Run();
 

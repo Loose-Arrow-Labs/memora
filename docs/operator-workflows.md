@@ -62,12 +62,13 @@ Open a review item to inspect:
 - pending revision metadata
 - current approved baseline when one exists
 - revision diff details when the pending artifact has an approved baseline
-- decision-readiness context for the current pending item
+- evidence provenance and decision-readiness context for the current pending item
 
-The visible approve and reject controls are intentionally inactive in the UI.
-That boundary is deliberate: approval and rejection behavior exists in
-`Memora.Core`, but UI persistence for those decisions is not implemented in the
-current product slice.
+Approval and rejection controls route through the governed core workflow before
+filesystem-backed state changes. Approval writes an approved canonical revision
+only after lifecycle validation succeeds. Rejection marks the pending draft or
+proposal as deprecated in draft storage so it no longer appears as an active
+review item.
 
 ## Edit Drafts
 
