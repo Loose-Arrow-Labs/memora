@@ -37,6 +37,7 @@ public sealed class SqliteIndexRebuilderTests : IDisposable
         var result = _rebuilder.Rebuild(connection, _workspacesRootPath);
 
         Assert.True(result.Success);
+        Assert.Equal(IndexRebuildStatus.Succeeded, result.Status);
         Assert.Empty(result.Diagnostics);
         Assert.Equal(2, result.ProjectCount);
         Assert.Equal(5, result.ArtifactCount);
@@ -99,12 +100,13 @@ public sealed class SqliteIndexRebuilderTests : IDisposable
         var result = _rebuilder.Rebuild(connection, _workspacesRootPath);
 
         Assert.True(result.Success);
+        Assert.Equal(IndexRebuildStatus.Succeeded, result.Status);
         Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM projects;"));
         Assert.Equal(0L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM projects WHERE project_id = 'stale';"));
     }
 
     [Fact]
-    public void Rebuild_InvalidArtifact_ReturnsDiagnosticsAndClearsRows()
+    public void Rebuild_InvalidArtifact_ReturnsDiagnosticsAndPreservesRows()
     {
         var workspace = CreateWorkspace("alpha-workspace", "alpha", "Alpha");
         _fileStore.Save(workspace, CreateDecisionArtifact("alpha", revision: 1));
@@ -128,6 +130,7 @@ public sealed class SqliteIndexRebuilderTests : IDisposable
         var secondResult = _rebuilder.Rebuild(connection, _workspacesRootPath);
 
         Assert.False(secondResult.Success);
+        Assert.Equal(IndexRebuildStatus.Failed, secondResult.Status);
         Assert.NotEmpty(secondResult.Diagnostics);
         var diagnostic = Assert.Single(secondResult.Diagnostics, diagnostic => diagnostic.Code == "frontmatter.parse");
         Assert.Contains("source: filesystem truth", diagnostic.DiagnosticMessage, StringComparison.Ordinal);
@@ -135,36 +138,80 @@ public sealed class SqliteIndexRebuilderTests : IDisposable
         Assert.Contains("broken.r0001.md", diagnostic.DiagnosticMessage, StringComparison.Ordinal);
         Assert.Equal(1, secondResult.FilesystemProjectCount);
         Assert.Equal(2, secondResult.FilesystemArtifactFileCount);
-        Assert.Contains("derived SQLite index rows were cleared and not repopulated", secondResult.Summary, StringComparison.Ordinal);
-        Assert.Equal(0L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM projects;"));
-        Assert.Equal(0L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifacts;"));
-        Assert.Equal(0L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions;"));
+        Assert.Contains("existing derived SQLite index rows were preserved", secondResult.Summary, StringComparison.Ordinal);
+        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM projects;"));
+        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifacts;"));
+        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions;"));
         Assert.Equal(0L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_relationships;"));
     }
 
     [Fact]
-    public void Rebuild_InvalidApprovedRelationship_ReturnsDiagnosticsAndClearsRows()
+    public void Rebuild_InvalidApprovedRelationship_ReturnsDiagnosticsAndPreservesRows()
     {
         var workspace = CreateWorkspace("alpha-workspace", "alpha", "Alpha");
         _fileStore.Save(workspace, CreateDecisionArtifact("alpha", revision: 1));
+
+        using var connection = CreateConnection();
+        var firstResult = _rebuilder.Rebuild(connection, _workspacesRootPath);
+        Assert.True(firstResult.Success);
+
         _fileStore.Save(workspace, CreatePlanArtifact("alpha", ArtifactStatus.Approved, revision: 1) with
         {
             Links = new ArtifactLinks(["CHR-999"], [], [], [])
         });
 
-        using var connection = CreateConnection();
-
         var result = _rebuilder.Rebuild(connection, _workspacesRootPath);
 
         Assert.False(result.Success);
+        Assert.Equal(IndexRebuildStatus.Failed, result.Status);
         var diagnostic = Assert.Single(result.Diagnostics, diagnostic => diagnostic.Code == "index.relationship.target.invalid");
         Assert.Contains("Approved artifact 'PLN-001' references missing approved target 'CHR-999'.", diagnostic.DiagnosticMessage, StringComparison.Ordinal);
         Assert.Contains("source: filesystem truth", diagnostic.DiagnosticMessage, StringComparison.Ordinal);
         Assert.Contains("index: derived SQLite index", diagnostic.DiagnosticMessage, StringComparison.Ordinal);
-        Assert.Equal(0L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM projects;"));
-        Assert.Equal(0L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifacts;"));
-        Assert.Equal(0L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions;"));
+        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM projects;"));
+        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifacts;"));
+        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions;"));
         Assert.Equal(0L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_relationships;"));
+    }
+
+    [Fact]
+    public void Rebuild_TwoProjectWorkspaceWithBadArtifact_PreservesExistingIndex()
+    {
+        var alphaWorkspace = CreateWorkspace("alpha-workspace", "alpha", "Alpha");
+        var betaWorkspace = CreateWorkspace("beta-workspace", "beta", "Beta");
+        _fileStore.Save(alphaWorkspace, CreateDecisionArtifact("alpha", revision: 1));
+        _fileStore.Save(betaWorkspace, CreateDecisionArtifact("beta", revision: 1));
+
+        using var connection = CreateConnection();
+        var firstResult = _rebuilder.Rebuild(connection, _workspacesRootPath);
+        Assert.True(firstResult.Success);
+        Assert.Equal(2L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM projects;"));
+        Assert.Equal(2L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifacts;"));
+
+        Directory.CreateDirectory(Path.Combine(betaWorkspace.DraftsRootPath, "plan"));
+        File.WriteAllText(
+            Path.Combine(betaWorkspace.DraftsRootPath, "plan", "broken.r0001.md"),
+            """
+            ---
+            id PLN-999
+            type: plan
+            ---
+            ## Goal
+            broken
+            """);
+
+        var secondResult = _rebuilder.Rebuild(connection, _workspacesRootPath);
+
+        Assert.False(secondResult.Success);
+        Assert.Equal(IndexRebuildStatus.Failed, secondResult.Status);
+        Assert.Contains(secondResult.Diagnostics, diagnostic => diagnostic.Code == "frontmatter.parse");
+        Assert.Equal(2, secondResult.FilesystemProjectCount);
+        Assert.Equal(3, secondResult.FilesystemArtifactFileCount);
+        Assert.Equal(2L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM projects;"));
+        Assert.Equal(2L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifacts;"));
+        Assert.Equal(2L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions;"));
+        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifacts WHERE project_id = 'alpha';"));
+        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifacts WHERE project_id = 'beta';"));
     }
 
     [Fact]
@@ -179,6 +226,7 @@ public sealed class SqliteIndexRebuilderTests : IDisposable
         var result = _rebuilder.Rebuild(connection, sampleWorkspacesRootPath);
 
         Assert.True(result.Success);
+        Assert.Equal(IndexRebuildStatus.Succeeded, result.Status);
         Assert.Empty(result.Diagnostics);
         Assert.Equal(1, result.ProjectCount);
         Assert.Equal(artifactFileCount, result.RevisionCount);
