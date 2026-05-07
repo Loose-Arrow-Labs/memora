@@ -171,19 +171,85 @@ public sealed class SqliteIndexRebuilderTests : IDisposable
     public void Rebuild_FromSampleWorkspaceFixture_PopulatesExpectedRows()
     {
         using var connection = CreateConnection();
+        var sampleWorkspacesRootPath = GetSampleWorkspacesRootPath();
+        var artifactFileCount = Directory
+            .EnumerateFiles(Path.Combine(sampleWorkspacesRootPath, "demo-project"), "*.md", SearchOption.AllDirectories)
+            .Count();
 
-        var result = _rebuilder.Rebuild(connection, GetSampleWorkspacesRootPath());
+        var result = _rebuilder.Rebuild(connection, sampleWorkspacesRootPath);
 
         Assert.True(result.Success);
         Assert.Empty(result.Diagnostics);
         Assert.Equal(1, result.ProjectCount);
-        Assert.Equal(28, result.ArtifactCount);
-        Assert.Equal(28, result.RevisionCount);
-        Assert.Equal(33, result.RelationshipCount);
+        Assert.Equal(artifactFileCount, result.RevisionCount);
+        Assert.Equal(artifactFileCount, result.FilesystemArtifactFileCount);
         Assert.Equal("demo-project", ExecuteScalar<string>(connection, "SELECT project_id FROM projects LIMIT 1;"));
-        Assert.Equal(13L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions WHERE is_canonical = 1;"));
-        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions WHERE is_canonical = 0 AND artifact_id = 'PLN-001';"));
-        Assert.Equal(1L, ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions WHERE is_canonical = 0 AND artifact_id = 'PLN-002';"));
+        Assert.Equal(
+            artifactFileCount,
+            ExecuteScalar<long>(connection, "SELECT COUNT(*) FROM artifact_revisions;"));
+        Assert.Equal(
+            0L,
+            ExecuteScalar<long>(
+                connection,
+                """
+                SELECT COUNT(*)
+                FROM artifacts a
+                LEFT JOIN artifact_revisions r
+                    ON r.project_id = a.project_id
+                    AND r.artifact_id = a.artifact_id
+                WHERE r.artifact_id IS NULL;
+                """));
+        Assert.Equal(
+            ExecuteScalar<long>(
+                connection,
+                """
+                SELECT COUNT(*)
+                FROM (
+                    SELECT project_id, artifact_id
+                    FROM artifact_revisions
+                    WHERE artifact_status = 'approved'
+                    GROUP BY project_id, artifact_id
+                );
+                """),
+            ExecuteScalar<long>(
+                connection,
+                """
+                SELECT COUNT(*)
+                FROM artifact_revisions
+                WHERE artifact_status = 'approved'
+                    AND is_canonical = 1;
+                """));
+        Assert.Equal(
+            0L,
+            ExecuteScalar<long>(
+                connection,
+                """
+                SELECT COUNT(*)
+                FROM (
+                    SELECT project_id, artifact_id
+                    FROM artifact_revisions
+                    WHERE is_canonical = 1
+                    GROUP BY project_id, artifact_id
+                    HAVING COUNT(*) > 1
+                );
+                """));
+        Assert.Equal(
+            0L,
+            ExecuteScalar<long>(
+                connection,
+                """
+                SELECT COUNT(*)
+                FROM artifact_relationships rel
+                LEFT JOIN artifact_revisions source_revision
+                    ON source_revision.project_id = rel.project_id
+                    AND source_revision.artifact_id = rel.source_artifact_id
+                    AND source_revision.revision = rel.source_revision
+                LEFT JOIN artifacts target_artifact
+                    ON target_artifact.project_id = rel.project_id
+                    AND target_artifact.artifact_id = rel.target_artifact_id
+                WHERE source_revision.artifact_id IS NULL
+                    OR target_artifact.artifact_id IS NULL;
+                """));
     }
 
     public void Dispose()
