@@ -331,13 +331,15 @@ public sealed record ProposalResponse(
     ArtifactType ArtifactType,
     ArtifactStatus ResultingStatus,
     int Revision,
-    IReadOnlyList<AgentInteractionError> Errors)
+    IReadOnlyList<AgentInteractionError> Errors,
+    IReadOnlyList<AgentInteractionError>? Diagnostics = null)
     : AgentInteractionResponse(Errors)
 {
     public string ProjectId { get; } = AgentInteractionContractHelpers.RequireValue(ProjectId, nameof(ProjectId), "Project id is required.");
     public string ArtifactId { get; } = AgentInteractionContractHelpers.RequireValue(ArtifactId, nameof(ArtifactId), "Artifact id is required.");
     public ArtifactType ArtifactType { get; } = ArtifactType;
     public ArtifactStatus ResultingStatus { get; } = ResultingStatus;
+    public IReadOnlyList<AgentInteractionError> Diagnostics { get; } = Diagnostics?.ToArray() ?? [];
     public int Revision { get; } = Revision > 0
         ? Revision
         : Errors.Count == 0
