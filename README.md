@@ -30,6 +30,8 @@ Open `http://127.0.0.1:5080`.
 The UI also binds to loopback by default and uses the same local token file as
 the API when both point at the same workspaces root. Browser sessions can open
 `http://127.0.0.1:5080/?localToken=<token>` once to set the local session cookie.
+Draft edit submissions also carry an antiforgery token from the rendered form,
+so cross-site form posts fail before any draft mutation occurs.
 
 Run the companion API in a second terminal:
 

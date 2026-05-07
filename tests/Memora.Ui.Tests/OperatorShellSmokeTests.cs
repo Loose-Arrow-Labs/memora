@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -72,7 +73,38 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
 
         Assert.Contains("Edit Draft", html);
         Assert.Contains("Save new draft revision", html);
+        Assert.Contains("__RequestVerificationToken", html);
         Assert.Contains("Expand Milestone 1 test coverage", html);
+    }
+
+    [Fact]
+    public async Task Edit_post_without_antiforgery_token_returns_structured_bad_request()
+    {
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
+
+        var response = await client.PostAsync(
+            "/projects/demo-project/artifacts/edit",
+            new FormUrlEncodedContent(CreateEditFormFields(includeAntiforgeryToken: null)));
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        using var payload = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        Assert.Equal("ui.csrf.invalid", payload.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Edit_post_with_antiforgery_token_saves_new_draft_revision()
+    {
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
+        var formPage = await client.GetStringAsync("/projects/demo-project/artifacts?path=drafts%2Fplan%2FPLN-001.r0001.md");
+        var requestToken = ExtractInputValue(formPage, "__RequestVerificationToken");
+
+        var response = await client.PostAsync(
+            "/projects/demo-project/artifacts/edit",
+            new FormUrlEncodedContent(CreateEditFormFields(requestToken)));
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Expand Milestone 1 test coverage with CSRF", html);
     }
 
     [Fact]
@@ -426,6 +458,39 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
         Assert.Contains(
             response.Headers.GetValues("Set-Cookie"),
             value => value.StartsWith($"{LocalAccessDefaults.CookieName}=", StringComparison.Ordinal));
+    }
+
+    private static IReadOnlyDictionary<string, string> CreateEditFormFields(string? includeAntiforgeryToken)
+    {
+        var fields = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["path"] = "drafts/plan/PLN-001.r0001.md",
+            ["title"] = "Expand Milestone 1 test coverage with CSRF",
+            ["reason"] = "Protect draft edit POST.",
+            ["tags"] = "milestone-1, tests",
+            ["section:Goal"] = "Expand Milestone 1 test coverage with CSRF.",
+            ["section:Scope"] = "Keep the operator edit flow protected.",
+            ["section:Acceptance Criteria"] = "- draft edits require antiforgery tokens",
+            ["section:Notes"] = "Token came from the freshly rendered form."
+        };
+
+        if (!string.IsNullOrWhiteSpace(includeAntiforgeryToken))
+        {
+            fields["__RequestVerificationToken"] = includeAntiforgeryToken;
+        }
+
+        return fields;
+    }
+
+    private static string ExtractInputValue(string html, string inputName)
+    {
+        var marker = $"name=\"{inputName}\" value=\"";
+        var start = html.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"Input '{inputName}' was not found.");
+        start += marker.Length;
+        var end = html.IndexOf('"', start);
+        Assert.True(end > start, $"Input '{inputName}' value was not found.");
+        return System.Net.WebUtility.HtmlDecode(html[start..end]);
     }
 }
 
