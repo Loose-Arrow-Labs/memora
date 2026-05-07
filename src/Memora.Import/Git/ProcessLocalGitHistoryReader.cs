@@ -17,7 +17,7 @@ public sealed class ProcessLocalGitHistoryReader : ILocalGitHistoryReader
                     "repository_path"));
         }
 
-        var insideWorkTree = RunGit(repositoryPath, "rev-parse --is-inside-work-tree");
+        var insideWorkTree = RunGit(repositoryPath, ["rev-parse", "--is-inside-work-tree"]);
         if (!insideWorkTree.IsSuccess || !string.Equals(insideWorkTree.Output.Trim(), "true", StringComparison.OrdinalIgnoreCase))
         {
             return LocalGitHistoryReadResult.Failed(
@@ -60,7 +60,7 @@ public sealed class ProcessLocalGitHistoryReader : ILocalGitHistoryReader
     {
         var result = RunGit(
             repositoryPath,
-            $"log --max-count={maxCommits} --date=iso-strict --pretty=format:%H%x1f%aI%x1f%an%x1f%ae%x1f%s --name-only");
+            ["log", $"--max-count={maxCommits}", "--date=iso-strict", "--pretty=format:%H%x1f%aI%x1f%an%x1f%ae%x1f%s", "--name-only"]);
         if (!result.IsSuccess)
         {
             diagnostics.Add(LocalGitImportDiagnostic.Error("local_git.command.failed", result.Error, "git log"));
@@ -116,7 +116,7 @@ public sealed class ProcessLocalGitHistoryReader : ILocalGitHistoryReader
         string repositoryPath,
         List<LocalGitImportDiagnostic> diagnostics)
     {
-        var result = RunGit(repositoryPath, "for-each-ref refs/heads refs/remotes --format=%(refname:short)%09%(objectname)");
+        var result = RunGit(repositoryPath, ["for-each-ref", "refs/heads", "refs/remotes", "--format=%(refname:short)%09%(objectname)"]);
         if (!result.IsSuccess)
         {
             diagnostics.Add(LocalGitImportDiagnostic.Warning("local_git.branches.partial", result.Error, "git for-each-ref branches"));
@@ -136,7 +136,7 @@ public sealed class ProcessLocalGitHistoryReader : ILocalGitHistoryReader
         string repositoryPath,
         List<LocalGitImportDiagnostic> diagnostics)
     {
-        var result = RunGit(repositoryPath, "for-each-ref refs/tags --format=%(refname:short)%09%(objectname)%09%(creatordate:iso-strict)");
+        var result = RunGit(repositoryPath, ["for-each-ref", "refs/tags", "--format=%(refname:short)%09%(objectname)%09%(creatordate:iso-strict)"]);
         if (!result.IsSuccess)
         {
             diagnostics.Add(LocalGitImportDiagnostic.Warning("local_git.tags.partial", result.Error, "git for-each-ref tags"));
@@ -173,16 +173,23 @@ public sealed class ProcessLocalGitHistoryReader : ILocalGitHistoryReader
             .ToArray();
     }
 
-    private static GitCommandResult RunGit(string workingDirectory, string arguments)
+    private static GitCommandResult RunGit(string workingDirectory, IReadOnlyList<string> arguments)
     {
-        using var process = Process.Start(
-            new ProcessStartInfo("git", $"-C \"{workingDirectory}\" {arguments}")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            });
+        var startInfo = new ProcessStartInfo("git")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("-C");
+        startInfo.ArgumentList.Add(workingDirectory);
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(startInfo);
 
         if (process is null)
         {
