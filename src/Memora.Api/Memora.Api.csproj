@@ -4,6 +4,7 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
     <ProjectReference Include="..\Memora.Context\Memora.Context.csproj" />
     <ProjectReference Include="..\Memora.Core\Memora.Core.csproj" />
+    <ProjectReference Include="..\Memora.Hosting\Memora.Hosting.csproj" />
     <ProjectReference Include="..\Memora.Import\Memora.Import.csproj" />
     <ProjectReference Include="..\Memora.Storage\Memora.Storage.csproj" />
   </ItemGroup>

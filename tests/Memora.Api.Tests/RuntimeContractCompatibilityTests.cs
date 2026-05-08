@@ -7,10 +7,12 @@ using Memora.Api.Services;
 using Memora.Core.AgentInteraction;
 using Memora.Core.Artifacts;
 using Memora.Core.Projects;
+using Memora.Hosting;
 using Memora.Mcp.Server;
 using Memora.Storage.Persistence;
 using Memora.Storage.Workspaces;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -141,13 +143,26 @@ public sealed class RuntimeContractCompatibilityTests : IDisposable
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
         var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureAppConfiguration((_, configuration) =>
+                    configuration.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["Memora:LocalAccessRootPath"] = _workspacesRootPath,
+                            ["Memora:WorkspacesRootPath"] = _workspacesRootPath
+                        }));
                 builder.ConfigureServices(services =>
                 {
                     services.RemoveAll<IAgentInteractionService>();
                     services.AddSingleton<IAgentInteractionService>(_ => service);
-                }));
+                });
+            });
 
-        return new CompatibilityHarness(factory, factory.CreateClient(), new MemoraMcpServer(service));
+        var client = factory.CreateClient();
+        var token = factory.Services.GetRequiredService<LocalAccessTokenStore>().GetOrCreateToken();
+        client.DefaultRequestHeaders.Add(LocalAccessDefaults.HeaderName, token);
+
+        return new CompatibilityHarness(factory, client, new MemoraMcpServer(service));
     }
 
     private ProjectWorkspace CreateWorkspace(string projectId)

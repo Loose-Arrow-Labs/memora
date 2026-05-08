@@ -1,3 +1,4 @@
+using Memora.Hosting;
 using Memora.Ui.ContextViewer;
 using Memora.Ui.FirstRunImport;
 using Memora.Ui.Operator;
@@ -7,10 +8,21 @@ using Memora.Index.Traceability;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.UseUrls(
+    LoopbackBindingPolicy.ResolveRequiredUrls(
+        builder.Configuration,
+        "MemoraUi:Urls",
+        "http://127.0.0.1:5080"));
+
 builder.Services.AddSingleton(sp =>
     BuildShellOptions(
         sp.GetRequiredService<IConfiguration>(),
         sp.GetRequiredService<IHostEnvironment>()));
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<OperatorShellOptions>();
+    return new LocalAccessTokenStore(options.NormalizedWorkspacesRootPath);
+});
 builder.Services.AddSingleton<LocalOperatorWorkspaceService>();
 builder.Services.AddSingleton(sp =>
 {
@@ -29,6 +41,27 @@ builder.Services.AddSingleton(sp =>
 });
 
 var app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    var tokenStore = context.RequestServices.GetRequiredService<LocalAccessTokenStore>();
+
+    if (AuthorizeLocalRequest(context, tokenStore, out var redirectUrl))
+    {
+        if (redirectUrl is not null)
+        {
+            context.Response.Redirect(redirectUrl);
+            return;
+        }
+
+        await next();
+        return;
+    }
+
+    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+    context.Response.ContentType = "text/plain; charset=utf-8";
+    await context.Response.WriteAsync($"Missing or invalid {LocalAccessDefaults.HeaderName} header.");
+});
 
 app.MapGet(
     "/",
@@ -282,6 +315,51 @@ static OperatorShellOptions BuildShellOptions(IConfiguration configuration, IHos
         : new OperatorShellOptions(
             Path.GetFullPath(configuredWorkspacesRoot),
             UsesSeededSampleRoot: false);
+}
+
+static bool AuthorizeLocalRequest(HttpContext context, LocalAccessTokenStore tokenStore, out string? redirectUrl)
+{
+    redirectUrl = null;
+
+    var suppliedHeader = context.Request.Headers[LocalAccessDefaults.HeaderName].FirstOrDefault();
+    if (tokenStore.IsValidToken(suppliedHeader))
+    {
+        return true;
+    }
+
+    if (context.Request.Cookies.TryGetValue(LocalAccessDefaults.CookieName, out var cookieToken) &&
+        tokenStore.IsValidToken(cookieToken))
+    {
+        return true;
+    }
+
+    var queryToken = context.Request.Query["localToken"].FirstOrDefault();
+    if (!tokenStore.IsValidToken(queryToken))
+    {
+        return false;
+    }
+
+    context.Response.Cookies.Append(
+        LocalAccessDefaults.CookieName,
+        queryToken!,
+        new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Strict,
+            Secure = context.Request.IsHttps,
+            Path = "/"
+        });
+    redirectUrl = BuildRedirectWithoutLocalToken(context.Request);
+    return true;
+}
+
+static string BuildRedirectWithoutLocalToken(HttpRequest request)
+{
+    var query = request.Query
+        .Where(parameter => !string.Equals(parameter.Key, "localToken", StringComparison.Ordinal))
+        .SelectMany(parameter => parameter.Value.Select(value => new KeyValuePair<string, string?>(parameter.Key, value)));
+
+    return request.PathBase + request.Path + QueryString.Create(query);
 }
 
 public partial class Program;
