@@ -5,6 +5,7 @@ using Memora.Ui.Operator;
 using Memora.Ui.Rendering;
 using Memora.Ui.Understanding;
 using Memora.Index.Traceability;
+using Microsoft.AspNetCore.Antiforgery;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,7 @@ builder.Services.AddSingleton(sp =>
     var options = sp.GetRequiredService<OperatorShellOptions>();
     return new LocalAccessTokenStore(options.NormalizedWorkspacesRootPath);
 });
+builder.Services.AddAntiforgery();
 builder.Services.AddSingleton<LocalOperatorWorkspaceService>();
 builder.Services.AddSingleton(sp =>
 {
@@ -88,7 +90,7 @@ app.MapGet(
 
 app.MapGet(
     "/projects/{projectId}/artifacts",
-    (string projectId, string? path, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (string projectId, string? path, LocalOperatorWorkspaceService service, OperatorShellOptions options, IAntiforgery antiforgery, HttpContext httpContext) =>
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -101,14 +103,39 @@ app.MapGet(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderArtifact(options, service.GetProjects(), artifactView, []);
+        var tokens = antiforgery.GetAndStoreTokens(httpContext);
+        var html = OperatorShellPageRenderer.RenderArtifact(
+            options,
+            service.GetProjects(),
+            artifactView,
+            [],
+            tokens.FormFieldName,
+            tokens.RequestToken);
         return Results.Content(html, "text/html");
     });
 
 app.MapPost(
     "/projects/{projectId}/artifacts/edit",
-    async (string projectId, HttpRequest request, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    async (string projectId, HttpRequest request, LocalOperatorWorkspaceService service, OperatorShellOptions options, IAntiforgery antiforgery) =>
     {
+        try
+        {
+            await antiforgery.ValidateRequestAsync(request.HttpContext);
+        }
+        catch (AntiforgeryValidationException)
+        {
+            return Results.Json(
+                new
+                {
+                    error = new
+                    {
+                        code = "ui.csrf.invalid",
+                        message = "The draft edit request is missing a valid antiforgery token."
+                    }
+                },
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var form = await request.ReadFormAsync();
         var relativePath = form["path"].ToString();
 
@@ -131,7 +158,14 @@ app.MapPost(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderArtifact(options, service.GetProjects(), artifactView, result.ValidationErrors);
+        var tokens = antiforgery.GetAndStoreTokens(request.HttpContext);
+        var html = OperatorShellPageRenderer.RenderArtifact(
+            options,
+            service.GetProjects(),
+            artifactView,
+            result.ValidationErrors,
+            tokens.FormFieldName,
+            tokens.RequestToken);
         return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
     });
 

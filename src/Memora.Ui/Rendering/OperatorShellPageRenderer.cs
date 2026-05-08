@@ -223,7 +223,9 @@ internal static class OperatorShellPageRenderer
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
         OperatorArtifactView view,
-        IReadOnlyList<string> validationErrors)
+        IReadOnlyList<string> validationErrors,
+        string? antiforgeryFieldName = null,
+        string? antiforgeryRequestToken = null)
     {
         var body = new StringBuilder();
         var artifact = view.SelectedArtifact.Artifact;
@@ -268,7 +270,7 @@ internal static class OperatorShellPageRenderer
         {
             body.AppendLine("<section class=\"panel\">");
             body.AppendLine("<div class=\"panel-header\"><h2>Edit Draft</h2><p class=\"muted\">Edits create a new draft revision through the core editing flow.</p></div>");
-            body.AppendLine(RenderEditForm(view));
+            body.AppendLine(RenderEditForm(view, antiforgeryFieldName, antiforgeryRequestToken));
             body.AppendLine("</section>");
         }
 
@@ -1005,11 +1007,19 @@ internal static class OperatorShellPageRenderer
         return html.ToString();
     }
 
-    private static string RenderEditForm(OperatorArtifactView view)
+    private static string RenderEditForm(
+        OperatorArtifactView view,
+        string? antiforgeryFieldName,
+        string? antiforgeryRequestToken)
     {
         var artifact = view.SelectedArtifact.Artifact;
         var html = new StringBuilder();
         html.AppendLine($"<form method=\"post\" action=\"/projects/{Encode(view.Project.Workspace.ProjectId)}/artifacts/edit\" class=\"edit-form\">");
+        if (!string.IsNullOrWhiteSpace(antiforgeryFieldName) && !string.IsNullOrWhiteSpace(antiforgeryRequestToken))
+        {
+            html.AppendLine($"<input type=\"hidden\" name=\"{Encode(antiforgeryFieldName)}\" value=\"{Encode(antiforgeryRequestToken)}\" />");
+        }
+
         html.AppendLine($"<input type=\"hidden\" name=\"path\" value=\"{Encode(view.SelectedArtifact.RelativePath)}\" />");
         html.AppendLine("<label><span>Title</span>");
         html.AppendLine($"<input type=\"text\" name=\"title\" value=\"{Encode(artifact.Title)}\" /></label>");
