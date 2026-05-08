@@ -33,7 +33,7 @@ public sealed class UnderstandingOutputTests : IDisposable
                         ["Memora:WorkspacesRootPath"] = _workspacesRootPath
                     })));
 
-        using var client = factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
 
         var response = await client.GetAsync("/understanding?projectId=memora&taskDescription=Review%20understanding%20outputs&artifactId=PLN-001&traceabilityKind=Dependency");
 

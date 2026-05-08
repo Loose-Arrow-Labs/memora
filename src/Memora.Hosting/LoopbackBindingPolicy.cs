@@ -14,15 +14,14 @@ public static class LoopbackBindingPolicy
         ArgumentException.ThrowIfNullOrWhiteSpace(applicationUrlsConfigurationKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(defaultLoopbackUrl);
 
-        var configuredApplicationUrls = configuration[applicationUrlsConfigurationKey];
-        var configuredHostUrls = configuration["urls"];
-        var aspNetCoreUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+        var effectiveUrls = FirstConfigured(
+            (configuration[applicationUrlsConfigurationKey], applicationUrlsConfigurationKey),
+            (configuration["urls"], "urls"),
+            (Environment.GetEnvironmentVariable("ASPNETCORE_URLS"), "ASPNETCORE_URLS"),
+            (defaultLoopbackUrl, "defaultLoopbackUrl"));
 
-        ValidateIfConfigured(configuredApplicationUrls, applicationUrlsConfigurationKey);
-        ValidateIfConfigured(configuredHostUrls, "urls");
-        ValidateIfConfigured(aspNetCoreUrls, "ASPNETCORE_URLS");
-
-        return FirstConfigured(configuredApplicationUrls, configuredHostUrls, aspNetCoreUrls) ?? defaultLoopbackUrl;
+        ValidateConfigured(effectiveUrls.Urls, effectiveUrls.SourceName);
+        return effectiveUrls.Urls;
     }
 
     public static bool IsLoopbackUrl(string url)
@@ -46,13 +45,8 @@ public static class LoopbackBindingPolicy
         return IPAddress.TryParse(uri.Host, out var address) && IPAddress.IsLoopback(address);
     }
 
-    private static void ValidateIfConfigured(string? configuredUrls, string sourceName)
+    private static void ValidateConfigured(string configuredUrls, string sourceName)
     {
-        if (string.IsNullOrWhiteSpace(configuredUrls))
-        {
-            return;
-        }
-
         foreach (var url in SplitUrls(configuredUrls))
         {
             if (!IsLoopbackUrl(url))
@@ -63,8 +57,18 @@ public static class LoopbackBindingPolicy
         }
     }
 
-    private static string? FirstConfigured(params string?[] candidates) =>
-        candidates.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate))?.Trim();
+    private static (string Urls, string SourceName) FirstConfigured(params (string? Urls, string SourceName)[] candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (!string.IsNullOrWhiteSpace(candidate.Urls))
+            {
+                return (candidate.Urls.Trim(), candidate.SourceName);
+            }
+        }
+
+        throw new InvalidOperationException("No loopback URL source was configured.");
+    }
 
     private static IEnumerable<string> SplitUrls(string urls) =>
         urls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

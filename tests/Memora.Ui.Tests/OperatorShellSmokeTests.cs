@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Memora.Core.Artifacts;
+using Microsoft.Extensions.DependencyInjection;
 using Memora.Core.Import;
+using Memora.Hosting;
 using Memora.Import.Evidence;
 using Memora.Import.Readiness;
 using Memora.Ui.Operator;
@@ -23,7 +25,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     [Fact]
     public async Task Root_renders_project_selector()
     {
-        using var client = _factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
 
         var html = await client.GetStringAsync("/");
 
@@ -36,7 +38,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     public async Task Root_uses_repo_sample_workspaces_when_no_workspace_root_is_configured()
     {
         using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
 
         var html = await client.GetStringAsync("/");
 
@@ -46,7 +48,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     [Fact]
     public async Task Project_page_renders_artifact_browser_and_queue()
     {
-        using var client = _factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
 
         var html = await client.GetStringAsync("/projects/demo-project");
 
@@ -64,7 +66,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     [Fact]
     public async Task Artifact_page_renders_draft_editor()
     {
-        using var client = _factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
 
         var html = await client.GetStringAsync("/projects/demo-project/artifacts?path=drafts%2Fplan%2FPLN-001.r0001.md");
 
@@ -76,7 +78,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     [Fact]
     public async Task Review_page_renders_revision_preview()
     {
-        using var client = _factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
 
         var html = await client.GetStringAsync("/projects/demo-project/review?path=drafts%2Fplan%2FPLN-001.r0001.md");
 
@@ -134,7 +136,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
             ## Notes
             This is review-only input.
             """);
-        using var client = factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
 
         var html = await client.GetStringAsync("/projects/demo-project/proposals");
 
@@ -158,7 +160,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
             "Proposal with resolved provenance",
             $"candidate-provenance evidence:{evidenceId}",
             evidenceId);
-        using var client = factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
 
         var html = await client.GetStringAsync("/projects/demo-project/review?path=drafts%2Fplan%2FPLN-998.r0001.md");
 
@@ -183,7 +185,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
             "Proposal with missing provenance",
             "evidence:missing-evidence",
             "missing-evidence");
-        using var client = factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
 
         var html = await client.GetStringAsync("/projects/demo-project/review?path=drafts%2Fplan%2FPLN-997.r0001.md");
 
@@ -207,7 +209,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
             $"evidence:{evidenceId}",
             evidenceId,
             "ADR-001");
-        using var client = factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
 
         var html = await client.GetStringAsync("/projects/demo-project/review?path=drafts%2Fplan%2FPLN-996.r0001.md");
 
@@ -220,7 +222,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     [Fact]
     public async Task Trust_dashboard_renders_review_and_diagnostic_summary()
     {
-        using var client = _factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
 
         var html = await client.GetStringAsync("/projects/demo-project/trust");
 
@@ -285,7 +287,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     public async Task Review_approve_draft_persists_approved_revision_through_workflow()
     {
         using var factory = new OperatorShellFactory();
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory, new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
         var draftPath = Path.Combine(workspaceRoot, "drafts", "plan", "PLN-001.r0001.md");
         var approvedPath = Path.Combine(workspaceRoot, "canonical", "plans", "PLN-001.r0001.md");
@@ -308,7 +310,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     public async Task Review_approve_update_persists_superseded_revision_and_single_approved_baseline()
     {
         using var factory = new OperatorShellFactory();
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory, new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
         await OperatorShellFactory.WritePlanAsync(
             workspaceRoot,
@@ -346,7 +348,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     public async Task Review_reject_proposal_persists_deprecated_pending_record()
     {
         using var factory = new OperatorShellFactory();
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory, new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
         await OperatorShellFactory.WriteProposedPlanAsync(
             workspaceRoot,
@@ -368,6 +370,62 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
         Assert.True(File.Exists(draftPath));
         Assert.Contains("status: deprecated", await File.ReadAllTextAsync(draftPath), StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(workspaceRoot, "canonical", "plans", "PLN-996.r0001.md")));
+    }
+
+    [Fact]
+    public async Task Root_without_local_token_returns_unauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/");
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public void Startup_rejects_non_loopback_urls()
+    {
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.UseSetting(WebHostDefaults.ServerUrlsKey, "http://0.0.0.0:5080"));
+
+        var exception = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+
+        Assert.Contains("loopback", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Startup_validates_only_effective_loopback_url_source()
+    {
+        var previousAspNetCoreUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+        try
+        {
+            Environment.SetEnvironmentVariable("ASPNETCORE_URLS", "http://0.0.0.0:5080");
+            using var factory = new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder => builder.UseSetting("MemoraUi:Urls", "http://127.0.0.1:5080"));
+
+            using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
+
+            Assert.NotNull(client);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ASPNETCORE_URLS", previousAspNetCoreUrls);
+        }
+    }
+
+    [Fact]
+    public async Task Query_token_sets_local_cookie_and_redirects_to_sanitized_url()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var token = _factory.Services.GetRequiredService<LocalAccessTokenStore>().GetOrCreateToken();
+
+        var response = await client.GetAsync($"/projects/demo-project?localToken={Uri.EscapeDataString(token)}&view=trust");
+
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/projects/demo-project?view=trust", response.Headers.Location?.OriginalString);
+        Assert.Contains(
+            response.Headers.GetValues("Set-Cookie"),
+            value => value.StartsWith($"{LocalAccessDefaults.CookieName}=", StringComparison.Ordinal));
     }
 }
 
