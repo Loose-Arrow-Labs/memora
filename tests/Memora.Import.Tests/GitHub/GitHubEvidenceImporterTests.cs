@@ -104,6 +104,88 @@ public sealed class GitHubEvidenceImporterTests : IDisposable
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == diagnosticCode);
     }
 
+    [Fact]
+    public void Import_GitHubCliPayloadWithNullOptionalAndBadRecord_PersistsValidRecordsAndReportsDiagnostic()
+    {
+        var workspacePath = CreateWorkspaceWithGitHubAttachment("memora");
+        var runner = new FakeGhRunner(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["/repos/alucero270/memora/issues?state=all&per_page=10"] = "[]",
+                ["/repos/alucero270/memora/pulls?state=all&per_page=10"] =
+                    """
+                    [
+                      {
+                        "number": 101,
+                        "html_url": "https://github.com/alucero270/memora/pull/101",
+                        "title": "Valid PR",
+                        "state": "closed",
+                        "merge_commit_sha": null,
+                        "merged_at": null,
+                        "created_at": "2026-05-01T12:00:00Z",
+                        "updated_at": "2026-05-02T12:00:00Z"
+                      },
+                      {
+                        "number": 102,
+                        "html_url": "https://github.com/alucero270/memora/pull/102",
+                        "state": "open",
+                        "merge_commit_sha": null,
+                        "created_at": "not-a-date",
+                        "updated_at": "2026-05-03T12:00:00Z"
+                      }
+                    ]
+                    """,
+                ["/repos/alucero270/memora/pulls/comments?per_page=10"] = "[]",
+                ["/repos/alucero270/memora/commits?per_page=10"] = "[]",
+                ["/repos/alucero270/memora/releases?per_page=10"] = "[]",
+                ["/repos/alucero270/memora/pulls/101/reviews?per_page=10"] = "[]"
+            });
+        var importer = new GitHubEvidenceImporter(
+            _rootPath,
+            _workspaceDiscovery,
+            new GitHubCliEvidenceClient(runner.Run),
+            _evidenceStore);
+
+        var result = importer.Import(new GitHubEvidenceImportRequest("memora", ImportMode.EvidenceCanonical, maxItems: 10));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Progress.TotalRecords);
+        Assert.Equal(1, result.Progress.PullRequestCount);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "github.response.field.missing" && diagnostic.Path == "pulls[1].title");
+        Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Path?.Contains("merged_at", StringComparison.Ordinal) == true);
+        Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Path?.Contains("body", StringComparison.Ordinal) == true);
+
+        var stored = _evidenceStore.ReadAll(workspacePath);
+        var record = Assert.Single(stored, record => record.SourceType == ImportedEvidenceSourceType.GitHubPullRequest);
+        Assert.Equal("PR #101: Valid PR", record.Title);
+        Assert.Equal(string.Empty, record.Metadata["mergeCommitSha"]);
+        Assert.Equal(string.Empty, record.Metadata["mergedAtUtc"]);
+    }
+
+    [Theory]
+    [InlineData("not-json", "github.response.invalid_json")]
+    [InlineData("""{"message":"not an array"}""", "github.response.unexpected")]
+    public void GitHubCliClient_MalformedEndpointPayloads_MarkSnapshotPartial(string issuesPayload, string diagnosticCode)
+    {
+        var runner = new FakeGhRunner(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["/repos/alucero270/memora/issues?state=all&per_page=10"] = issuesPayload,
+                ["/repos/alucero270/memora/pulls?state=all&per_page=10"] = "[]",
+                ["/repos/alucero270/memora/pulls/comments?per_page=10"] = "[]",
+                ["/repos/alucero270/memora/commits?per_page=10"] = "[]",
+                ["/repos/alucero270/memora/releases?per_page=10"] = "[]"
+            });
+        var client = new GitHubCliEvidenceClient(runner.Run);
+
+        var result = client.Fetch("https://github.com/alucero270/memora.git", maxItems: 10);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Snapshot);
+        Assert.True(result.Snapshot.IsPartial);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == diagnosticCode);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_rootPath))
@@ -140,6 +222,7 @@ public sealed class GitHubEvidenceImporterTests : IDisposable
                     "M10-01 docs",
                     "open",
                     "abc123",
+                    null,
                     new DateTimeOffset(2026, 5, 5, 18, 0, 0, TimeSpan.Zero),
                     new DateTimeOffset(2026, 5, 5, 18, 5, 0, TimeSpan.Zero))
             ],
@@ -232,5 +315,32 @@ public sealed class GitHubEvidenceImporterTests : IDisposable
 
         public GitHubEvidenceClientResult Fetch(string remoteUrl, int maxItems) =>
             _result;
+    }
+
+    private sealed class FakeGhRunner
+    {
+        private readonly IReadOnlyDictionary<string, string> _apiResponses;
+
+        public FakeGhRunner(IReadOnlyDictionary<string, string> apiResponses)
+        {
+            _apiResponses = apiResponses;
+        }
+
+        public GitHubCliEvidenceClient.GhCommandResult Run(IReadOnlyList<string> arguments)
+        {
+            if (arguments.SequenceEqual(["auth", "status"]))
+            {
+                return GitHubCliEvidenceClient.GhCommandResult.Succeeded(string.Empty);
+            }
+
+            if (arguments.Count == 2 &&
+                string.Equals(arguments[0], "api", StringComparison.Ordinal) &&
+                _apiResponses.TryGetValue(arguments[1], out var output))
+            {
+                return GitHubCliEvidenceClient.GhCommandResult.Succeeded(output);
+            }
+
+            return GitHubCliEvidenceClient.GhCommandResult.Succeeded("[]");
+        }
     }
 }
