@@ -7,9 +7,11 @@ using Memora.Api.Services;
 using Memora.Core.AgentInteraction;
 using Memora.Core.Artifacts;
 using Memora.Core.Projects;
+using Memora.Hosting;
 using Memora.Storage.Persistence;
 using Memora.Storage.Workspaces;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -34,13 +36,22 @@ public sealed class RuntimeFacingPrototypeTests : IDisposable
 
         await using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureAppConfiguration((_, configuration) =>
+                    configuration.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["Memora:LocalAccessRootPath"] = _workspacesRootPath,
+                            ["Memora:WorkspacesRootPath"] = _workspacesRootPath
+                        }));
                 builder.ConfigureServices(services =>
                 {
                     services.RemoveAll<IAgentInteractionService>();
                     services.AddSingleton<IAgentInteractionService>(_ => new FileSystemAgentInteractionService(_workspacesRootPath));
-                }));
+                });
+            });
 
-        var client = new OpenApiRuntimePrototypeClient(factory.CreateClient());
+        var client = new OpenApiRuntimePrototypeClient(CreateAuthorizedClient(factory));
 
         var context = await client.GetContextAsync(
             new GetContextRequest(
@@ -87,13 +98,22 @@ public sealed class RuntimeFacingPrototypeTests : IDisposable
 
         await using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureAppConfiguration((_, configuration) =>
+                    configuration.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["Memora:LocalAccessRootPath"] = _workspacesRootPath,
+                            ["Memora:WorkspacesRootPath"] = _workspacesRootPath
+                        }));
                 builder.ConfigureServices(services =>
                 {
                     services.RemoveAll<IAgentInteractionService>();
                     services.AddSingleton<IAgentInteractionService>(_ => new FileSystemAgentInteractionService(_workspacesRootPath));
-                }));
+                });
+            });
 
-        var client = new OpenApiRuntimePrototypeClient(factory.CreateClient());
+        var client = new OpenApiRuntimePrototypeClient(CreateAuthorizedClient(factory));
         var request = new GetContextRequest(
             "memora",
             "Validate the Codex golden path against the shared runtime-facing contract.",
@@ -147,13 +167,22 @@ public sealed class RuntimeFacingPrototypeTests : IDisposable
 
         await using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureAppConfiguration((_, configuration) =>
+                    configuration.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["Memora:LocalAccessRootPath"] = _workspacesRootPath,
+                            ["Memora:WorkspacesRootPath"] = _workspacesRootPath
+                        }));
                 builder.ConfigureServices(services =>
                 {
                     services.RemoveAll<IAgentInteractionService>();
                     services.AddSingleton<IAgentInteractionService>(_ => new FileSystemAgentInteractionService(_workspacesRootPath));
-                }));
+                });
+            });
 
-        var client = new OpenApiRuntimePrototypeClient(factory.CreateClient());
+        var client = new OpenApiRuntimePrototypeClient(CreateAuthorizedClient(factory));
         var request = new GetContextRequest(
             "memora",
             "Prepare runtime-facing context for implementation guidance.",
@@ -379,6 +408,14 @@ public sealed class RuntimeFacingPrototypeTests : IDisposable
 
     private static string Hash(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
+    private static HttpClient CreateAuthorizedClient(WebApplicationFactory<Program> factory)
+    {
+        var client = factory.CreateClient();
+        var token = factory.Services.GetRequiredService<LocalAccessTokenStore>().GetOrCreateToken();
+        client.DefaultRequestHeaders.Add(LocalAccessDefaults.HeaderName, token);
+        return client;
+    }
 
     private sealed class OpenApiRuntimePrototypeClient(HttpClient httpClient)
     {

@@ -2,8 +2,15 @@ using System.Text.Json;
 using Memora.Api;
 using Memora.Api.Services;
 using Memora.Core.AgentInteraction;
+using Memora.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.WebHost.UseUrls(
+    LoopbackBindingPolicy.ResolveRequiredUrls(
+        builder.Configuration,
+        "Memora:Api:Urls",
+        "http://127.0.0.1:5081"));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
@@ -20,6 +27,11 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 var workspacesRootPath = builder.Configuration["Memora:WorkspacesRootPath"] ??
                          Environment.GetEnvironmentVariable("MEMORA_WORKSPACES_ROOT");
+var localAccessRootPath = builder.Configuration["Memora:LocalAccessRootPath"] ??
+                          workspacesRootPath ??
+                          Path.Combine(Path.GetTempPath(), "memora-local-access", "api");
+
+builder.Services.AddSingleton(new LocalAccessTokenStore(localAccessRootPath));
 
 if (string.IsNullOrWhiteSpace(workspacesRootPath))
 {
@@ -40,6 +52,28 @@ else
 }
 
 var app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    var tokenStore = context.RequestServices.GetRequiredService<LocalAccessTokenStore>();
+    var suppliedToken = context.Request.Headers[LocalAccessDefaults.HeaderName].FirstOrDefault();
+
+    if (!tokenStore.IsValidToken(suppliedToken))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(new
+        {
+            error = new
+            {
+                code = "local_auth.required",
+                message = $"Missing or invalid {LocalAccessDefaults.HeaderName} header."
+            }
+        });
+        return;
+    }
+
+    await next();
+});
 
 app.MapOpenApi("/openapi.json");
 
