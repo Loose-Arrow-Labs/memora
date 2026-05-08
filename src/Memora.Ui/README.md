@@ -22,6 +22,8 @@ Provides the local operator interface for Memora.
 - reads workspace files through shared core and storage services
 - uses a writable local copy of `samples/workspaces` unless `MemoraUi__WorkspacesRoot` or `MEMORA_WORKSPACES_ROOT` is set
 - supports project selection, artifact browsing, draft editing, approval review previews, queue navigation, first-run import status, decision-readiness context, a context viewer route, and an understanding-output route
+- project pages keep rendering when individual artifact files are malformed and
+  show those failed loads in a separate diagnostics section
 - proposal review lists proposed artifacts separately from approved truth and
   links each item into the shared revision review surface
 - review pages resolve imported evidence and first-run candidate metadata where
