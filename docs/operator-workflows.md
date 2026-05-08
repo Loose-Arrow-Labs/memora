@@ -111,9 +111,9 @@ result reports:
 - the diagnostic code and message
 - that SQLite is a derived index, not canonical truth
 
-When diagnostics are present, derived index rows are cleared and not repopulated.
-Fix the filesystem artifact or relationship issue, then rebuild again. Do not
-treat stale or missing SQLite rows as truth.
+When diagnostics are present, the rebuild transaction is rolled back and the
+existing derived index rows are preserved. Fix the filesystem artifact or
+relationship issue, then rebuild again. Do not treat stale SQLite rows as truth.
 
 Common examples:
 
