@@ -2,8 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using Memora.Core.AgentInteraction;
 using Memora.Core.Artifacts;
+using Memora.Hosting;
 using Memora.Mcp.Server;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -117,13 +119,30 @@ public sealed class ProtocolSurfaceParityTests
         {
             var factory = new WebApplicationFactory<Program>()
                 .WithWebHostBuilder(builder =>
+                {
+                    var localAccessRootPath = Path.Combine(
+                        Path.GetTempPath(),
+                        "memora-protocol-local-access-tests",
+                        Guid.NewGuid().ToString("N"));
+                    builder.ConfigureAppConfiguration((_, configuration) =>
+                        configuration.AddInMemoryCollection(
+                            new Dictionary<string, string?>
+                            {
+                                ["Memora:LocalAccessRootPath"] = localAccessRootPath,
+                                ["Memora:WorkspacesRootPath"] = localAccessRootPath
+                            }));
                     builder.ConfigureServices(services =>
                     {
                         services.RemoveAll<IAgentInteractionService>();
                         services.AddSingleton(service);
-                    }));
+                    });
+                });
 
-            return Task.FromResult(new ProtocolHarness(factory, factory.CreateClient(), new MemoraMcpServer(service)));
+            var client = factory.CreateClient();
+            var token = factory.Services.GetRequiredService<LocalAccessTokenStore>().GetOrCreateToken();
+            client.DefaultRequestHeaders.Add(LocalAccessDefaults.HeaderName, token);
+
+            return Task.FromResult(new ProtocolHarness(factory, client, new MemoraMcpServer(service)));
         }
 
         public void Dispose()
