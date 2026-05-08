@@ -98,20 +98,14 @@ public sealed class ArtifactMarkdownWriter
 
     private static string FormatString(string value)
     {
-        if (RequiresQuoting(value))
+        if (!RequiresQuoting(value))
         {
-            if (!value.Contains('\''))
-            {
-                return $"'{value}'";
-            }
-
-            if (!value.Contains('"'))
-            {
-                return $"\"{value}\"";
-            }
+            return value;
         }
 
-        return value;
+        return !value.Contains('\'')
+            ? $"'{value}'"
+            : $"\"{EscapeDoubleQuotedString(value)}\"";
     }
 
     private static bool RequiresQuoting(string value)
@@ -124,8 +118,28 @@ public sealed class ArtifactMarkdownWriter
         return value != value.Trim() ||
                value == "[]" ||
                bool.TryParse(value, out _) ||
-               int.TryParse(value, out _);
+               int.TryParse(value, out _) ||
+               value.Contains('\'') ||
+               value.Contains('"') ||
+               IsReservedYamlScalar(value) ||
+               StartsWithReservedYamlIndicator(value) ||
+               value.Contains("# ", StringComparison.Ordinal) ||
+               value.Contains(": ", StringComparison.Ordinal);
     }
+
+    private static string EscapeDoubleQuotedString(string value) =>
+        value.Replace("\"", "\\\"", StringComparison.Ordinal);
+
+    private static bool IsReservedYamlScalar(string value) =>
+        string.Equals(value, "null", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(value, "~", StringComparison.Ordinal) ||
+        string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(value, "no", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(value, "false", StringComparison.OrdinalIgnoreCase);
+
+    private static bool StartsWithReservedYamlIndicator(string value) =>
+        value[0] is '!' or '&' or '*' or '>' or '|' or '?' or '@' or '`';
 
     private static string NormalizeNewlines(string value) =>
         value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');

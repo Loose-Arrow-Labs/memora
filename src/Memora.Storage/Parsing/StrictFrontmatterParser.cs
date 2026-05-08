@@ -1,3 +1,4 @@
+using System.Text;
 using Memora.Core.Validation;
 
 namespace Memora.Storage.Parsing;
@@ -194,13 +195,44 @@ internal static class StrictFrontmatterParser
                 return intValue;
             }
 
-            if ((rawValue.StartsWith('"') && rawValue.EndsWith('"')) ||
-                (rawValue.StartsWith('\'') && rawValue.EndsWith('\'')))
+            if (rawValue.StartsWith('"') && rawValue.EndsWith('"'))
             {
-                return rawValue[1..^1];
+                return UnescapeDoubleQuotedScalar(rawValue[1..^1]);
+            }
+
+            if (rawValue.StartsWith('\'') && rawValue.EndsWith('\''))
+            {
+                return rawValue[1..^1].Replace("''", "'", StringComparison.Ordinal);
             }
 
             return rawValue;
+        }
+
+        private static string UnescapeDoubleQuotedScalar(string value)
+        {
+            var builder = new StringBuilder(value.Length);
+
+            for (var index = 0; index < value.Length; index++)
+            {
+                var character = value[index];
+                if (character != '\\' || index + 1 >= value.Length)
+                {
+                    builder.Append(character);
+                    continue;
+                }
+
+                var escaped = value[index + 1];
+                if (escaped == '"')
+                {
+                    builder.Append(escaped);
+                    index++;
+                    continue;
+                }
+
+                builder.Append(character);
+            }
+
+            return builder.ToString();
         }
 
         private static int CountIndent(string line)
