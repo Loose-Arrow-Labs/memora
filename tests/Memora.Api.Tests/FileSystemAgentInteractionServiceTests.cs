@@ -125,6 +125,24 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ProposeArtifact_ConcurrentDuplicateWrites_ReturnStructuredConflicts()
+    {
+        var workspace = CreateWorkspace("memora");
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+        var request = new ProposeArtifactRequest("memora", "ADR-101", ArtifactType.Decision, CreateDecisionContent());
+
+        var responses = await RunConcurrently(() => service.ProposeArtifact(request));
+
+        Assert.Equal(1, responses.Count(response => response.IsSuccess));
+        Assert.Equal(
+            15,
+            responses.Count(response =>
+                !response.IsSuccess &&
+                response.Errors.Any(error => error.Code is "proposal.conflict" or "proposal.artifact_id.exists")));
+        Assert.Single(Directory.EnumerateFiles(Path.Combine(workspace.DraftsRootPath, "decision"), "ADR-101.r0001.md"));
+    }
+
+    [Fact]
     public void ProposeUpdate_CreatesNewProposedRevisionWithoutChangingApprovedFile()
     {
         var workspace = CreateWorkspace("memora");
@@ -142,6 +160,25 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
         Assert.Equal(2, response.Revision);
         Assert.True(File.Exists(Path.Combine(workspace.CanonicalDecisionsPath, "ADR-001.r0001.md")));
         Assert.True(File.Exists(Path.Combine(workspace.DraftsRootPath, "decision", "ADR-001.r0002.md")));
+    }
+
+    [Fact]
+    public async Task ProposeUpdate_ConcurrentSameRevisionWrites_ReturnStructuredConflicts()
+    {
+        var workspace = CreateWorkspace("memora");
+        _fileStore.Save(workspace, CreateApprovedDecisionArtifact());
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+        var request = new ProposeUpdateRequest("memora", "ADR-001", 1, CreateDecisionContent("Concurrent context decision"));
+
+        var responses = await RunConcurrently(() => service.ProposeUpdate(request));
+
+        Assert.Equal(1, responses.Count(response => response.IsSuccess));
+        Assert.Equal(
+            15,
+            responses.Count(response =>
+                !response.IsSuccess &&
+                response.Errors.Any(error => error.Code is "proposal.conflict" or "proposal.revision.mismatch")));
+        Assert.Single(Directory.EnumerateFiles(Path.Combine(workspace.DraftsRootPath, "decision"), "ADR-001.r0002.md"));
     }
 
     [Fact]
@@ -484,6 +521,21 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
             {
                 ["decision_date"] = "2026-04-17"
             });
+
+    private static async Task<IReadOnlyList<ProposalResponse>> RunConcurrently(Func<ProposalResponse> action)
+    {
+        using var start = new ManualResetEventSlim(initialState: false);
+        var tasks = Enumerable.Range(0, 16)
+            .Select(_ => Task.Run(() =>
+            {
+                start.Wait();
+                return action();
+            }))
+            .ToArray();
+
+        start.Set();
+        return await Task.WhenAll(tasks);
+    }
 
     private static ArtifactProposalContent CreateOutcomeContent() =>
         new(
