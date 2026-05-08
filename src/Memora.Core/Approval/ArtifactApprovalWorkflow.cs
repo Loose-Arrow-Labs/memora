@@ -45,24 +45,40 @@ public sealed class ArtifactApprovalWorkflow
             return ArtifactApprovalDecisionResult.FromValidation(pendingArtifact, issues);
         }
 
-        var approvedCandidate = RebuildArtifact(
+        var approvedRebuild = RebuildArtifact(
             pendingArtifact,
             ArtifactStatus.Approved,
             pendingArtifact.Revision,
             decidedAtUtc);
 
+        if (!approvedRebuild.Validation.IsValid || approvedRebuild.Artifact is null)
+        {
+            return ArtifactApprovalDecisionResult.FromValidation(
+                pendingArtifact,
+                MapRebuildIssues(pendingArtifact, approvedRebuild.Validation));
+        }
+
+        var approvedCandidate = approvedRebuild.Artifact;
         issues.AddRange(LifecycleTransitionValidator.Validate(pendingArtifact, approvedCandidate).Issues);
 
         ArtifactDocument? supersededArtifact = null;
 
         if (currentApprovedArtifact is not null)
         {
-            supersededArtifact = RebuildArtifact(
+            var supersededRebuild = RebuildArtifact(
                 currentApprovedArtifact,
                 ArtifactStatus.Superseded,
                 approvedCandidate.Revision,
                 decidedAtUtc);
 
+            if (!supersededRebuild.Validation.IsValid || supersededRebuild.Artifact is null)
+            {
+                return ArtifactApprovalDecisionResult.FromValidation(
+                    pendingArtifact,
+                    MapRebuildIssues(currentApprovedArtifact, supersededRebuild.Validation));
+            }
+
+            supersededArtifact = supersededRebuild.Artifact;
             issues.AddRange(LifecycleTransitionValidator.Validate(currentApprovedArtifact, supersededArtifact).Issues);
         }
 
@@ -98,12 +114,20 @@ public sealed class ArtifactApprovalWorkflow
             return ArtifactApprovalDecisionResult.FromValidation(pendingArtifact, issues);
         }
 
-        var rejectedArtifact = RebuildArtifact(
+        var rejectedRebuild = RebuildArtifact(
             pendingArtifact,
             ArtifactStatus.Deprecated,
             pendingArtifact.Revision,
             decidedAtUtc);
 
+        if (!rejectedRebuild.Validation.IsValid || rejectedRebuild.Artifact is null)
+        {
+            return ArtifactApprovalDecisionResult.FromValidation(
+                pendingArtifact,
+                MapRebuildIssues(pendingArtifact, rejectedRebuild.Validation));
+        }
+
+        var rejectedArtifact = rejectedRebuild.Artifact;
         issues.AddRange(LifecycleTransitionValidator.Validate(pendingArtifact, rejectedArtifact).Issues);
 
         return issues.Count > 0
@@ -167,7 +191,7 @@ public sealed class ArtifactApprovalWorkflow
         }
     }
 
-    private ArtifactDocument RebuildArtifact(
+    private ArtifactCreationResult RebuildArtifact(
         ArtifactDocument artifact,
         ArtifactStatus status,
         int revision,
@@ -179,18 +203,32 @@ public sealed class ArtifactApprovalWorkflow
         frontmatter["updated_at"] = updatedAtUtc.ToString("yyyy-MM-ddTHH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
         var sections = new Dictionary<string, string>(artifact.Sections, StringComparer.Ordinal);
-        var result = _artifactFactory.Create(
+        return _artifactFactory.Create(
             frontmatter,
             ArtifactDocumentRehydrator.BuildBody(sections),
             sections);
+    }
 
-        if (!result.Validation.IsValid || result.Artifact is null)
+    private static IEnumerable<ArtifactValidationIssue> MapRebuildIssues(
+        ArtifactDocument artifact,
+        ArtifactValidationResult validation)
+    {
+        if (validation.Issues.Count == 0)
         {
-            throw new InvalidOperationException(
-                $"Failed to rebuild artifact '{artifact.Id}' for approval workflow.");
+            yield return new ArtifactValidationIssue(
+                "approval.rebuild.invalid",
+                $"Approval workflow could not rebuild artifact '{artifact.Id}' for the requested lifecycle transition.",
+                "artifact");
+            yield break;
         }
 
-        return result.Artifact;
+        foreach (var issue in validation.Issues)
+        {
+            yield return new ArtifactValidationIssue(
+                "approval.rebuild.invalid",
+                $"Approval workflow could not rebuild artifact '{artifact.Id}': {issue.Message}",
+                issue.Path);
+        }
     }
 }
 

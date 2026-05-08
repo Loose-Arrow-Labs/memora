@@ -131,6 +131,56 @@ public sealed class ArtifactApprovalWorkflowTests
         Assert.Contains(result.Validation.Issues, issue => issue.Code == "approval.current.id.mismatch");
     }
 
+    [Fact]
+    public void Approve_RebuildValidationFailure_ReturnsValidationResult()
+    {
+        var invalidDraft = CreatePlanArtifact(ArtifactStatus.Draft, revision: 1) with
+        {
+            Sections = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Goal"] = "Keep this artifact constructible.",
+                ["Scope"] = "Simulate a persisted artifact that fails current rebuild rules.",
+                ["Acceptance Criteria"] = "   ",
+                ["Notes"] = "The public workflow should return validation, not throw."
+            }
+        };
+
+        var exception = Record.Exception(() => _workflow.Approve(
+            invalidDraft,
+            new DateTimeOffset(2026, 04, 16, 11, 15, 00, TimeSpan.Zero)));
+
+        Assert.Null(exception);
+        var result = _workflow.Approve(
+            invalidDraft,
+            new DateTimeOffset(2026, 04, 16, 11, 15, 00, TimeSpan.Zero));
+        Assert.False(result.IsSuccess);
+        Assert.Null(result.ApprovedArtifact);
+        Assert.Contains(result.Validation.Issues, issue => issue.Code == "approval.rebuild.invalid");
+    }
+
+    [Fact]
+    public void Reject_RebuildValidationFailure_ReturnsValidationResult()
+    {
+        var invalidDraft = CreatePlanArtifact(ArtifactStatus.Draft, revision: 1) with
+        {
+            Sections = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Goal"] = "Keep this artifact constructible.",
+                ["Scope"] = "Simulate a persisted artifact that fails current rebuild rules.",
+                ["Acceptance Criteria"] = "   ",
+                ["Notes"] = "The public workflow should return validation, not throw."
+            }
+        };
+
+        var result = _workflow.Reject(
+            invalidDraft,
+            new DateTimeOffset(2026, 04, 16, 11, 30, 00, TimeSpan.Zero));
+
+        Assert.False(result.IsSuccess);
+        Assert.Null(result.RejectedArtifact);
+        Assert.Contains(result.Validation.Issues, issue => issue.Code == "approval.rebuild.invalid");
+    }
+
     private PlanArtifact CreatePlanArtifact(
         ArtifactStatus status,
         int revision,
