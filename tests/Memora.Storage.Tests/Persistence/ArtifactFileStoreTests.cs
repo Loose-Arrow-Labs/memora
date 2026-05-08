@@ -153,6 +153,36 @@ public sealed class ArtifactFileStoreTests : IDisposable
         Assert.Empty(Directory.EnumerateFiles(workspace.RootPath, "*.tmp", SearchOption.AllDirectories));
     }
 
+    [Fact]
+    public void ApprovalDecisionFilePersistence_FailureAfterSupersededWrite_RollsBackPreviousState()
+    {
+        var workspace = CreateWorkspace();
+        var persistence = new ApprovalDecisionFilePersistence();
+        var currentApproved = CreatePlanArtifact(status: ArtifactStatus.Approved, revision: 1);
+        var draft = CreatePlanArtifact(status: ArtifactStatus.Draft, revision: 2);
+        var approved = CreatePlanArtifact(status: ArtifactStatus.Approved, revision: 2);
+        var superseded = CreatePlanArtifact(status: ArtifactStatus.Superseded, revision: 2);
+        var currentApprovedPath = _store.Save(workspace, currentApproved);
+        var draftPath = _store.Save(workspace, draft);
+        var conflictingApprovedPath = _store.Save(workspace, approved);
+
+        var result = persistence.SaveApproved(
+            workspace,
+            draftPath,
+            approved,
+            superseded,
+            currentApprovedPath);
+
+        Assert.False(result.IsSuccess);
+        Assert.True(File.Exists(currentApprovedPath));
+        Assert.True(File.Exists(draftPath));
+        Assert.True(File.Exists(conflictingApprovedPath));
+        Assert.Empty(Directory.EnumerateFiles(workspace.RootPath, "*.approving", SearchOption.AllDirectories));
+        Assert.Empty(Directory.EnumerateFiles(workspace.RootPath, "*.superseding", SearchOption.AllDirectories));
+        var parsedDraft = _parser.Parse(File.ReadAllText(draftPath));
+        Assert.Equal(ArtifactStatus.Draft, parsedDraft.Artifact?.Status);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_rootPath))

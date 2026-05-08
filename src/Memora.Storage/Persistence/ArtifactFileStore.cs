@@ -32,8 +32,11 @@ public sealed class ArtifactFileStore
         return path;
     }
 
-    private static string ResolvePath(ProjectWorkspace workspace, ArtifactDocument artifact)
+    public static string ResolvePath(ProjectWorkspace workspace, ArtifactDocument artifact)
     {
+        ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(artifact);
+
         var fileName = $"{artifact.Id}.r{artifact.Revision:D4}.md";
         var directory = ResolveDirectory(workspace, artifact);
         return Path.Combine(directory, fileName);
