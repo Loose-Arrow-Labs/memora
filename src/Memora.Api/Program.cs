@@ -79,28 +79,28 @@ app.MapOpenApi("/openapi.json");
 
 app.MapGet(
     "/api/projects/{projectId}",
-    (string projectId, IAgentInteractionService service) =>
-        AgentInteractionHttpResults.FromProjectResponse(service.GetProject(projectId)));
+    (string projectId, IAgentInteractionService service, ILogger<Program> logger) =>
+        AgentInteractionHttpExceptionBoundary.GetProject(projectId, service, logger));
 
 app.MapPost(
     "/api/context",
-    (GetContextRequest request, IAgentInteractionService service) =>
-        AgentInteractionHttpResults.FromContextResponse(service.GetContext(request)));
+    (GetContextRequest request, IAgentInteractionService service, ILogger<Program> logger) =>
+        AgentInteractionHttpExceptionBoundary.GetContext(request, service, logger));
 
 app.MapPost(
     "/api/artifacts/proposals",
-    (ProposeArtifactRequest request, IAgentInteractionService service) =>
-        AgentInteractionHttpResults.FromProposalResponse(service.ProposeArtifact(request)));
+    (ProposeArtifactRequest request, IAgentInteractionService service, ILogger<Program> logger) =>
+        AgentInteractionHttpExceptionBoundary.ProposeArtifact(request, service, logger));
 
 app.MapPost(
     "/api/artifacts/updates",
-    (ProposeUpdateRequest request, IAgentInteractionService service) =>
-        AgentInteractionHttpResults.FromProposalResponse(service.ProposeUpdate(request)));
+    (ProposeUpdateRequest request, IAgentInteractionService service, ILogger<Program> logger) =>
+        AgentInteractionHttpExceptionBoundary.ProposeUpdate(request, service, logger));
 
 app.MapPost(
     "/api/outcomes",
-    (RecordOutcomeRequest request, IAgentInteractionService service) =>
-        AgentInteractionHttpResults.FromOutcomeResponse(service.RecordOutcome(request)));
+    (RecordOutcomeRequest request, IAgentInteractionService service, ILogger<Program> logger) =>
+        AgentInteractionHttpExceptionBoundary.RecordOutcome(request, service, logger));
 
 app.MapGet(
     "/api/projects/{projectId}/review/inbox",

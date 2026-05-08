@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Memora.Api.Tests;
 
@@ -196,6 +197,28 @@ public sealed class AgentInteractionApiTests
     }
 
     [Fact]
+    public async Task EndpointExceptions_AreSanitizedForClientsAndLoggedLocally()
+    {
+        var absolutePath = Path.Combine(
+            Path.GetTempPath(),
+            "memora-sensitive",
+            Guid.NewGuid().ToString("N"),
+            "foo.json");
+        var loggerProvider = new CapturingLoggerProvider();
+        using var factory = CreateFactory(new PathLeakingAgentInteractionService(absolutePath), loggerProvider);
+        using var client = CreateAuthorizedClient(factory);
+
+        var response = await client.GetAsync("/api/projects/memora");
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        var responseText = await response.Content.ReadAsStringAsync();
+        Assert.Contains("evidence.record.invalid_trust_state", responseText, StringComparison.Ordinal);
+        Assert.DoesNotContain(absolutePath, responseText, StringComparison.Ordinal);
+        Assert.DoesNotContain(Path.GetFileName(absolutePath), responseText, StringComparison.Ordinal);
+        Assert.Contains(loggerProvider.Messages, message => message.Contains(absolutePath, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task RequestsWithoutLocalToken_ReturnUnauthorized()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
@@ -249,10 +272,21 @@ public sealed class AgentInteractionApiTests
         }
     }
 
-    private static WebApplicationFactory<Program> CreateFactory(IAgentInteractionService service) =>
+    private static WebApplicationFactory<Program> CreateFactory(
+        IAgentInteractionService service,
+        CapturingLoggerProvider? loggerProvider = null) =>
         new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                if (loggerProvider is not null)
+                {
+                    builder.ConfigureLogging(logging =>
+                    {
+                        logging.ClearProviders();
+                        logging.AddProvider(loggerProvider);
+                    });
+                }
+
                 var localAccessRootPath = Path.Combine(
                     Path.GetTempPath(),
                     "memora-api-local-access-tests",
@@ -442,6 +476,31 @@ public sealed class AgentInteractionApiTests
             new(request.ProjectId, request.ArtifactId, ArtifactStatus.Proposed, 0, OutcomeKind.Mixed, [new AgentInteractionError("outcome.not_configured", "Outcome service is not configured.", "service")]);
     }
 
+    private sealed class PathLeakingAgentInteractionService : IAgentInteractionService
+    {
+        private readonly string _path;
+
+        public PathLeakingAgentInteractionService(string path)
+        {
+            _path = path;
+        }
+
+        public ProjectLookupResponse GetProject(string projectId) =>
+            throw new InvalidDataException($"Evidence record '{_path}' has invalid trustState.");
+
+        public GetContextResponse GetContext(GetContextRequest request) =>
+            throw new InvalidDataException($"Evidence record '{_path}' has invalid trustState.");
+
+        public ProposalResponse ProposeArtifact(ProposeArtifactRequest request) =>
+            throw new InvalidDataException($"Evidence record '{_path}' has invalid trustState.");
+
+        public ProposalResponse ProposeUpdate(ProposeUpdateRequest request) =>
+            throw new InvalidDataException($"Evidence record '{_path}' has invalid trustState.");
+
+        public OutcomeResponse RecordOutcome(RecordOutcomeRequest request) =>
+            throw new InvalidDataException($"Evidence record '{_path}' has invalid trustState.");
+    }
+
     private sealed class EmptyReviewInboxService : IReviewInboxService
     {
         public ReviewInboxResponse GetReviewInbox(string projectId) =>
@@ -452,5 +511,65 @@ public sealed class AgentInteractionApiTests
 
         public ReviewDecisionResponse ApplyReviewDecision(string projectId, ReviewDecisionRequest request) =>
             new(projectId, request.Decision, null, "Review decision service is not configured.", [new AgentInteractionError("review.not_configured", "Review decision service is not configured.", "service")]);
+    }
+
+    private sealed class CapturingLoggerProvider : ILoggerProvider
+    {
+        private readonly List<string> _messages = [];
+
+        public IReadOnlyList<string> Messages
+        {
+            get
+            {
+                lock (_messages)
+                {
+                    return _messages.ToArray();
+                }
+            }
+        }
+
+        public ILogger CreateLogger(string categoryName) => new CapturingLogger(_messages);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class CapturingLogger : ILogger
+        {
+            private readonly List<string> _messages;
+
+            public CapturingLogger(List<string> messages)
+            {
+                _messages = messages;
+            }
+
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull =>
+                NullScope.Instance;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                lock (_messages)
+                {
+                    _messages.Add($"{formatter(state, exception)} {exception}");
+                }
+            }
+        }
+
+        private sealed class NullScope : IDisposable
+        {
+            public static NullScope Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
+        }
     }
 }
