@@ -108,6 +108,25 @@ public sealed class ArtifactFileStoreTests : IDisposable
     }
 
     [Fact]
+    public void AtomicFileWriter_DoesNotTreatGenericIoFailuresAsDuplicateTargets()
+    {
+        var exception = new IOException("Generic move failure.", unchecked((int)0x80131620));
+
+        Assert.False(AtomicFileWriter.IsTargetAlreadyExistsMoveFailure(exception));
+    }
+
+    [Theory]
+    [InlineData(80)]
+    [InlineData(183)]
+    [InlineData(17)]
+    public void AtomicFileWriter_RecognizesTargetExistsMoveFailures(int nativeErrorCode)
+    {
+        var exception = new IOException("Target exists.", unchecked((int)0x80070000) | nativeErrorCode);
+
+        Assert.True(AtomicFileWriter.IsTargetAlreadyExistsMoveFailure(exception));
+    }
+
+    [Fact]
     public async Task Save_ConcurrentDuplicateRevision_AllowsOnlyOneWriterAndLeavesNoTempFiles()
     {
         var workspace = CreateWorkspace();

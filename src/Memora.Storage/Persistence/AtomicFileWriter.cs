@@ -14,6 +14,10 @@ public static class AtomicFileWriter
         var directory = Path.GetDirectoryName(targetPath) ??
                         throw new ArgumentException("Target path must include a directory.", nameof(targetPath));
         Directory.CreateDirectory(directory);
+        if (File.Exists(targetPath))
+        {
+            return AtomicFileWriteResult.TargetAlreadyExists;
+        }
 
         var tempPath = Path.Combine(directory, $".{Path.GetFileName(targetPath)}.{Guid.NewGuid():N}.tmp");
         try
@@ -27,7 +31,7 @@ public static class AtomicFileWriter
             File.Move(tempPath, targetPath);
             return AtomicFileWriteResult.Created;
         }
-        catch (IOException) when (File.Exists(targetPath))
+        catch (IOException exception) when (File.Exists(targetPath) && IsTargetAlreadyExistsMoveFailure(exception))
         {
             return AtomicFileWriteResult.TargetAlreadyExists;
         }
@@ -38,6 +42,16 @@ public static class AtomicFileWriter
                 File.Delete(tempPath);
             }
         }
+    }
+
+    internal static bool IsTargetAlreadyExistsMoveFailure(IOException exception)
+    {
+        const int errorFileExists = 80;
+        const int errorAlreadyExists = 183;
+        const int eExist = 17;
+
+        var nativeErrorCode = exception.HResult & 0xFFFF;
+        return nativeErrorCode is errorFileExists or errorAlreadyExists or eExist;
     }
 }
 

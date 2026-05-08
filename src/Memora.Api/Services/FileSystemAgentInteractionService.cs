@@ -255,7 +255,21 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
             return new ProposalResponse(request.ProjectId, request.ArtifactId, request.ArtifactType, ArtifactStatus.Proposed, 0, createdArtifact.Errors);
         }
 
-        _fileStore.Save(workspace, createdArtifact.Artifact);
+        try
+        {
+            _fileStore.Save(workspace, createdArtifact.Artifact);
+        }
+        catch (ArtifactPersistenceException exception) when (exception.Code == "artifact.revision.exists")
+        {
+            return new ProposalResponse(
+                request.ProjectId,
+                request.ArtifactId,
+                request.ArtifactType,
+                ArtifactStatus.Proposed,
+                0,
+                [CreateProposalConflictError(request.ArtifactId)]);
+        }
+
         return new ProposalResponse(request.ProjectId, request.ArtifactId, request.ArtifactType, createdArtifact.Artifact.Status, createdArtifact.Artifact.Revision, []);
     }
 
@@ -321,7 +335,21 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
             return new ProposalResponse(request.ProjectId, request.ArtifactId, currentArtifact.Type, ArtifactStatus.Proposed, 0, updatedArtifact.Errors);
         }
 
-        _fileStore.Save(workspace, updatedArtifact.Artifact);
+        try
+        {
+            _fileStore.Save(workspace, updatedArtifact.Artifact);
+        }
+        catch (ArtifactPersistenceException exception) when (exception.Code == "artifact.revision.exists")
+        {
+            return new ProposalResponse(
+                request.ProjectId,
+                request.ArtifactId,
+                currentArtifact.Type,
+                ArtifactStatus.Proposed,
+                0,
+                [CreateProposalConflictError(request.ArtifactId)]);
+        }
+
         return new ProposalResponse(request.ProjectId, request.ArtifactId, currentArtifact.Type, updatedArtifact.Artifact.Status, updatedArtifact.Artifact.Revision, []);
     }
 
@@ -468,6 +496,12 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
             readinessReport?.NextReviewSteps ?? [],
             diagnostics);
     }
+
+    private static AgentInteractionError CreateProposalConflictError(string artifactId) =>
+        new(
+            "proposal.conflict",
+            $"Artifact '{artifactId}' was changed by another writer before the proposal could be saved. Refresh project state and retry.",
+            "artifact_id");
 
     private IReadOnlyList<ImportedEvidenceRecord> ReadEvidence(
         ProjectWorkspace workspace,
