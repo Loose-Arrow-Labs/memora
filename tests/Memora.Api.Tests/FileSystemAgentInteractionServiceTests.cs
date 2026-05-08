@@ -143,6 +143,63 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
+    public void ProposeArtifact_UnrelatedMalformedExistingArtifact_StillPersistsProposalWithDiagnostics()
+    {
+        var workspace = CreateWorkspace("memora");
+        WriteMalformedDraft(workspace, "BROKEN", revision: 1);
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.ProposeArtifact(
+            new ProposeArtifactRequest(
+                "memora",
+                "ADR-292",
+                ArtifactType.Decision,
+                CreateDecisionContent()));
+
+        Assert.True(response.IsSuccess);
+        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Code == "frontmatter.parse");
+        Assert.True(File.Exists(Path.Combine(workspace.DraftsRootPath, "decision", "ADR-292.r0001.md")));
+    }
+
+    [Fact]
+    public void ProposeArtifact_MalformedExistingArtifactWithSameId_BlocksProposal()
+    {
+        var workspace = CreateWorkspace("memora");
+        WriteMalformedDraft(workspace, "ADR-292", revision: 1);
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.ProposeArtifact(
+            new ProposeArtifactRequest(
+                "memora",
+                "ADR-292",
+                ArtifactType.Decision,
+                CreateDecisionContent()));
+
+        Assert.False(response.IsSuccess);
+        Assert.Contains(response.Errors, error => error.Code == "frontmatter.parse");
+        Assert.DoesNotContain(response.Diagnostics, diagnostic => diagnostic.Code == "frontmatter.parse");
+    }
+
+    [Fact]
+    public void ProposeArtifact_ForeignProjectExistingArtifactWithSameId_BlocksProposal()
+    {
+        var workspace = CreateWorkspace("memora");
+        WriteForeignProjectDraft(workspace, "ADR-292", revision: 1);
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.ProposeArtifact(
+            new ProposeArtifactRequest(
+                "memora",
+                "ADR-292",
+                ArtifactType.Decision,
+                CreateDecisionContent()));
+
+        Assert.False(response.IsSuccess);
+        Assert.Contains(response.Errors, error => error.Code == "artifact.project_id.mismatch");
+        Assert.DoesNotContain(response.Diagnostics, diagnostic => diagnostic.Code == "artifact.project_id.mismatch");
+    }
+
+    [Fact]
     public void ProposeUpdate_CreatesNewProposedRevisionWithoutChangingApprovedFile()
     {
         var workspace = CreateWorkspace("memora");
@@ -179,6 +236,25 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
                 !response.IsSuccess &&
                 response.Errors.Any(error => error.Code is "proposal.conflict" or "proposal.revision.mismatch")));
         Assert.Single(Directory.EnumerateFiles(Path.Combine(workspace.DraftsRootPath, "decision"), "ADR-001.r0002.md"));
+    }
+
+    [Fact]
+    public void ProposeUpdate_ForeignProjectExistingArtifactWithSameId_BlocksProposal()
+    {
+        var workspace = CreateWorkspace("memora");
+        WriteForeignProjectDraft(workspace, "ADR-292", revision: 1);
+        var service = new FileSystemAgentInteractionService(_workspacesRootPath);
+
+        var response = service.ProposeUpdate(
+            new ProposeUpdateRequest(
+                "memora",
+                "ADR-292",
+                1,
+                CreateDecisionContent("Updated context decision")));
+
+        Assert.False(response.IsSuccess);
+        Assert.Contains(response.Errors, error => error.Code == "artifact.project_id.mismatch");
+        Assert.DoesNotContain(response.Diagnostics, diagnostic => diagnostic.Code == "artifact.project_id.mismatch");
     }
 
     [Fact]
@@ -535,6 +611,38 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
 
         start.Set();
         return await Task.WhenAll(tasks);
+    }
+
+    private static void WriteMalformedDraft(ProjectWorkspace workspace, string artifactId, int revision)
+    {
+        var directory = Path.Combine(workspace.DraftsRootPath, "decision");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(
+            Path.Combine(directory, $"{artifactId}.r{revision:D4}.md"),
+            """
+            ---
+            id ADR-999
+            type: decision
+            ---
+            ## Context
+            malformed
+            """);
+    }
+
+    private static void WriteForeignProjectDraft(ProjectWorkspace workspace, string artifactId, int revision)
+    {
+        var directory = Path.Combine(workspace.DraftsRootPath, "decision");
+        Directory.CreateDirectory(directory);
+        var artifact = CreateApprovedDecisionArtifact() with
+        {
+            Id = artifactId,
+            ProjectId = "other-project",
+            Status = ArtifactStatus.Draft,
+            Revision = revision
+        };
+        File.WriteAllText(
+            Path.Combine(directory, $"{artifactId}.r{revision:D4}.md"),
+            new ArtifactMarkdownWriter().Write(artifact));
     }
 
     private static ArtifactProposalContent CreateOutcomeContent() =>

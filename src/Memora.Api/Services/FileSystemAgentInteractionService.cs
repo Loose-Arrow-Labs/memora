@@ -224,7 +224,7 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
         }
 
         var existingArtifacts = LoadArtifacts(workspace, includeDrafts: true, includeSummaries: false, out var loadErrors);
-        if (loadErrors.Count > 0)
+        if (HasConflictingLoadError(loadErrors, request.ArtifactId))
         {
             return new ProposalResponse(request.ProjectId, request.ArtifactId, request.ArtifactType, ArtifactStatus.Proposed, 0, loadErrors);
         }
@@ -270,7 +270,7 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
                 [CreateProposalConflictError(request.ArtifactId)]);
         }
 
-        return new ProposalResponse(request.ProjectId, request.ArtifactId, request.ArtifactType, createdArtifact.Artifact.Status, createdArtifact.Artifact.Revision, []);
+        return new ProposalResponse(request.ProjectId, request.ArtifactId, request.ArtifactType, createdArtifact.Artifact.Status, createdArtifact.Artifact.Revision, [], loadErrors);
     }
 
     public ProposalResponse ProposeUpdate(ProposeUpdateRequest request)
@@ -288,7 +288,7 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
         }
 
         var existingArtifacts = LoadArtifacts(workspace, includeDrafts: true, includeSummaries: false, out var loadErrors);
-        if (loadErrors.Count > 0)
+        if (HasConflictingLoadError(loadErrors, request.ArtifactId))
         {
             return new ProposalResponse(request.ProjectId, request.ArtifactId, ArtifactType.Plan, ArtifactStatus.Proposed, 0, loadErrors);
         }
@@ -350,7 +350,7 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
                 [CreateProposalConflictError(request.ArtifactId)]);
         }
 
-        return new ProposalResponse(request.ProjectId, request.ArtifactId, currentArtifact.Type, updatedArtifact.Artifact.Status, updatedArtifact.Artifact.Revision, []);
+        return new ProposalResponse(request.ProjectId, request.ArtifactId, currentArtifact.Type, updatedArtifact.Artifact.Status, updatedArtifact.Artifact.Revision, [], loadErrors);
     }
 
     public OutcomeResponse RecordOutcome(RecordOutcomeRequest request) =>
@@ -503,6 +503,11 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
             $"Artifact '{artifactId}' was changed by another writer before the proposal could be saved. Refresh project state and retry.",
             "artifact_id");
 
+    private static bool HasConflictingLoadError(IReadOnlyList<AgentInteractionError> loadErrors, string artifactId) =>
+        loadErrors.Any(error =>
+            !string.IsNullOrWhiteSpace(error.Path) &&
+            Path.GetFileName(error.Path).StartsWith($"{artifactId}.r", StringComparison.Ordinal));
+
     private IReadOnlyList<ImportedEvidenceRecord> ReadEvidence(
         ProjectWorkspace workspace,
         ICollection<ImportedProjectReadinessDiagnostic> diagnostics)
@@ -554,7 +559,7 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
             if (!parsed.Validation.IsValid || parsed.Artifact is null)
             {
                 collectedErrors.AddRange(parsed.Validation.Issues.Select(issue =>
-                    new AgentInteractionError(issue.Code, issue.DiagnosticMessage, issue.Path ?? filePath)));
+                    new AgentInteractionError(issue.Code, issue.DiagnosticMessage, filePath)));
                 continue;
             }
 
@@ -563,7 +568,7 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
                 collectedErrors.Add(new AgentInteractionError(
                     "artifact.project_id.mismatch",
                     $"Artifact '{parsed.Artifact.Id}' belongs to project '{parsed.Artifact.ProjectId}' instead of '{workspace.ProjectId}'.",
-                    "project_id"));
+                    filePath));
                 continue;
             }
 
