@@ -3,7 +3,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Memora.Core.AgentInteraction;
 using Memora.Core.Artifacts;
+using Memora.Hosting;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -15,7 +18,7 @@ public sealed class AgentInteractionApiTests
     public async Task OpenApiDocument_IsPublishedForCompanionToolClients()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
-        using var client = factory.CreateClient();
+        using var client = CreateAuthorizedClient(factory);
 
         var response = await client.GetAsync("/openapi.json");
 
@@ -35,7 +38,7 @@ public sealed class AgentInteractionApiTests
     public async Task GetProject_ReturnsConfiguredProjectContract()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
-        using var client = factory.CreateClient();
+        using var client = CreateAuthorizedClient(factory);
 
         var response = await client.GetAsync("/api/projects/memora");
 
@@ -50,7 +53,7 @@ public sealed class AgentInteractionApiTests
     public async Task GetContext_ReturnsBundleContract()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
-        using var client = factory.CreateClient();
+        using var client = CreateAuthorizedClient(factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/context",
@@ -68,7 +71,7 @@ public sealed class AgentInteractionApiTests
     public async Task ProposeArtifact_ReturnsAcceptedProposalContract()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
-        using var client = factory.CreateClient();
+        using var client = CreateAuthorizedClient(factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/artifacts/proposals",
@@ -88,7 +91,7 @@ public sealed class AgentInteractionApiTests
     public async Task RecordOutcome_ReturnsAcceptedOutcomeContract()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
-        using var client = factory.CreateClient();
+        using var client = CreateAuthorizedClient(factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/outcomes",
@@ -104,7 +107,7 @@ public sealed class AgentInteractionApiTests
     public async Task GetReviewInbox_ReturnsReviewableArtifactsForIdeClients()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
-        using var client = factory.CreateClient();
+        using var client = CreateAuthorizedClient(factory);
 
         var response = await client.GetAsync("/api/projects/memora/review/inbox");
 
@@ -121,7 +124,7 @@ public sealed class AgentInteractionApiTests
     public async Task GetReviewPreview_ReturnsArtifactPreviewForIdeClients()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
-        using var client = factory.CreateClient();
+        using var client = CreateAuthorizedClient(factory);
 
         var response = await client.GetAsync($"/api/projects/memora/review/preview?path={Uri.EscapeDataString("drafts/decision/ADR-002.r0001.md")}");
 
@@ -138,7 +141,7 @@ public sealed class AgentInteractionApiTests
     public async Task PostReviewDecision_ReturnsGovernedDecisionContractForIdeClients()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
-        using var client = factory.CreateClient();
+        using var client = CreateAuthorizedClient(factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/projects/memora/review/decisions",
@@ -158,7 +161,7 @@ public sealed class AgentInteractionApiTests
     public async Task ValidationErrors_MapToBadRequest()
     {
         using var factory = CreateFactory(new FailingAgentInteractionService());
-        using var client = factory.CreateClient();
+        using var client = CreateAuthorizedClient(factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/context",
@@ -171,9 +174,75 @@ public sealed class AgentInteractionApiTests
         Assert.Equal("context.validation", payload.Errors[0].Code);
     }
 
+    [Fact]
+    public async Task RequestsWithoutLocalToken_ReturnUnauthorized()
+    {
+        using var factory = CreateFactory(new TestAgentInteractionService());
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/projects/memora");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        using var payload = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        Assert.NotNull(payload);
+        Assert.Equal("local_auth.required", payload.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public void Startup_RejectsNonLoopbackUrls()
+    {
+        using var factory = CreateFactory(new TestAgentInteractionService())
+            .WithWebHostBuilder(builder => builder.UseSetting(WebHostDefaults.ServerUrlsKey, "http://0.0.0.0:5081"));
+
+        var exception = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+
+        Assert.Contains("loopback", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void LocalAccessTokenStore_GeneratesWorkspaceLocalTokenFile()
+    {
+        var rootPath = Path.Combine(
+            Path.GetTempPath(),
+            "memora-api-local-access-token-tests",
+            Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new LocalAccessTokenStore(rootPath);
+
+            var token = store.GetOrCreateToken();
+
+            Assert.True(File.Exists(Path.Combine(rootPath, ".memora", "local-access-token")));
+            Assert.True(store.IsValidToken(token));
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(store.TokenPath));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(rootPath))
+            {
+                Directory.Delete(rootPath, recursive: true);
+            }
+        }
+    }
+
     private static WebApplicationFactory<Program> CreateFactory(IAgentInteractionService service) =>
         new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
+            {
+                var localAccessRootPath = Path.Combine(
+                    Path.GetTempPath(),
+                    "memora-api-local-access-tests",
+                    Guid.NewGuid().ToString("N"));
+                builder.ConfigureAppConfiguration((_, configuration) =>
+                    configuration.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["Memora:LocalAccessRootPath"] = localAccessRootPath,
+                            ["Memora:WorkspacesRootPath"] = localAccessRootPath
+                        }));
                 builder.ConfigureServices(services =>
                 {
                     services.RemoveAll<IAgentInteractionService>();
@@ -183,7 +252,20 @@ public sealed class AgentInteractionApiTests
                     {
                         services.AddSingleton(reviewInboxService);
                     }
-                }));
+                    else
+                    {
+                        services.AddSingleton<IReviewInboxService>(new EmptyReviewInboxService());
+                    }
+                });
+            });
+
+    private static HttpClient CreateAuthorizedClient(WebApplicationFactory<Program> factory)
+    {
+        var client = factory.CreateClient();
+        var token = factory.Services.GetRequiredService<LocalAccessTokenStore>().GetOrCreateToken();
+        client.DefaultRequestHeaders.Add(LocalAccessDefaults.HeaderName, token);
+        return client;
+    }
 
     private static ArtifactProposalContent CreateContent() =>
         new(
@@ -319,5 +401,17 @@ public sealed class AgentInteractionApiTests
 
         public OutcomeResponse RecordOutcome(RecordOutcomeRequest request) =>
             new(request.ProjectId, request.ArtifactId, ArtifactStatus.Proposed, 0, OutcomeKind.Mixed, [new AgentInteractionError("outcome.validation", "Invalid outcome.", "body")]);
+    }
+
+    private sealed class EmptyReviewInboxService : IReviewInboxService
+    {
+        public ReviewInboxResponse GetReviewInbox(string projectId) =>
+            new(projectId, [], [new AgentInteractionError("review.not_configured", "Review inbox service is not configured.", "service")]);
+
+        public ReviewArtifactPreviewResponse GetReviewArtifactPreview(string projectId, string relativePath) =>
+            new(projectId, null, string.Empty, new Dictionary<string, string>(StringComparer.Ordinal), [new AgentInteractionError("review.not_configured", "Review preview service is not configured.", "service")]);
+
+        public ReviewDecisionResponse ApplyReviewDecision(string projectId, ReviewDecisionRequest request) =>
+            new(projectId, request.Decision, null, "Review decision service is not configured.", [new AgentInteractionError("review.not_configured", "Review decision service is not configured.", "service")]);
     }
 }

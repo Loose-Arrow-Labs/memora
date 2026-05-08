@@ -27,7 +27,7 @@ public sealed class FirstRunImportUiTests : IDisposable
                         ["Memora:WorkspacesRootPath"] = _workspacesRootPath
                     })));
 
-        using var client = factory.CreateClient();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
 
         var response = await client.GetAsync("/projects/memora/first-run-import?importMode=bulk_approval");
 

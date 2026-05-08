@@ -19,15 +19,16 @@ public sealed class ArtifactFileStore
         }
 
         var path = ResolvePath(workspace, artifact);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-
-        if (File.Exists(path))
+        var markdown = _markdownWriter.Write(artifact);
+        var result = AtomicFileWriter.WriteNewText(path, markdown);
+        if (result == AtomicFileWriteResult.TargetAlreadyExists)
         {
-            throw new IOException($"Artifact revision file '{path}' already exists.");
+            throw new ArtifactPersistenceException(
+                "artifact.revision.exists",
+                path,
+                $"Artifact revision file '{path}' already exists.");
         }
 
-        var markdown = _markdownWriter.Write(artifact);
-        File.WriteAllText(path, markdown);
         return path;
     }
 

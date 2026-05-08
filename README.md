@@ -27,6 +27,12 @@ dotnet run --project src/Memora.Ui
 
 Open `http://127.0.0.1:5080`.
 
+The UI also binds to loopback by default and uses the same local token file as
+the API when both point at the same workspaces root. Browser sessions can open
+`http://127.0.0.1:5080/?localToken=<token>` once to set the local session cookie.
+Draft edit submissions also carry an antiforgery token from the rendered form,
+so cross-site form posts fail before any draft mutation occurs.
+
 Run the companion API in a second terminal:
 
 ```powershell
@@ -34,6 +40,12 @@ dotnet run --project src/Memora.Api
 ```
 
 Open `http://127.0.0.1:5081/openapi.json`.
+
+The API binds to loopback by default and rejects non-loopback URL overrides.
+It also requires the `X-Memora-Local-Token` header on every request. On first
+run, Memora writes the shared local token to
+`<workspaces-root>/.memora/local-access-token`; keep that file local to the
+current user.
 
 When no workspace root is configured, the UI uses a writable local copy of
 `samples/workspaces` so you can inspect the demo project immediately.

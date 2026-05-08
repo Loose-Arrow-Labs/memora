@@ -1,16 +1,30 @@
+using Memora.Hosting;
 using Memora.Ui.ContextViewer;
 using Memora.Ui.FirstRunImport;
 using Memora.Ui.Operator;
 using Memora.Ui.Rendering;
 using Memora.Ui.Understanding;
 using Memora.Index.Traceability;
+using Microsoft.AspNetCore.Antiforgery;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.WebHost.UseUrls(
+    LoopbackBindingPolicy.ResolveRequiredUrls(
+        builder.Configuration,
+        "MemoraUi:Urls",
+        "http://127.0.0.1:5080"));
 
 builder.Services.AddSingleton(sp =>
     BuildShellOptions(
         sp.GetRequiredService<IConfiguration>(),
         sp.GetRequiredService<IHostEnvironment>()));
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<OperatorShellOptions>();
+    return new LocalAccessTokenStore(options.NormalizedWorkspacesRootPath);
+});
+builder.Services.AddAntiforgery();
 builder.Services.AddSingleton<LocalOperatorWorkspaceService>();
 builder.Services.AddSingleton(sp =>
 {
@@ -29,6 +43,27 @@ builder.Services.AddSingleton(sp =>
 });
 
 var app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    var tokenStore = context.RequestServices.GetRequiredService<LocalAccessTokenStore>();
+
+    if (AuthorizeLocalRequest(context, tokenStore, out var redirectUrl))
+    {
+        if (redirectUrl is not null)
+        {
+            context.Response.Redirect(redirectUrl);
+            return;
+        }
+
+        await next();
+        return;
+    }
+
+    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+    context.Response.ContentType = "text/plain; charset=utf-8";
+    await context.Response.WriteAsync($"Missing or invalid {LocalAccessDefaults.HeaderName} header.");
+});
 
 app.MapGet(
     "/",
@@ -55,7 +90,7 @@ app.MapGet(
 
 app.MapGet(
     "/projects/{projectId}/artifacts",
-    (string projectId, string? path, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (string projectId, string? path, LocalOperatorWorkspaceService service, OperatorShellOptions options, IAntiforgery antiforgery, HttpContext httpContext) =>
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -68,14 +103,39 @@ app.MapGet(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderArtifact(options, service.GetProjects(), artifactView, []);
+        var tokens = antiforgery.GetAndStoreTokens(httpContext);
+        var html = OperatorShellPageRenderer.RenderArtifact(
+            options,
+            service.GetProjects(),
+            artifactView,
+            [],
+            tokens.FormFieldName,
+            tokens.RequestToken);
         return Results.Content(html, "text/html");
     });
 
 app.MapPost(
     "/projects/{projectId}/artifacts/edit",
-    async (string projectId, HttpRequest request, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    async (string projectId, HttpRequest request, LocalOperatorWorkspaceService service, OperatorShellOptions options, IAntiforgery antiforgery) =>
     {
+        try
+        {
+            await antiforgery.ValidateRequestAsync(request.HttpContext);
+        }
+        catch (AntiforgeryValidationException)
+        {
+            return Results.Json(
+                new
+                {
+                    error = new
+                    {
+                        code = "ui.csrf.invalid",
+                        message = "The draft edit request is missing a valid antiforgery token."
+                    }
+                },
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var form = await request.ReadFormAsync();
         var relativePath = form["path"].ToString();
 
@@ -98,7 +158,14 @@ app.MapPost(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderArtifact(options, service.GetProjects(), artifactView, result.ValidationErrors);
+        var tokens = antiforgery.GetAndStoreTokens(request.HttpContext);
+        var html = OperatorShellPageRenderer.RenderArtifact(
+            options,
+            service.GetProjects(),
+            artifactView,
+            result.ValidationErrors,
+            tokens.FormFieldName,
+            tokens.RequestToken);
         return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
     });
 
@@ -282,6 +349,51 @@ static OperatorShellOptions BuildShellOptions(IConfiguration configuration, IHos
         : new OperatorShellOptions(
             Path.GetFullPath(configuredWorkspacesRoot),
             UsesSeededSampleRoot: false);
+}
+
+static bool AuthorizeLocalRequest(HttpContext context, LocalAccessTokenStore tokenStore, out string? redirectUrl)
+{
+    redirectUrl = null;
+
+    var suppliedHeader = context.Request.Headers[LocalAccessDefaults.HeaderName].FirstOrDefault();
+    if (tokenStore.IsValidToken(suppliedHeader))
+    {
+        return true;
+    }
+
+    if (context.Request.Cookies.TryGetValue(LocalAccessDefaults.CookieName, out var cookieToken) &&
+        tokenStore.IsValidToken(cookieToken))
+    {
+        return true;
+    }
+
+    var queryToken = context.Request.Query["localToken"].FirstOrDefault();
+    if (!tokenStore.IsValidToken(queryToken))
+    {
+        return false;
+    }
+
+    context.Response.Cookies.Append(
+        LocalAccessDefaults.CookieName,
+        queryToken!,
+        new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Strict,
+            Secure = context.Request.IsHttps,
+            Path = "/"
+        });
+    redirectUrl = BuildRedirectWithoutLocalToken(context.Request);
+    return true;
+}
+
+static string BuildRedirectWithoutLocalToken(HttpRequest request)
+{
+    var query = request.Query
+        .Where(parameter => !string.Equals(parameter.Key, "localToken", StringComparison.Ordinal))
+        .SelectMany(parameter => parameter.Value.Select(value => new KeyValuePair<string, string?>(parameter.Key, value)));
+
+    return request.PathBase + request.Path + QueryString.Create(query);
 }
 
 public partial class Program;
