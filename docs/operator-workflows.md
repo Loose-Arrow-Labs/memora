@@ -64,11 +64,12 @@ Open a review item to inspect:
 - revision diff details when the pending artifact has an approved baseline
 - evidence provenance and decision-readiness context for the current pending item
 
-Approval and rejection controls route through the governed core workflow before
-filesystem-backed state changes. Approval writes an approved canonical revision
-only after lifecycle validation succeeds. Rejection marks the pending draft or
-proposal as deprecated in draft storage so it no longer appears as an active
-review item.
+Approval, accept-for-review, and rejection controls route through the governed
+core workflow before filesystem-backed state changes. Proposed artifacts must
+first be accepted into draft review; a later approval writes an approved
+canonical revision only after lifecycle validation succeeds. Rejection marks the
+pending draft or proposal as deprecated in draft storage so it no longer appears
+as an active review item.
 
 ## Edit Drafts
 

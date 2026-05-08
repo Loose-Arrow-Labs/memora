@@ -152,10 +152,38 @@ public sealed class LocalOperatorWorkspaceService
 
         return decision switch
         {
+            OperatorReviewDecision.Accept => AcceptReviewItem(artifactView),
             OperatorReviewDecision.Approve => ApproveReviewItem(artifactView),
             OperatorReviewDecision.Reject => RejectReviewItem(artifactView),
             _ => OperatorReviewDecisionResult.Invalid(["Unsupported review decision."])
         };
+    }
+
+    private OperatorReviewDecisionResult AcceptReviewItem(OperatorArtifactView artifactView)
+    {
+        var decision = _approvalWorkflow.AcceptForReview(
+            artifactView.SelectedArtifact.Artifact,
+            DateTimeOffset.UtcNow);
+
+        if (!decision.IsSuccess || decision.DraftArtifact is null)
+        {
+            return OperatorReviewDecisionResult.Invalid(
+                decision.Validation.Issues.Select(issue => issue.DiagnosticMessage));
+        }
+
+        try
+        {
+            File.WriteAllText(
+                artifactView.SelectedArtifact.FilePath,
+                _artifactMarkdownWriter.Write(decision.DraftArtifact));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return OperatorReviewDecisionResult.Invalid([$"Accept-for-review persistence failed: {exception.Message}"]);
+        }
+
+        return OperatorReviewDecisionResult.Success(
+            $"Accepted {decision.DraftArtifact.Id} revision {decision.DraftArtifact.Revision} for draft review.");
     }
 
     private OperatorReviewDecisionResult ApproveReviewItem(OperatorArtifactView artifactView)
@@ -798,6 +826,7 @@ public sealed record OperatorArtifactEditInput(
 
 public enum OperatorReviewDecision
 {
+    Accept,
     Approve,
     Reject
 }

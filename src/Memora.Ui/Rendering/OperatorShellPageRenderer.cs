@@ -1119,7 +1119,18 @@ internal static class OperatorShellPageRenderer
         var postPath = $"/projects/{Encode(view.Project.Workspace.ProjectId)}/review/decision";
         var pathInput = $"<input type=\"hidden\" name=\"path\" value=\"{Encode(view.SelectedArtifact.RelativePath)}\" />";
 
-        if (artifact.Status == ArtifactStatus.Draft && view.ProvenanceReview.IsApprovalReady)
+        if (artifact.Status == ArtifactStatus.Proposed)
+        {
+            actions.Add($"""
+                <form method="post" action="{postPath}" class="inline-decision-form">
+                {pathInput}
+                <input type="hidden" name="decision" value="Accept" />
+                <button class="button" type="submit">Accept for draft review</button>
+                </form>
+                """);
+            actions.Add("<span class=\"button disabled\">Approve</span>");
+        }
+        else if (artifact.Status == ArtifactStatus.Draft && view.ProvenanceReview.IsApprovalReady)
         {
             actions.Add($"""
                 <form method="post" action="{postPath}" class="inline-decision-form">

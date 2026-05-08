@@ -221,6 +221,7 @@ Lifecycle:
 Rules:
 
 - agents may only propose in v1
+- proposed artifacts must be explicitly accepted for draft review before approval
 - canonical changes require approval
 - revisions are append-only, not silent overwrite
 
