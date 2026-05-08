@@ -215,6 +215,7 @@ public sealed class GitHubEvidenceImporter
                 ["url"] = pullRequest.Url,
                 ["state"] = pullRequest.State,
                 ["mergeCommitSha"] = pullRequest.MergeCommitSha ?? string.Empty,
+                ["mergedAtUtc"] = pullRequest.MergedAtUtc?.ToString("O") ?? string.Empty,
                 ["createdAtUtc"] = pullRequest.CreatedAtUtc.ToString("O"),
                 ["updatedAtUtc"] = pullRequest.UpdatedAtUtc.ToString("O")
             });
@@ -234,7 +235,7 @@ public sealed class GitHubEvidenceImporter
             review.ReviewId,
             $"PR #{review.PullRequestNumber} review {review.ReviewId}",
             $"GitHub review {review.ReviewId} on PR #{review.PullRequestNumber} is {review.State}.",
-            review.SubmittedAtUtc,
+            review.SubmittedAtUtc ?? importedAtUtc,
             importedAtUtc,
             review.Url,
             trustState,
@@ -245,7 +246,7 @@ public sealed class GitHubEvidenceImporter
                 ["url"] = review.Url,
                 ["state"] = review.State,
                 ["author"] = review.Author ?? string.Empty,
-                ["submittedAtUtc"] = review.SubmittedAtUtc.ToString("O")
+                ["submittedAtUtc"] = review.SubmittedAtUtc?.ToString("O") ?? string.Empty
             });
 
     private static ImportedEvidenceRecord CreateReviewCommentRecord(
