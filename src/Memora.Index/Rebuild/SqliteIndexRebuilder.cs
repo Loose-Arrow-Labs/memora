@@ -145,11 +145,15 @@ public sealed class SqliteIndexRebuilder
             })
             .ToList();
 
-        ReplaceIndexContents(connection, projectRows, artifactRows, revisionRows, relationshipRows, diagnostics.Count == 0);
+        var status = diagnostics.Count == 0
+            ? IndexRebuildStatus.Succeeded
+            : IndexRebuildStatus.Failed;
 
-        return diagnostics.Count == 0
-            ? new IndexRebuildResult(projectRows.Count, artifactRows.Count, revisionRows.Count, relationshipRows.Count, diagnostics, projectRows.Count, artifactFileCount)
-            : new IndexRebuildResult(0, 0, 0, 0, diagnostics, projectRows.Count, artifactFileCount);
+        ReplaceIndexContents(connection, projectRows, artifactRows, revisionRows, relationshipRows, status == IndexRebuildStatus.Succeeded);
+
+        return status == IndexRebuildStatus.Succeeded
+            ? new IndexRebuildResult(projectRows.Count, artifactRows.Count, revisionRows.Count, relationshipRows.Count, diagnostics, projectRows.Count, artifactFileCount, status)
+            : new IndexRebuildResult(0, 0, 0, 0, diagnostics, projectRows.Count, artifactFileCount, status);
     }
 
     private static IReadOnlyList<string> EnumerateArtifactFiles(ProjectWorkspace workspace)
@@ -204,7 +208,7 @@ public sealed class SqliteIndexRebuilder
         IReadOnlyList<ArtifactRow> artifactRows,
         IReadOnlyList<ArtifactRevisionRow> revisionRows,
         IReadOnlyList<ArtifactRelationshipRow> relationshipRows,
-        bool insertRows)
+        bool commitRows)
     {
         using var transaction = connection.BeginTransaction();
 
@@ -213,15 +217,18 @@ public sealed class SqliteIndexRebuilder
         ExecuteNonQuery(connection, transaction, "DELETE FROM artifacts;");
         ExecuteNonQuery(connection, transaction, "DELETE FROM projects;");
 
-        if (insertRows)
+        if (commitRows)
         {
             InsertProjects(connection, transaction, projectRows);
             InsertArtifacts(connection, transaction, artifactRows);
             InsertArtifactRevisions(connection, transaction, revisionRows);
             InsertArtifactRelationships(connection, transaction, relationshipRows);
+
+            transaction.Commit();
+            return;
         }
 
-        transaction.Commit();
+        transaction.Rollback();
     }
 
     private static void InsertProjects(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<ProjectRow> rows)

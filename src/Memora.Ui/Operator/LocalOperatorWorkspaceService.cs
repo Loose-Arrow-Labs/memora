@@ -390,7 +390,8 @@ public sealed class LocalOperatorWorkspaceService
                 0,
                 [new IndexRebuildDiagnostic(_options.NormalizedWorkspacesRootPath, "trust.rebuild.failed", exception.Message, "workspacesRoot")],
                 0,
-                0);
+                0,
+                IndexRebuildStatus.Failed);
         }
     }
 
@@ -405,7 +406,7 @@ public sealed class LocalOperatorWorkspaceService
 
         if (diagnostics.Length > 0)
         {
-            return new IndexRebuildResult(0, 0, 0, 0, diagnostics, 1, filesystemArtifactFileCount);
+            return new IndexRebuildResult(0, 0, 0, 0, diagnostics, 1, filesystemArtifactFileCount, IndexRebuildStatus.Failed);
         }
 
         var artifactCount = snapshot.Artifacts
@@ -424,7 +425,8 @@ public sealed class LocalOperatorWorkspaceService
             relationshipCount,
             diagnostics,
             1,
-            filesystemArtifactFileCount);
+            filesystemArtifactFileCount,
+            IndexRebuildStatus.Succeeded);
     }
 
     private static void AddReadinessWarnings(
