@@ -188,7 +188,8 @@ public sealed class MemoraMcpServerTests
         var response = server.GetContext(new GetContextRequest("memora", "Prepare milestone 3 context."));
 
         Assert.False(response.IsSuccess);
-        Assert.Equal("mcp.tool.execution.failed", response.Errors[0].Code);
+        Assert.Equal("internal.unhandled_exception", response.Errors[0].Code);
+        Assert.DoesNotContain("transport", response.Errors[0].Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("request", response.Errors[0].Path);
     }
 
@@ -201,7 +202,8 @@ public sealed class MemoraMcpServerTests
 
         Assert.False(response.IsSuccess);
         Assert.NotNull(response.Payload);
-        Assert.Equal("mcp.resource.read.failed", response.Errors[0].Code);
+        Assert.Equal("internal.unhandled_exception", response.Errors[0].Code);
+        Assert.DoesNotContain("transport", response.Errors[0].Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("project_id", response.Errors[0].Path);
     }
 
