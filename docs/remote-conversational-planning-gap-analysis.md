@@ -52,6 +52,19 @@ Specifically, it did not prove:
 
 The milestone validated the shared contract, not the full product workflow.
 
+## Current Planning Module Status
+
+`Memora.Core.Planning` is present as roadmap-oriented domain groundwork. It
+defines structured planning intake, validation, and draft artifact generation
+for local tests and future workflow design. It is not wired into the current
+API, MCP, UI, IDE extension, or service registration paths, and it is not a
+current remote planning-write capability.
+
+Current write-capable integration surfaces use the shared agent interaction
+proposal/update contracts. Wiring the planning module into a real operator or
+remote-client workflow belongs to Milestone 16, after the use case, review
+points, authentication, reachability, and stale-context behavior are specified.
+
 ## Gap Summary
 
 ### 1. Reachability Gap
