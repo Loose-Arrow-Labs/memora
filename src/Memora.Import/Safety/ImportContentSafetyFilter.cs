@@ -3,6 +3,12 @@ using Memora.Core.Import;
 
 namespace Memora.Import.Safety;
 
+// Covered: OpenAI project keys (sk-proj-), OpenAI API keys (sk-), GitHub tokens
+// (ghp_/ghs_/ghr_/ghu_/gho_/github_pat_), AWS access key ids (AKIA…),
+// credential assignments (password|passwd|secret|token = …), and PEM private key
+// blocks. Not a complete secret scanner: does not cover JWT/Bearer tokens,
+// api_key, client_secret, Slack tokens, Stripe keys, GCP service-account JSON,
+// Azure SAS, npm tokens, Postgres DSNs, or arbitrary high-entropy strings.
 public sealed class ImportContentSafetyFilter
 {
     private const string RedactionText = "[REDACTED]";

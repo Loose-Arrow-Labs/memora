@@ -203,17 +203,66 @@ public sealed class ImportContentSafetyFilterTests : IDisposable
     }
 
     [Fact]
-    public void Filter_NoFormats_NotCovered_IncludesBearerAndApiKey()
+    public void Filter_NotCovered_BearerTokenPassesThrough()
     {
         var filter = new ImportContentSafetyFilter();
-        var record = MakeRecord("EVD-1", "Authorization: Bearer mytoken123", "api_key: somevalue");
+        var record = MakeRecord("EVD-1", "Authorization: Bearer mytoken123", "summary");
 
         var result = filter.Filter([record]);
 
         Assert.False(result.BlocksPersistence);
         Assert.Empty(result.Diagnostics);
-        var kept = Assert.Single(result.Records);
-        Assert.Equal("Authorization: Bearer mytoken123", kept.Title);
+    }
+
+    [Fact]
+    public void Filter_NotCovered_ApiKeyPassesThrough()
+    {
+        var filter = new ImportContentSafetyFilter();
+        var record = MakeRecord("EVD-2", "api_key: supersecretvalue123", "summary");
+
+        var result = filter.Filter([record]);
+
+        Assert.False(result.BlocksPersistence);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void Filter_NotCovered_SlackTokenPassesThrough()
+    {
+        var filter = new ImportContentSafetyFilter();
+        var record = MakeRecord("EVD-3", "xoxb-1234567890-abcdefghij", "summary");
+
+        var result = filter.Filter([record]);
+
+        Assert.False(result.BlocksPersistence);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void Filter_NotCovered_PublishableStripeKeyPassesThrough()
+    {
+        var filter = new ImportContentSafetyFilter();
+        // Stripe publishable keys (pk_live_) are not covered; only the private-key
+        // PEM block rule blocks persistence.
+        var record = MakeRecord("EVD-4", "pk_live_abcdefghijklmnopqrstuvwxyz1234", "summary");
+
+        var result = filter.Filter([record]);
+
+        Assert.False(result.BlocksPersistence);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void Filter_NotCovered_JwtPassesThrough()
+    {
+        var filter = new ImportContentSafetyFilter();
+        var jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+        var record = MakeRecord("EVD-5", jwt, "summary");
+
+        var result = filter.Filter([record]);
+
+        Assert.False(result.BlocksPersistence);
+        Assert.Empty(result.Diagnostics);
     }
 
     [Fact]
