@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Memora.Core.Import;
 using Memora.Import.Evidence;
+using Memora.Import.Prerequisites;
 using Memora.Import.Safety;
 using Memora.Storage.Workspaces;
 
@@ -14,6 +15,7 @@ public sealed class GitHubEvidenceImporter
     private readonly IGitHubEvidenceClient _client;
     private readonly IImportedEvidenceStore _evidenceStore;
     private readonly ImportContentSafetyFilter _safetyFilter;
+    private readonly RuntimePrerequisiteChecker _prerequisiteChecker;
 
     public GitHubEvidenceImporter(
         string workspacesRootPath,
@@ -31,7 +33,8 @@ public sealed class GitHubEvidenceImporter
         WorkspaceDiscovery workspaceDiscovery,
         IGitHubEvidenceClient client,
         IImportedEvidenceStore evidenceStore,
-        ImportContentSafetyFilter? safetyFilter = null)
+        ImportContentSafetyFilter? safetyFilter = null,
+        RuntimePrerequisiteChecker? prerequisiteChecker = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workspacesRootPath);
 
@@ -40,11 +43,22 @@ public sealed class GitHubEvidenceImporter
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _evidenceStore = evidenceStore ?? throw new ArgumentNullException(nameof(evidenceStore));
         _safetyFilter = safetyFilter ?? new ImportContentSafetyFilter();
+        _prerequisiteChecker = prerequisiteChecker ?? new RuntimePrerequisiteChecker();
     }
 
     public GitHubEvidenceImportResult Import(GitHubEvidenceImportRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var prerequisites = _prerequisiteChecker.Check();
+        if (!prerequisites.IsReady)
+        {
+            return Failed(
+                GitHubImportDiagnostic.Error(
+                    prerequisites.Diagnostics[0].Code,
+                    prerequisites.Diagnostics[0].Message,
+                    prerequisites.Diagnostics[0].Tool));
+        }
 
         var workspace = TryFindWorkspace(request.ProjectId, out var workspaceDiagnostic);
         if (workspace is null)

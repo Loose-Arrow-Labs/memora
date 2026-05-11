@@ -6,16 +6,31 @@ namespace Memora.Import.GitHub;
 
 public sealed class GitHubCliEvidenceClient : IGitHubEvidenceClient
 {
-    private readonly Func<IReadOnlyList<string>, GhCommandResult> _runGh;
+    public const int DefaultTimeoutMs = 30_000;
+    public const int DefaultMaxRetries = 2;
+
+    private readonly Func<IReadOnlyList<string>, int, GhCommandResult> _runGh;
+    private readonly int _timeoutMs;
+    private readonly int _maxRetries;
 
     public GitHubCliEvidenceClient()
-        : this(RunGh)
+        : this(RunGh, DefaultTimeoutMs, DefaultMaxRetries)
     {
     }
 
-    internal GitHubCliEvidenceClient(Func<IReadOnlyList<string>, GhCommandResult> runGh)
+    public GitHubCliEvidenceClient(int timeoutMs, int maxRetries = DefaultMaxRetries)
+        : this(RunGh, timeoutMs, maxRetries)
+    {
+    }
+
+    internal GitHubCliEvidenceClient(
+        Func<IReadOnlyList<string>, int, GhCommandResult> runGh,
+        int timeoutMs = DefaultTimeoutMs,
+        int maxRetries = DefaultMaxRetries)
     {
         _runGh = runGh ?? throw new ArgumentNullException(nameof(runGh));
+        _timeoutMs = timeoutMs > 0 ? timeoutMs : throw new ArgumentOutOfRangeException(nameof(timeoutMs));
+        _maxRetries = maxRetries >= 0 ? maxRetries : throw new ArgumentOutOfRangeException(nameof(maxRetries));
     }
 
     public GitHubEvidenceClientResult Fetch(string remoteUrl, int maxItems)
@@ -31,7 +46,7 @@ public sealed class GitHubCliEvidenceClient : IGitHubEvidenceClient
                     "remote_url"));
         }
 
-        var auth = _runGh(["auth", "status"]);
+        var auth = RunWithRetry(["auth", "status"], isRetryable: false);
         if (!auth.IsSuccess)
         {
             return GitHubEvidenceClientResult.Failed(
@@ -43,7 +58,8 @@ public sealed class GitHubCliEvidenceClient : IGitHubEvidenceClient
 
         var diagnostics = new List<GitHubImportDiagnostic>();
         var pageSize = Math.Clamp(maxItems, 1, 100);
-        var issueElements = FetchArray($"/repos/{owner}/{repo}/issues?state=all&per_page={pageSize}", pageSize, diagnostics, _runGh)
+        GhCommandResult Fetch(IReadOnlyList<string> args) => RunWithRetry(args);
+        var issueElements = FetchArray($"/repos/{owner}/{repo}/issues?state=all&per_page={pageSize}", pageSize, diagnostics, Fetch)
             .Where(element => !element.TryGetProperty("pull_request", out _))
             .ToArray();
 
@@ -51,28 +67,28 @@ public sealed class GitHubCliEvidenceClient : IGitHubEvidenceClient
             .Take(maxItems)
             .ToArray();
         var pullRequests = ReadRecords(
-                FetchArray($"/repos/{owner}/{repo}/pulls?state=all&per_page={pageSize}", pageSize, diagnostics, _runGh),
+                FetchArray($"/repos/{owner}/{repo}/pulls?state=all&per_page={pageSize}", pageSize, diagnostics, Fetch),
                 "pulls",
                 diagnostics,
                 ReadPullRequest)
             .Take(maxItems)
             .ToArray();
         var reviewComments = ReadRecords(
-                FetchArray($"/repos/{owner}/{repo}/pulls/comments?per_page={pageSize}", pageSize, diagnostics, _runGh),
+                FetchArray($"/repos/{owner}/{repo}/pulls/comments?per_page={pageSize}", pageSize, diagnostics, Fetch),
                 "pulls/comments",
                 diagnostics,
                 ReadReviewComment)
             .Take(maxItems)
             .ToArray();
         var commits = ReadRecords(
-                FetchArray($"/repos/{owner}/{repo}/commits?per_page={pageSize}", pageSize, diagnostics, _runGh),
+                FetchArray($"/repos/{owner}/{repo}/commits?per_page={pageSize}", pageSize, diagnostics, Fetch),
                 "commits",
                 diagnostics,
                 ReadCommit)
             .Take(maxItems)
             .ToArray();
         var releases = ReadRecords(
-                FetchArray($"/repos/{owner}/{repo}/releases?per_page={pageSize}", pageSize, diagnostics, _runGh),
+                FetchArray($"/repos/{owner}/{repo}/releases?per_page={pageSize}", pageSize, diagnostics, Fetch),
                 "releases",
                 diagnostics,
                 ReadRelease)
@@ -80,7 +96,7 @@ public sealed class GitHubCliEvidenceClient : IGitHubEvidenceClient
             .ToArray();
         var reviews = pullRequests
             .SelectMany(pullRequest => ReadRecords(
-                FetchArray($"/repos/{owner}/{repo}/pulls/{pullRequest.Number}/reviews?per_page={pageSize}", pageSize, diagnostics, _runGh),
+                FetchArray($"/repos/{owner}/{repo}/pulls/{pullRequest.Number}/reviews?per_page={pageSize}", pageSize, diagnostics, Fetch),
                 $"pulls/{pullRequest.Number}/reviews",
                 diagnostics,
                 (review, path, currentDiagnostics) => ReadReview(pullRequest.Number, review, path, currentDiagnostics)))
@@ -112,6 +128,38 @@ public sealed class GitHubCliEvidenceClient : IGitHubEvidenceClient
                 [],
                 isPartial,
                 diagnostics));
+    }
+
+    private GhCommandResult RunWithRetry(IReadOnlyList<string> arguments, bool isRetryable = true)
+    {
+        var result = _runGh(arguments, _timeoutMs);
+        if (result.IsSuccess || !isRetryable)
+        {
+            return result;
+        }
+
+        if (result.Error.Contains("rate limit", StringComparison.OrdinalIgnoreCase))
+        {
+            return result;
+        }
+
+        for (var attempt = 1; attempt <= _maxRetries; attempt++)
+        {
+            var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt));
+            Thread.Sleep(delay);
+            result = _runGh(arguments, _timeoutMs);
+            if (result.IsSuccess)
+            {
+                return result;
+            }
+
+            if (result.Error.Contains("rate limit", StringComparison.OrdinalIgnoreCase))
+            {
+                return result;
+            }
+        }
+
+        return result;
     }
 
     private static IReadOnlyList<JsonElement> FetchArray(
@@ -328,7 +376,7 @@ public sealed class GitHubCliEvidenceClient : IGitHubEvidenceClient
         return true;
     }
 
-    private static GhCommandResult RunGh(IReadOnlyList<string> arguments)
+    private static GhCommandResult RunGh(IReadOnlyList<string> arguments, int timeoutMs)
     {
         var startInfo = new ProcessStartInfo("gh")
         {
@@ -352,7 +400,7 @@ public sealed class GitHubCliEvidenceClient : IGitHubEvidenceClient
         var output = process.StandardOutput.ReadToEnd();
         var error = process.StandardError.ReadToEnd();
 
-        if (!process.WaitForExit(30000))
+        if (!process.WaitForExit(timeoutMs))
         {
             try
             {
@@ -362,7 +410,7 @@ public sealed class GitHubCliEvidenceClient : IGitHubEvidenceClient
             {
             }
 
-            return GhCommandResult.Failed("GitHub CLI command timed out.");
+            return GhCommandResult.Failed($"GitHub CLI command timed out after {timeoutMs / 1000}s.");
         }
 
         return process.ExitCode == 0
