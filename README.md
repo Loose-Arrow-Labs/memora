@@ -172,7 +172,9 @@ Implemented slices include:
 - first-run import modes, app-managed workspace placement, and local/GitHub
   repository attachment metadata
 - local Git and GitHub evidence import with stable provenance and idempotent
-  filesystem storage
+  filesystem storage; v1 import is metadata-only (subjects, titles, states,
+  timestamps, file paths); issue/PR bodies, diffs, and full commit bodies are
+  not persisted in v1
 - defensive metadata redaction for a narrow set of common token formats before
   imported evidence persistence; not a complete secret scanner
 - candidate memory and readiness report generation from imported evidence, with
