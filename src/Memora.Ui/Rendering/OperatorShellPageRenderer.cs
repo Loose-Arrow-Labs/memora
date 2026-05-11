@@ -82,6 +82,28 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</div>");
         body.AppendLine("</article>");
 
+        if (snapshot.FailedLoads.Count > 0)
+        {
+            body.AppendLine("<article class=\"panel diagnostic-panel\">");
+            body.AppendLine("<div class=\"panel-header\">");
+            body.AppendLine("<h2>Artifact Load Diagnostics</h2>");
+            body.AppendLine("<p class=\"muted\">Files listed here were skipped so the project can keep rendering from valid filesystem records.</p>");
+            body.AppendLine("</div>");
+            body.AppendLine("<div class=\"table-scroll\">");
+            body.AppendLine("<table><thead><tr><th>File</th><th>Diagnostic</th></tr></thead><tbody>");
+            foreach (var failure in snapshot.FailedLoads)
+            {
+                body.AppendLine("<tr>");
+                body.AppendLine($"<td><code>{Encode(failure.RelativePath)}</code></td>");
+                body.AppendLine($"<td>{Encode(string.Join("; ", failure.Diagnostics))}</td>");
+                body.AppendLine("</tr>");
+            }
+
+            body.AppendLine("</tbody></table>");
+            body.AppendLine("</div>");
+            body.AppendLine("</article>");
+        }
+
         body.AppendLine("<article class=\"panel\">");
         body.AppendLine("<div class=\"panel-header\">");
         body.AppendLine("<h2>Approval Queue</h2>");

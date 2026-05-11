@@ -40,14 +40,14 @@ public sealed class LocalOperatorWorkspaceService
             .Select(workspace =>
             {
                 var records = LoadArtifactRecords(workspace);
-                var pendingCount = records.Count(record => record.IsPendingReview);
+                var pendingCount = records.Artifacts.Count(record => record.IsPendingReview);
 
                 return new OperatorProjectSummary(
                     workspace.ProjectId,
                     workspace.Metadata.Name,
                     workspace.Metadata.Status,
                     workspace.RootPath,
-                    records.Count,
+                    records.Artifacts.Count,
                     pendingCount);
             })
             .OrderBy(project => project.ProjectId, StringComparer.Ordinal)
@@ -409,7 +409,8 @@ public sealed class LocalOperatorWorkspaceService
 
     private OperatorProjectSnapshot LoadProjectSnapshot(ProjectWorkspace workspace)
     {
-        var records = LoadArtifactRecords(workspace)
+        var loadResult = LoadArtifactRecords(workspace);
+        var records = loadResult.Artifacts
             .OrderBy(record => record.IsPendingReview ? 0 : 1)
             .ThenBy(record => record.Artifact.Type.ToString(), StringComparer.Ordinal)
             .ThenBy(record => record.Artifact.Title, StringComparer.Ordinal)
@@ -422,10 +423,10 @@ public sealed class LocalOperatorWorkspaceService
             .Select(item => new OperatorPendingReviewItem(item, FindRecord(records, item)))
             .ToArray();
 
-        return new OperatorProjectSnapshot(workspace, records, pendingItems);
+        return new OperatorProjectSnapshot(workspace, records, pendingItems, loadResult.Failures);
     }
 
-    private IReadOnlyList<OperatorArtifactRecord> LoadArtifactRecords(ProjectWorkspace workspace)
+    private OperatorArtifactLoadResult LoadArtifactRecords(ProjectWorkspace workspace)
     {
         var rootDirectories =
             new[]
@@ -435,30 +436,67 @@ public sealed class LocalOperatorWorkspaceService
                 workspace.SummariesRootPath
             };
 
-        return rootDirectories
+        var records = new List<OperatorArtifactRecord>();
+        var failures = new List<OperatorArtifactLoadFailure>();
+
+        foreach (var path in rootDirectories
             .Where(Directory.Exists)
             .SelectMany(directory => Directory.EnumerateFiles(directory, "*.md", SearchOption.AllDirectories))
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(path => ParseArtifactRecord(workspace, path))
-            .ToArray();
-    }
-
-    private OperatorArtifactRecord ParseArtifactRecord(ProjectWorkspace workspace, string filePath)
-    {
-        var markdown = File.ReadAllText(filePath);
-        var parseResult = _markdownParser.Parse(markdown);
-
-        if (!parseResult.Validation.IsValid || parseResult.Artifact is null)
+            .OrderBy(path => path, StringComparer.Ordinal))
         {
-            var issues = string.Join(
-                "; ",
-                parseResult.Validation.Issues.Select(issue => issue.DiagnosticMessage));
+            var result = ParseArtifactRecord(workspace, path);
+            if (result.Record is not null)
+            {
+                records.Add(result.Record);
+            }
 
-            throw new InvalidDataException($"Artifact file '{filePath}' is invalid. {issues}");
+            if (result.Failure is not null)
+            {
+                failures.Add(result.Failure);
+            }
         }
 
+        return new OperatorArtifactLoadResult(records, failures);
+    }
+
+    private OperatorArtifactParseResult ParseArtifactRecord(ProjectWorkspace workspace, string filePath)
+    {
         var relativePath = NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, filePath));
-        return new OperatorArtifactRecord(relativePath, filePath, parseResult.Artifact);
+        try
+        {
+            var markdown = File.ReadAllText(filePath);
+            var parseResult = _markdownParser.Parse(markdown);
+
+            if (!parseResult.Validation.IsValid || parseResult.Artifact is null)
+            {
+                return new OperatorArtifactParseResult(
+                    null,
+                    new OperatorArtifactLoadFailure(
+                        relativePath,
+                        filePath,
+                        parseResult.Validation.Issues.Select(issue => issue.DiagnosticMessage).ToArray()));
+            }
+
+            if (!string.Equals(parseResult.Artifact.ProjectId, workspace.ProjectId, StringComparison.Ordinal))
+            {
+                return new OperatorArtifactParseResult(
+                    null,
+                    new OperatorArtifactLoadFailure(
+                        relativePath,
+                        filePath,
+                        [$"Artifact project '{parseResult.Artifact.ProjectId}' does not match workspace project '{workspace.ProjectId}'."]));
+            }
+
+            return new OperatorArtifactParseResult(
+                new OperatorArtifactRecord(relativePath, filePath, parseResult.Artifact),
+                null);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            return new OperatorArtifactParseResult(
+                null,
+                new OperatorArtifactLoadFailure(relativePath, filePath, [$"Artifact file could not be loaded: {exception.Message}"]));
+        }
     }
 
     private static OperatorArtifactRecord FindRecord(
@@ -638,10 +676,24 @@ public sealed record OperatorPendingReviewItem(
     ApprovalQueueItem QueueItem,
     OperatorArtifactRecord Record);
 
+public sealed record OperatorArtifactLoadFailure(
+    string RelativePath,
+    string FilePath,
+    IReadOnlyList<string> Diagnostics);
+
+public sealed record OperatorArtifactLoadResult(
+    IReadOnlyList<OperatorArtifactRecord> Artifacts,
+    IReadOnlyList<OperatorArtifactLoadFailure> Failures);
+
+public sealed record OperatorArtifactParseResult(
+    OperatorArtifactRecord? Record,
+    OperatorArtifactLoadFailure? Failure);
+
 public sealed record OperatorProjectSnapshot(
     ProjectWorkspace Workspace,
     IReadOnlyList<OperatorArtifactRecord> Artifacts,
-    IReadOnlyList<OperatorPendingReviewItem> PendingItems)
+    IReadOnlyList<OperatorPendingReviewItem> PendingItems,
+    IReadOnlyList<OperatorArtifactLoadFailure> FailedLoads)
 {
     public IReadOnlyList<OperatorPendingReviewItem> ProposedItems { get; } =
         PendingItems

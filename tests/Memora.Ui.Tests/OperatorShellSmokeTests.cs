@@ -65,6 +65,48 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
+    public async Task Project_page_renders_valid_artifacts_and_load_diagnostics_for_malformed_files()
+    {
+        using var factory = new OperatorShellFactory();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        await File.WriteAllTextAsync(
+            Path.Combine(workspaceRoot, "drafts", "plan", "PLN-BAD.r0001.md"),
+            """
+            ---
+            id: PLN-BAD
+            project_id: demo-project
+            type: plan
+            status: draft
+            title: Broken plan
+            ---
+            ## Goal
+            malformed fixture
+            """);
+
+        var html = await client.GetStringAsync("/projects/demo-project");
+
+        Assert.Contains("Expand Milestone 1 test coverage", html, StringComparison.Ordinal);
+        Assert.Contains("Artifact Load Diagnostics", html, StringComparison.Ordinal);
+        Assert.Contains("drafts/plan/PLN-BAD.r0001.md", html, StringComparison.Ordinal);
+        Assert.Contains("required", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Root_renders_when_workspace_contains_only_malformed_artifacts()
+    {
+        using var factory = new OperatorShellFactory();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
+        OperatorShellFactory.WriteWorkspaceWithOnlyMalformedArtifact(factory.WorkspacesRootPath, "broken-project");
+
+        var html = await client.GetStringAsync("/");
+
+        Assert.Contains("Select a project", html, StringComparison.Ordinal);
+        Assert.Contains("Broken Project", html, StringComparison.Ordinal);
+        Assert.Contains("0 artifacts", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Artifact_page_renders_draft_editor()
     {
         using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
@@ -814,6 +856,34 @@ public sealed class OperatorShellFactory : WebApplicationFactory<Program>
 
             ## Notes
             Test fixture.
+            """);
+    }
+
+    public static void WriteWorkspaceWithOnlyMalformedArtifact(string workspacesRoot, string projectId)
+    {
+        var workspaceRoot = Path.Combine(workspacesRoot, projectId);
+        Directory.CreateDirectory(Path.Combine(workspaceRoot, "drafts", "plan"));
+        File.WriteAllText(
+            Path.Combine(workspaceRoot, "project.json"),
+            $$"""
+            {
+              "projectId": "{{projectId}}",
+              "name": "Broken Project",
+              "status": "active"
+            }
+            """);
+        File.WriteAllText(
+            Path.Combine(workspaceRoot, "drafts", "plan", "PLN-BAD.r0001.md"),
+            """
+            ---
+            id: PLN-BAD
+            project_id: broken-project
+            type: plan
+            status: draft
+            title: Broken plan
+            ---
+            ## Goal
+            malformed fixture
             """);
     }
 }
