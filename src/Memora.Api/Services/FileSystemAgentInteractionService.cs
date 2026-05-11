@@ -24,6 +24,7 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
     private readonly ArtifactMarkdownWriter _markdownWriter = new();
     private readonly ArtifactFactory _artifactFactory = new();
     private readonly ArtifactFileStore _fileStore = new();
+    private readonly ApprovalDecisionFilePersistence _approvalPersistence = new();
     private readonly ArtifactApprovalWorkflow _approvalWorkflow = new();
     private readonly ContextBundleBuilder _contextBundleBuilder = new();
     private readonly ContextPackageCache _contextPackageCache = new();
@@ -688,30 +689,76 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
                 MapErrors(decision.Validation));
         }
 
+        var currentApprovedPath = currentApprovedArtifact is null
+            ? null
+            : ArtifactFileStore.ResolvePath(workspace, currentApprovedArtifact);
+        var persistenceResult = _approvalPersistence.SaveApproved(
+            workspace,
+            record.FilePath,
+            decision.ApprovedArtifact,
+            decision.SupersededArtifact,
+            currentApprovedPath);
+        if (!persistenceResult.IsSuccess || persistenceResult.ApprovedPath is null)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "approve",
+                null,
+                null,
+                [new AgentInteractionError("review.approval.persistence_failed", $"Approval persistence failed: {persistenceResult.ErrorMessage}", "path")]);
+        }
+
+        var approvedRecord = new ParsedReviewArtifactRecord(
+            decision.ApprovedArtifact,
+            Path.GetFullPath(persistenceResult.ApprovedPath),
+            NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, persistenceResult.ApprovedPath)));
+
+        return new ReviewDecisionResponse(
+            workspace.ProjectId,
+            "approve",
+            MapReviewInboxItem(approvedRecord),
+            $"Approved {decision.ApprovedArtifact.Id} revision {decision.ApprovedArtifact.Revision}.",
+            []);
+    }
+
+    private ReviewDecisionResponse AcceptReviewRecord(
+        ProjectWorkspace workspace,
+        ParsedReviewArtifactRecord record)
+    {
+        var decision = _approvalWorkflow.AcceptForReview(record.Artifact, DateTimeOffset.UtcNow);
+        if (!decision.IsSuccess || decision.DraftArtifact is null)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "accept",
+                null,
+                null,
+                MapErrors(decision.Validation));
+        }
+
         try
         {
-            var approvedPath = _fileStore.Save(workspace, decision.ApprovedArtifact);
-            File.Delete(record.FilePath);
-            var approvedRecord = new ParsedReviewArtifactRecord(
-                decision.ApprovedArtifact,
-                Path.GetFullPath(approvedPath),
-                NormalizeRelativePath(Path.GetRelativePath(workspace.RootPath, approvedPath)));
+            File.WriteAllText(record.FilePath, _markdownWriter.Write(decision.DraftArtifact));
+            var draftRecord = new ParsedReviewArtifactRecord(
+                decision.DraftArtifact,
+                record.FilePath,
+                record.RelativePath);
 
             return new ReviewDecisionResponse(
                 workspace.ProjectId,
-                "approve",
-                MapReviewInboxItem(approvedRecord),
-                $"Approved {decision.ApprovedArtifact.Id} revision {decision.ApprovedArtifact.Revision}.",
+                "accept",
+                MapReviewInboxItem(draftRecord),
+                $"Accepted {decision.DraftArtifact.Id} revision {decision.DraftArtifact.Revision} for draft review.",
                 []);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             return new ReviewDecisionResponse(
                 workspace.ProjectId,
-                "approve",
+                "accept",
                 null,
                 null,
-                [new AgentInteractionError("review.approval.persistence_failed", $"Approval persistence failed: {exception.Message}", "path")]);
+                [new AgentInteractionError("review.accept.persistence_failed", $"Accept-for-review persistence failed: {exception.Message}", "path")]);
         }
     }
 

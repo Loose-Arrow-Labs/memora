@@ -18,5 +18,7 @@ Handles artifact file parsing and persistence.
 
 - `Parsing/ArtifactMarkdownParser.cs`: main markdown-to-artifact entry point
 - `Persistence/ArtifactFileStore.cs`: saves canonical and draft revisions
+- `Persistence/ApprovalDecisionFilePersistence.cs`: applies approved and
+  superseded approval outputs as one rollback-capable filesystem transaction
 - `Persistence/ArtifactMarkdownWriter.cs`: writes structured markdown output
 - `Workspaces/WorkspaceDiscovery.cs`: discovers project workspaces from `project.json`

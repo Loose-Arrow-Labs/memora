@@ -67,9 +67,12 @@ Open a review item to inspect:
 Approval, accept-for-review, and rejection controls route through the governed
 core workflow before filesystem-backed state changes. Proposed artifacts must
 first be accepted into draft review; a later approval writes an approved
-canonical revision only after lifecycle validation succeeds. Rejection marks the
-pending draft or proposal as deprecated in draft storage so it no longer appears
-as an active review item.
+canonical revision only after lifecycle validation succeeds. Approval
+persistence treats the pending draft removal, approved revision write, and
+optional superseded revision write as one filesystem transaction; failures roll
+back to the previous file state. Rejection marks the pending draft or proposal
+as deprecated in draft storage so it no longer appears as an active review
+item.
 
 ## Edit Drafts
 
