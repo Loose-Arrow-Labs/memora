@@ -242,7 +242,9 @@ Memora should still keep interpretation honest:
 - directly observed facts may be baseline truth under the selected mode
 - inferred intent remains candidate memory
 - confidence and provenance must be visible
-- secret and privacy filtering happens before persistence
+- defensive metadata redaction for common token formats happens before
+  persistence; this is not a complete secret scanner (see
+  `ImportContentSafetyFilter` for covered formats)
 - all generated candidates must identify their evidence sources
 
 ## First-Run Success Criteria

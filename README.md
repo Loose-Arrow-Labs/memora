@@ -81,7 +81,8 @@ onboarding loop:
 1. create or select an app-managed Memora workspace
 2. attach one local Git or GitHub repository as a source
 3. choose an import mode before promotion behavior matters
-4. import bounded evidence with secret and privacy filtering
+4. import bounded evidence with defensive metadata redaction for common token
+   formats
 5. generate candidate memory and an agent readiness report
 6. inspect baseline evidence, baseline memory, and review-needed candidates
 7. expose project identity, readiness, and grounded context through MCP/OpenAPI
@@ -162,7 +163,8 @@ Implemented slices include:
   repository attachment metadata
 - local Git and GitHub evidence import with stable provenance and idempotent
   filesystem storage
-- secret and privacy filtering before imported evidence persistence
+- defensive metadata redaction for a narrow set of common token formats before
+  imported evidence persistence; not a complete secret scanner
 - candidate memory and readiness report generation from imported evidence, with
   evidence-derived, inferred, and advisory/future-advisory source separation
 - deterministic context ranking, inclusion reasoning, bounded relationship

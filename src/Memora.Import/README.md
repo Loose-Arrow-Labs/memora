@@ -24,8 +24,11 @@ repository inspection, evidence intake, safety filtering, and readiness output.
 - GitHub evidence import normalizes issues, pull requests, reviews, review
   comments, commits, releases, and available discussion metadata into the same
   evidence store
-- import safety filtering redacts common tokens and blocks unsafe private key
-  material before local Git or GitHub evidence is persisted
+- import safety filtering applies defensive metadata redaction for a narrow set
+  of common token formats (OpenAI keys, GitHub tokens, AWS access keys,
+  credential assignments, and private key material) before local Git or GitHub
+  evidence is persisted; this is not a complete secret scanner and does not
+  cover all token formats
 - first-run candidate memory and agent readiness reports generate the
   deterministic evidence-derived side of Memora's hybrid retrieval model, with
   provenance and review state
