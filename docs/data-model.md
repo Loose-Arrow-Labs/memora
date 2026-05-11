@@ -61,6 +61,8 @@ Behavior:
 - only approved artifacts are canonical
 - drafts are editable
 - proposed artifacts originate from agents or ingestion
+- proposed artifacts must be explicitly accepted into draft review before
+  approval
 - superseded artifacts remain for traceability
 
 ### 4. Artifact Relationships
@@ -99,6 +101,8 @@ Flow:
 Behavior rules:
 
 - proposed artifacts are not used in canonical retrieval
+- proposed artifacts transition to draft through an explicit human review
+  decision before approval
 - draft artifacts may be inspected but not treated as truth
 - approved artifacts form the canonical project state
 - superseded artifacts remain accessible but are deprioritized

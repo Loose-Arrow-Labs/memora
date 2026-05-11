@@ -57,6 +57,8 @@ All artifacts must follow lifecycle:
 proposed → draft → approved → superseded/deprecated
 
 - No system component may bypass lifecycle rules
+- Proposed artifacts must be explicitly accepted into draft review before they
+  can be approved
 
 ### 4.3 Write Constraints
 

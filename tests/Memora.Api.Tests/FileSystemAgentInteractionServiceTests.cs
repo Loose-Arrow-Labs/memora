@@ -441,19 +441,24 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ApplyReviewDecision_Approve_ReturnsLifecycleErrorForProposedArtifact()
+    public void ApplyReviewDecision_Accept_PromotesProposedArtifactToDraft()
     {
         var workspace = CreateWorkspace("memora");
         var draftPath = _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-007", ArtifactStatus.Proposed, "Proposed decision"));
         var relativePath = Path.GetRelativePath(workspace.RootPath, draftPath).Replace('\\', '/');
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
 
-        var response = service.ApplyReviewDecision("memora", new ReviewDecisionRequest(relativePath, "approve"));
+        var response = service.ApplyReviewDecision("memora", new ReviewDecisionRequest(relativePath, "accept"));
 
-        Assert.False(response.IsSuccess);
-        Assert.Contains(response.Errors, error => error.Code == "approval.approve.status.invalid");
+        Assert.True(response.IsSuccess);
+        Assert.Equal("accept", response.Decision);
+        Assert.NotNull(response.Item);
+        Assert.Equal(ArtifactStatus.Draft, response.Item.Status);
         Assert.True(File.Exists(draftPath));
         Assert.False(File.Exists(Path.Combine(workspace.CanonicalDecisionsPath, "ADR-007.r0001.md")));
+        var parsed = new ArtifactMarkdownParser().Parse(File.ReadAllText(draftPath));
+        Assert.NotNull(parsed.Artifact);
+        Assert.Equal(ArtifactStatus.Draft, parsed.Artifact.Status);
     }
 
     [Fact]

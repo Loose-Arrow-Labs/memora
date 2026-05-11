@@ -377,6 +377,34 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
+    public async Task Review_accept_proposal_persists_draft_for_later_approval()
+    {
+        using var factory = new OperatorShellFactory();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory, new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        await OperatorShellFactory.WriteProposedPlanAsync(
+            workspaceRoot,
+            "PLN-994",
+            "Acceptable proposal",
+            "evidence:missing-evidence",
+            "missing-evidence");
+        var draftPath = Path.Combine(workspaceRoot, "drafts", "plan", "PLN-994.r0001.md");
+
+        var response = await client.PostAsync(
+            "/projects/demo-project/review/decision",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["path"] = "drafts/plan/PLN-994.r0001.md",
+                ["decision"] = "Accept"
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.True(File.Exists(draftPath));
+        Assert.Contains("status: draft", await File.ReadAllTextAsync(draftPath), StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(workspaceRoot, "canonical", "plans", "PLN-994.r0001.md")));
+    }
+
+    [Fact]
     public async Task Review_reject_proposal_persists_deprecated_pending_record()
     {
         using var factory = new OperatorShellFactory();

@@ -83,6 +83,38 @@ public sealed class ArtifactApprovalWorkflowTests
     }
 
     [Fact]
+    public void AcceptForReview_ProposedArtifact_PromotesToDraft()
+    {
+        var proposed = CreatePlanArtifact(ArtifactStatus.Proposed, revision: 1);
+
+        var result = _workflow.AcceptForReview(
+            proposed,
+            new DateTimeOffset(2026, 04, 16, 10, 20, 00, TimeSpan.Zero));
+
+        Assert.True(result.IsSuccess);
+        var draft = Assert.IsType<PlanArtifact>(result.DraftArtifact);
+        Assert.Equal(ArtifactStatus.Draft, draft.Status);
+        Assert.Equal(proposed.Id, draft.Id);
+        Assert.Equal(proposed.Revision, draft.Revision);
+        Assert.Null(result.ApprovedArtifact);
+        Assert.Null(result.RejectedArtifact);
+    }
+
+    [Fact]
+    public void AcceptForReview_DraftArtifact_IsRejectedByValidation()
+    {
+        var draft = CreatePlanArtifact(ArtifactStatus.Draft, revision: 1);
+
+        var result = _workflow.AcceptForReview(
+            draft,
+            new DateTimeOffset(2026, 04, 16, 10, 25, 00, TimeSpan.Zero));
+
+        Assert.False(result.IsSuccess);
+        Assert.Null(result.DraftArtifact);
+        Assert.Contains(result.Validation.Issues, issue => issue.Code == "approval.accept.status.invalid");
+    }
+
+    [Fact]
     public void Reject_DraftArtifact_DeprecatesItWithoutCreatingCanonicalArtifact()
     {
         var draft = CreatePlanArtifact(ArtifactStatus.Draft, revision: 1);
