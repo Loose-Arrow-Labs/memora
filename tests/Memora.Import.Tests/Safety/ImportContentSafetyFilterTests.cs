@@ -95,7 +95,7 @@ public sealed class ImportContentSafetyFilterTests : IDisposable
     }
 
     [Fact]
-    public void GitHubImport_PrivateKeyBlocksPersistence()
+    public void GitHubImport_PrivateKeyBlocksOnlyOffendingRecord()
     {
         var workspacePath = CreateWorkspace("memora", localPath: null, github: true);
         var privateKey = """
@@ -133,6 +133,87 @@ public sealed class ImportContentSafetyFilterTests : IDisposable
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "import.secret.blocked");
         Assert.Empty(_evidenceStore.ReadAll(workspacePath));
+    }
+
+    [Fact]
+    public void GitHubImport_MixedBatch_BlocksOffendingRecordAndPersistsSafeRecords()
+    {
+        var workspacePath = CreateWorkspace("memora-mixed", localPath: null, github: true);
+        var privateKey = """
+            -----BEGIN PRIVATE KEY-----
+            abcdef
+            -----END PRIVATE KEY-----
+            """;
+        var importer = new GitHubEvidenceImporter(
+            _rootPath,
+            _workspaceDiscovery,
+            new FakeGitHubEvidenceClient(
+                GitHubEvidenceClientResult.Succeeded(
+                    new GitHubEvidenceSnapshot(
+                        [
+                            new GitHubIssueEvidence(
+                                1,
+                                "https://github.com/alucero270/memora/issues/1",
+                                "Safe issue title",
+                                "open",
+                                new DateTimeOffset(2026, 5, 5, 12, 0, 0, TimeSpan.Zero),
+                                new DateTimeOffset(2026, 5, 5, 12, 30, 0, TimeSpan.Zero))
+                        ],
+                        [],
+                        [],
+                        [],
+                        [
+                            new GitHubCommitEvidence(
+                                "abc123",
+                                "https://github.com/alucero270/memora/commit/abc123",
+                                privateKey,
+                                "alucero270",
+                                new DateTimeOffset(2026, 5, 5, 12, 0, 0, TimeSpan.Zero))
+                        ],
+                        [],
+                        [],
+                        IsPartial: false,
+                        []))),
+            _evidenceStore,
+            new ImportContentSafetyFilter());
+
+        var result = importer.Import(new GitHubEvidenceImportRequest("memora-mixed", ImportMode.FastBaseline));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "import.secret.blocked");
+        var stored = _evidenceStore.ReadAll(workspacePath);
+        Assert.Single(stored);
+        Assert.Contains("Safe issue title", stored[0].Title, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Filter_MixedBatch_BlocksOffendingRecordOnly()
+    {
+        var filter = new ImportContentSafetyFilter();
+        var privateKey = "-----BEGIN PRIVATE KEY-----\nabcdef\n-----END PRIVATE KEY-----";
+        var safe = MakeRecord("EVD-SAFE", "Safe title", "Safe summary");
+        var blocked = MakeRecord("EVD-BLOCKED", privateKey, "Summary");
+
+        var result = filter.Filter([safe, blocked]);
+
+        Assert.True(result.BlocksPersistence);
+        Assert.Contains(result.Diagnostics, d => d.Code == "import.secret.blocked" && d.StableEvidenceId == "EVD-BLOCKED");
+        var kept = Assert.Single(result.Records);
+        Assert.Equal("EVD-SAFE", kept.StableId);
+    }
+
+    [Fact]
+    public void Filter_NoFormats_NotCovered_IncludesBearerAndApiKey()
+    {
+        var filter = new ImportContentSafetyFilter();
+        var record = MakeRecord("EVD-1", "Authorization: Bearer mytoken123", "api_key: somevalue");
+
+        var result = filter.Filter([record]);
+
+        Assert.False(result.BlocksPersistence);
+        Assert.Empty(result.Diagnostics);
+        var kept = Assert.Single(result.Records);
+        Assert.Equal("Authorization: Bearer mytoken123", kept.Title);
     }
 
     [Fact]
@@ -248,4 +329,19 @@ public sealed class ImportContentSafetyFilterTests : IDisposable
 
         public GitHubEvidenceClientResult Fetch(string remoteUrl, int maxItems) => _result;
     }
+
+    private static ImportedEvidenceRecord MakeRecord(string stableId, string title, string summary) =>
+        new(
+            stableId,
+            "memora",
+            ImportedEvidenceSourceType.GitHubIssue,
+            "ATT-1",
+            "github:https://github.com/alucero270/memora.git",
+            "https://github.com/alucero270/memora/issues/1",
+            title,
+            summary,
+            new DateTimeOffset(2026, 5, 5, 12, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 5, 12, 1, 0, TimeSpan.Zero),
+            "github issue 1",
+            ImportedEvidenceTrustState.BaselineEvidence);
 }

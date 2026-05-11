@@ -22,22 +22,29 @@ public sealed class ImportContentSafetyFilter
         ArgumentNullException.ThrowIfNull(records);
 
         var diagnostics = new List<ImportSafetyDiagnostic>();
-        var redactedRecords = new List<ImportedEvidenceRecord>();
-        var blocked = false;
+        var safeRecords = new List<ImportedEvidenceRecord>();
+        var anyBlocked = false;
 
         foreach (var record in records)
         {
-            var redactedTitle = FilterValue(record, "title", record.Title, diagnostics, ref blocked);
-            var redactedSummary = FilterValue(record, "summary", record.Summary, diagnostics, ref blocked);
-            var redactedProvenance = FilterValue(record, "provenance", record.Provenance, diagnostics, ref blocked);
+            var recordBlocked = false;
+            var redactedTitle = FilterValue(record, "title", record.Title, diagnostics, ref recordBlocked);
+            var redactedSummary = FilterValue(record, "summary", record.Summary, diagnostics, ref recordBlocked);
+            var redactedProvenance = FilterValue(record, "provenance", record.Provenance, diagnostics, ref recordBlocked);
             var redactedMetadata = record.Metadata
                 .OrderBy(pair => pair.Key, StringComparer.Ordinal)
                 .ToDictionary(
                     pair => pair.Key,
-                    pair => FilterValue(record, $"metadata.{pair.Key}", pair.Value, diagnostics, ref blocked),
+                    pair => FilterValue(record, $"metadata.{pair.Key}", pair.Value, diagnostics, ref recordBlocked),
                     StringComparer.Ordinal);
 
-            redactedRecords.Add(
+            if (recordBlocked)
+            {
+                anyBlocked = true;
+                continue;
+            }
+
+            safeRecords.Add(
                 new ImportedEvidenceRecord(
                     record.StableId,
                     record.ProjectId,
@@ -54,7 +61,7 @@ public sealed class ImportContentSafetyFilter
                     redactedMetadata));
         }
 
-        return new ImportSafetyFilterResult(blocked ? [] : redactedRecords, diagnostics, blocked);
+        return new ImportSafetyFilterResult(safeRecords, diagnostics, anyBlocked);
     }
 
     private static string FilterValue(
@@ -62,7 +69,7 @@ public sealed class ImportContentSafetyFilter
         string field,
         string value,
         ICollection<ImportSafetyDiagnostic> diagnostics,
-        ref bool blocked)
+        ref bool recordBlocked)
     {
         var redacted = value;
 
@@ -87,7 +94,7 @@ public sealed class ImportContentSafetyFilter
 
             if (rule.BlocksPersistence)
             {
-                blocked = true;
+                recordBlocked = true;
             }
 
             redacted = rule.Pattern.Replace(redacted, RedactionText);
