@@ -762,6 +762,47 @@ public sealed class FileSystemAgentInteractionService : IAgentInteractionService
         }
     }
 
+    private ReviewDecisionResponse AcceptReviewRecord(
+        ProjectWorkspace workspace,
+        ParsedReviewArtifactRecord record)
+    {
+        var decision = _approvalWorkflow.AcceptForReview(record.Artifact, DateTimeOffset.UtcNow);
+        if (!decision.IsSuccess || decision.DraftArtifact is null)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "accept",
+                null,
+                null,
+                MapErrors(decision.Validation));
+        }
+
+        try
+        {
+            File.WriteAllText(record.FilePath, _markdownWriter.Write(decision.DraftArtifact));
+            var draftRecord = new ParsedReviewArtifactRecord(
+                decision.DraftArtifact,
+                record.FilePath,
+                record.RelativePath);
+
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "accept",
+                MapReviewInboxItem(draftRecord),
+                $"Accepted {decision.DraftArtifact.Id} revision {decision.DraftArtifact.Revision} for draft review.",
+                []);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new ReviewDecisionResponse(
+                workspace.ProjectId,
+                "accept",
+                null,
+                null,
+                [new AgentInteractionError("review.accept.persistence_failed", $"Accept-for-review persistence failed: {exception.Message}", "path")]);
+        }
+    }
+
     private ReviewDecisionResponse RejectReviewRecord(
         ProjectWorkspace workspace,
         ParsedReviewArtifactRecord record)
