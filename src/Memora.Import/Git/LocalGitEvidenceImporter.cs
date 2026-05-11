@@ -83,21 +83,6 @@ public sealed class LocalGitEvidenceImporter
         var safetyResult = _safetyFilter.Filter(records);
         diagnostics.AddRange(safetyResult.Diagnostics.Select(MapSafetyDiagnostic));
 
-        if (safetyResult.BlocksPersistence)
-        {
-            return new LocalGitEvidenceImportResult(
-                [],
-                new LocalGitImportProgress(
-                    records.Count,
-                    0,
-                    0,
-                    historyResult.Snapshot.Commits.Count,
-                    historyResult.Snapshot.Branches.Count,
-                    historyResult.Snapshot.Tags.Count,
-                    historyResult.Snapshot.ChangelogSignals.Count),
-                diagnostics);
-        }
-
         var persistence = _evidenceStore.Save(new ProjectEvidenceWriteRequest(workspace.RootPath, safetyResult.Records));
         diagnostics.Add(
             LocalGitImportDiagnostic.Info(

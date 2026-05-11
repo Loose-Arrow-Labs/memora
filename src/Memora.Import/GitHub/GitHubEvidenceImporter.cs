@@ -84,24 +84,6 @@ public sealed class GitHubEvidenceImporter
         var safetyResult = _safetyFilter.Filter(records);
         diagnostics.AddRange(safetyResult.Diagnostics.Select(MapSafetyDiagnostic));
 
-        if (safetyResult.BlocksPersistence)
-        {
-            return new GitHubEvidenceImportResult(
-                [],
-                new GitHubEvidenceImportProgress(
-                    records.Count,
-                    0,
-                    0,
-                    clientResult.Snapshot.Issues.Count,
-                    clientResult.Snapshot.PullRequests.Count,
-                    clientResult.Snapshot.Reviews.Count,
-                    clientResult.Snapshot.ReviewComments.Count,
-                    clientResult.Snapshot.Commits.Count,
-                    clientResult.Snapshot.Releases.Count,
-                    clientResult.Snapshot.Discussions.Count),
-                diagnostics);
-        }
-
         var persistence = _evidenceStore.Save(new ProjectEvidenceWriteRequest(workspace.RootPath, safetyResult.Records));
         diagnostics.Add(
             GitHubImportDiagnostic.Info(
