@@ -294,24 +294,45 @@ If the current checkout is dirty with unrelated changes:
 - use that clean worktree as the milestone starting point
 - record that worktree path so post-merge cleanup can remove it
 
-### 16.3 Branching Model
+### 16.3 Dependency Classification
 
-- Create one branch per issue
-- Keep the existing branch naming rule:
+Before writing any code, classify every issue pair in the milestone:
 
-`feature/<issue-number>-<short-name>`
+- **Code dependency**: Issue B introduces types, methods, or files that Issue A
+  must import or call to compile or pass tests. A must be completed before B
+  starts, and B's branch must stack on A's branch.
+- **Logical dependency**: Issue B builds on A's concepts but touches different
+  files. B can branch from `main` independently and reference A's PR in its
+  description. No stacking required.
+- **No dependency**: B is fully independent of A. B must branch from `main`.
 
-- Issue 1 base: updated `main`
-- Issue N base: previous issue branch in the stack
+Treat file overlap alone as a logical dependency, not a code dependency, unless
+one issue introduces a type or method that the other calls directly.
 
-### 16.4 PR Model
+### 16.4 Branching Model
 
-- Create one draft PR per issue
-- Keep the existing draft PR rule
-- Issue 1 PR target: `main`
-- Issue N PR target: previous issue branch in the stack
-- Do not merge PRs during unattended stacked execution
-- Leave the full PR stack open for human review after the milestone is complete
+- Create one branch per issue.
+- Branch naming rule: `feature/<issue-number>-<short-name>`
+- Branch base rule:
+  - If the issue has a **code dependency** on an un-merged earlier issue,
+    base it on that issue's branch.
+  - Otherwise, base it on updated `main`.
+- Keep individual dependency chains no deeper than 3 branches. If a chain
+  would exceed 3, stop and report — the issues likely need to be scoped down
+  or merged into fewer PRs.
+- Multiple independent chains targeting `main` is the preferred outcome for a
+  milestone. A single linear chain is a warning sign that too many issues were
+  coupled.
+
+### 16.5 PR Model
+
+- Create one draft PR per issue.
+- PR target rule:
+  - If the branch is based on an earlier feature branch (code dependency),
+    the PR targets that earlier feature branch.
+  - Otherwise, the PR targets `main`.
+- Do not merge PRs during unattended stacked execution.
+- Leave all PRs open for human review after the milestone is complete.
 
 Each PR must:
 
@@ -321,12 +342,18 @@ Each PR must:
 - describe current scope honestly
 - distinguish current implementation from roadmap work
 
-### 16.5 Execution Loop
+### 16.6 Execution Loop
+
+Before writing any code, publish the dependency classification (§16.3) as a
+summary: which issues are independent (targeting `main`) and which form chains
+(each chain listed in order with its base branch). This plan is part of the
+starting state and must be confirmed correct before execution begins.
 
 For each issue in the milestone:
 
 1. Review scope, dependencies, acceptance criteria, and relevant docs
-2. Confirm the issue is unblocked by earlier stack work
+2. Confirm the issue is unblocked — either its code-dependency chain is
+   satisfied, or it has no code dependency and branches from `main`
 3. Implement only the required change
 4. Update docs only if behavior changes within scope
 5. Run the smallest meaningful validation for touched projects
@@ -337,21 +364,21 @@ For each issue in the milestone:
    - no unrelated files were modified
 7. Commit the issue work
 8. Push the issue branch
-9. Open the draft PR
-10. Continue to the next issue in the stack
+9. Open the draft PR targeting the correct base (`main` or dependency branch)
+10. Continue to the next issue
 
-### 16.6 Dependency Rule
+### 16.7 Dependency Rule
 
-- Respect explicit dependency order
-- Treat issue order as a merge-safety contract, not only an execution order
-- Prefer the thinnest real slice when multiple issues appear unblocked
-- Do not reorder issues arbitrarily
-- Before opening each stacked PR, verify that its base branch is the
-  immediately previous issue branch from the declared order, unless that
-  previous issue has already been merged to `main` before work resumes
-- If an issue is blocked and no clearly unblocked milestone issue can be taken next without violating dependency order, STOP and report the blocker
+- Respect the dependency classification produced in §16.3
+- Only stack on a prior feature branch when a genuine compile-time or API
+  dependency exists — not merely because issues belong to the same milestone
+- Before opening each PR, verify the base branch matches the classification:
+  independent issues target `main`, dependent issues target their dependency
+- If a chain would require a depth greater than 3, stop and report
+- If an issue is blocked and no other unblocked milestone issue can be started
+  without violating the classification, STOP and report the blocker
 
-### 16.7 Failure Rule
+### 16.8 Failure Rule
 
 Stop execution immediately if any of the following occurs:
 
@@ -362,8 +389,8 @@ Stop execution immediately if any of the following occurs:
 - architecture violation would be required to proceed
 - validation fails and cannot be resolved within issue scope
 - stacked branch state becomes inconsistent
-- a PR would need to target an out-of-order, deleted, or already-merged stack
-  branch in order to continue
+- a PR would need to target an out-of-order, deleted, or already-merged branch
+- a dependency chain exceeds 3 branches
 
 When stopping, report:
 
@@ -372,17 +399,18 @@ When stopping, report:
 - impacted files
 - recommended next action
 
-### 16.8 Completion State
+### 16.9 Completion State
 
 At milestone completion:
 
 - all issue branches exist
 - all draft PRs are open
-- the PR stack is ordered correctly
+- independent issues have PRs targeting `main`
+- dependent issues have PRs targeting their dependency branch
 - nothing has been merged during unattended execution
-- the stack is ready for human review
+- the full set of PRs is ready for human review
 
-### 16.9 Interrupted Session Recovery
+### 16.10 Interrupted Session Recovery
 
 If an unattended stacked milestone session is interrupted and the operator
 merges any submitted PRs before work resumes:
@@ -403,7 +431,7 @@ merges any submitted PRs before work resumes:
 The goal is that a human can merge the submitted PRs in issue order after any
 interruption without causing avoidable conflicts or hidden dependency gaps.
 
-### 16.10 Post-Review Cleanup
+### 16.11 Post-Review Cleanup
 
 After the milestone stack is reviewed and merged, return to the normal cleanup rules:
 
