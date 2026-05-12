@@ -37,6 +37,12 @@ It is intentionally separate from roadmap and milestone planning docs.
 - agent readiness report generation for missing context, missing tests, risky
   modules, and next review steps, with optional JSON persistence under
   `summaries/first-run-readiness.json`
+- non-canonical mobile contribution packet intake: a deterministic markdown +
+  YAML frontmatter parser in `Memora.Core.Mobile`, a file-backed importer in
+  `Memora.Import.Mobile` that persists accepted packets under
+  `imports/mobile/<packet_id>.json`, and structured diagnostics that reject
+  packets carrying canonical fields, an unsupported version, or a mismatched
+  intent/lifecycle pair
 - SQLite schema plus rebuild-from-files indexing in `Memora.Index`
 - typed relationship indexing and direct, dependency, and impact traceability queries over approved artifacts
 - rebuild diagnostics distinguish filesystem truth from derived SQLite index state
@@ -167,6 +173,8 @@ It is intentionally separate from roadmap and milestone planning docs.
 - `src/Memora.Import/Readiness/FirstRunMemoryGenerator.cs`
 - `src/Memora.Import/Readiness/FileBackedFirstRunReportStore.cs`
 - `src/Memora.Import/Safety/ImportContentSafetyFilter.cs`
+- `src/Memora.Core/Mobile/MobilePacketParser.cs`
+- `src/Memora.Import/Mobile/FileBackedMobilePacketImporter.cs`
 
 ### Storage
 
