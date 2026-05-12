@@ -30,6 +30,7 @@ Docs must describe current implementation honestly and keep roadmap work clearly
 - `codex-integration.md` for the current Codex-oriented setup guidance
 - `chatgpt-integration.md` for the current ChatGPT-oriented read-only guidance
 - `remote-conversational-planning-gap-analysis.md` for the gap between the current external workflow proof and the desired remote planning-write workflow
+- `mobile-contribution-packet.md` for the planned Milestone 13 portable packet shape that mobile capture produces and desktop Memora ingests as non-canonical input
 - `delivery-process.md` for milestone closeout and stacked PR cleanup guidance
 - `milestones.md` for roadmap sequencing
 - `repo-intake-boundary.md` for the existing-repo understanding scan boundary (included/excluded paths, determinism rules)
