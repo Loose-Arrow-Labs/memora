@@ -32,6 +32,7 @@ Docs must describe current implementation honestly and keep roadmap work clearly
 - `remote-conversational-planning-gap-analysis.md` for the gap between the current external workflow proof and the desired remote planning-write workflow
 - `mobile-contribution-packet.md` for the planned Milestone 13 portable packet shape that mobile capture produces and desktop Memora ingests as non-canonical input
 - `mobile-nextcloud-transfer.md` for the Milestone 13 shared-folder bridge that moves mobile packets to desktop Memora without a hosted backend
+- `mobile-same-network-sync-feasibility.md` for the Milestone 13 design spike evaluating same-network sync transports and the explicit decision to defer
 - `delivery-process.md` for milestone closeout and stacked PR cleanup guidance
 - `milestones.md` for roadmap sequencing
 - `repo-intake-boundary.md` for the existing-repo understanding scan boundary (included/excluded paths, determinism rules)
