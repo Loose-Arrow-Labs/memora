@@ -326,7 +326,7 @@ public sealed class GitHubEvidenceImporterTests : IDisposable
             _apiResponses = apiResponses;
         }
 
-        public GitHubCliEvidenceClient.GhCommandResult Run(IReadOnlyList<string> arguments)
+        public GitHubCliEvidenceClient.GhCommandResult Run(IReadOnlyList<string> arguments, int timeoutMs)
         {
             if (arguments.SequenceEqual(["auth", "status"]))
             {

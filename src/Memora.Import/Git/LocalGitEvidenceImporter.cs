@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Memora.Core.Import;
 using Memora.Import.Evidence;
+using Memora.Import.Prerequisites;
 using Memora.Import.Safety;
 using Memora.Storage.Workspaces;
 
@@ -14,6 +15,7 @@ public sealed class LocalGitEvidenceImporter
     private readonly ILocalGitHistoryReader _historyReader;
     private readonly IImportedEvidenceStore _evidenceStore;
     private readonly ImportContentSafetyFilter _safetyFilter;
+    private readonly RuntimePrerequisiteChecker _prerequisiteChecker;
 
     public LocalGitEvidenceImporter(string workspacesRootPath)
         : this(
@@ -30,7 +32,8 @@ public sealed class LocalGitEvidenceImporter
         WorkspaceDiscovery workspaceDiscovery,
         ILocalGitHistoryReader historyReader,
         IImportedEvidenceStore evidenceStore,
-        ImportContentSafetyFilter? safetyFilter = null)
+        ImportContentSafetyFilter? safetyFilter = null,
+        RuntimePrerequisiteChecker? prerequisiteChecker = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workspacesRootPath);
 
@@ -39,11 +42,22 @@ public sealed class LocalGitEvidenceImporter
         _historyReader = historyReader ?? throw new ArgumentNullException(nameof(historyReader));
         _evidenceStore = evidenceStore ?? throw new ArgumentNullException(nameof(evidenceStore));
         _safetyFilter = safetyFilter ?? new ImportContentSafetyFilter();
+        _prerequisiteChecker = prerequisiteChecker ?? new RuntimePrerequisiteChecker();
     }
 
     public LocalGitEvidenceImportResult Import(LocalGitEvidenceImportRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var prerequisites = _prerequisiteChecker.Check();
+        if (!prerequisites.IsReady)
+        {
+            return Failed(
+                LocalGitImportDiagnostic.Error(
+                    prerequisites.Diagnostics[0].Code,
+                    prerequisites.Diagnostics[0].Message,
+                    prerequisites.Diagnostics[0].Tool));
+        }
 
         var workspace = TryFindWorkspace(request.ProjectId, out var workspaceDiagnostic);
         if (workspace is null)

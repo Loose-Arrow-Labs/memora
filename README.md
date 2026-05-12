@@ -13,6 +13,16 @@ Point Memora at a local or GitHub repository, import bounded project evidence,
 generate reviewable project memory, and give agents governed context they can
 cite instead of whatever they happen to infer from the current prompt.
 
+## Prerequisites
+
+- .NET 10 SDK
+- Git ≥ 2.0 (required for local repository import)
+- GitHub CLI (`gh`) ≥ 2.0 (required for GitHub evidence import; install from
+  https://cli.github.com and run `gh auth login` before first import)
+
+Memora detects missing or unsupported tool versions at import time and surfaces
+structured diagnostics before any evidence is persisted.
+
 ## Quick Start
 
 ```powershell
