@@ -9,7 +9,9 @@ public enum CandidateMemoryKind
     Outcome,
     ContributionStyle,
     Risk,
-    OpenQuestion
+    OpenQuestion,
+    Decision,
+    Contract
 }
 
 public enum CandidateMemoryDisposition
