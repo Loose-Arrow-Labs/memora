@@ -28,7 +28,7 @@ public static class AtomicFileWriter
                 writer.Write(contents);
             }
 
-            File.Move(tempPath, targetPath);
+            File.Move(tempPath, targetPath, overwrite: false);
             return AtomicFileWriteResult.Created;
         }
         catch (IOException exception) when (File.Exists(targetPath) && IsTargetAlreadyExistsMoveFailure(exception))

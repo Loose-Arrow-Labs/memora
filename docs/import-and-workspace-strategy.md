@@ -123,6 +123,40 @@ The boundary is intentionally conservative. Evidence says what was observed.
 Memory says what Memora is allowed to preserve as project understanding.
 Inferred meaning stays visible, provenance-backed, and reviewable.
 
+## Evidence Import Boundary (Metadata Only)
+
+Evidence import in v1 is **metadata-only**. The following fields are persisted
+for each evidence record:
+
+| Field | Examples |
+|-------|---------|
+| Stable id | deterministic hash of source + reference |
+| Source type | local Git commit, GitHub issue, PR, review, commit, release |
+| Title / subject | commit subject line, issue title, PR title |
+| Summary | short description or state |
+| Provenance | source URL or reference |
+| Observed/imported timestamps | |
+| Metadata key-value pairs | state, tags, file paths, PR number |
+
+The following are **not persisted** in v1:
+
+- issue bodies, PR descriptions, and review body text
+- inline review comment bodies and PR diff text
+- full commit message bodies (only the subject line is stored)
+- release notes bodies
+- discussion thread content
+
+This is an intentional v1 scope boundary, not a limitation of the import
+infrastructure. Body capture with its safety, lifecycle, and context-size
+implications is planned as a future roadmap item before implementation.
+
+Because only metadata is persisted, the safety filter described in
+`ImportContentSafetyFilter` correctly operates only on metadata fields. Claims
+that the filter prevents secrets in issue or PR bodies are out of scope for v1.
+
+Body capture and per-body safety implications should be addressed in a dedicated
+issue before any v2 body store is introduced.
+
 ## Hybrid Retrieval Boundary
 
 Project import is the first place Memora's hybrid retrieval strategy becomes
@@ -242,7 +276,9 @@ Memora should still keep interpretation honest:
 - directly observed facts may be baseline truth under the selected mode
 - inferred intent remains candidate memory
 - confidence and provenance must be visible
-- secret and privacy filtering happens before persistence
+- defensive metadata redaction for common token formats happens before
+  persistence; this is not a complete secret scanner (see
+  `ImportContentSafetyFilter` for covered formats)
 - all generated candidates must identify their evidence sources
 
 ## First-Run Success Criteria

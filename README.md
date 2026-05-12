@@ -13,6 +13,16 @@ Point Memora at a local or GitHub repository, import bounded project evidence,
 generate reviewable project memory, and give agents governed context they can
 cite instead of whatever they happen to infer from the current prompt.
 
+## Prerequisites
+
+- .NET 10 SDK
+- Git ≥ 2.0 (required for local repository import)
+- GitHub CLI (`gh`) ≥ 2.0 (required for GitHub evidence import; install from
+  https://cli.github.com and run `gh auth login` before first import)
+
+Memora detects missing or unsupported tool versions at import time and surfaces
+structured diagnostics before any evidence is persisted.
+
 ## Quick Start
 
 ```powershell
@@ -81,7 +91,8 @@ onboarding loop:
 1. create or select an app-managed Memora workspace
 2. attach one local Git or GitHub repository as a source
 3. choose an import mode before promotion behavior matters
-4. import bounded evidence with secret and privacy filtering
+4. import bounded evidence with defensive metadata redaction for common token
+   formats
 5. generate candidate memory and an agent readiness report
 6. inspect baseline evidence, baseline memory, and review-needed candidates
 7. expose project identity, readiness, and grounded context through MCP/OpenAPI
@@ -161,8 +172,11 @@ Implemented slices include:
 - first-run import modes, app-managed workspace placement, and local/GitHub
   repository attachment metadata
 - local Git and GitHub evidence import with stable provenance and idempotent
-  filesystem storage
-- secret and privacy filtering before imported evidence persistence
+  filesystem storage; v1 import is metadata-only (subjects, titles, states,
+  timestamps, file paths); issue/PR bodies, diffs, and full commit bodies are
+  not persisted in v1
+- defensive metadata redaction for a narrow set of common token formats before
+  imported evidence persistence; not a complete secret scanner
 - candidate memory and readiness report generation from imported evidence, with
   evidence-derived, inferred, and advisory/future-advisory source separation
 - deterministic context ranking, inclusion reasoning, bounded relationship
