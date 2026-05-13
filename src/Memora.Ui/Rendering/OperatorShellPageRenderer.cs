@@ -18,8 +18,11 @@ internal static class OperatorShellPageRenderer
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero\">");
         body.AppendLine("<p class=\"eyebrow\">Memora Human Loop</p>");
-        body.AppendLine("<h1>Minimal local operator shell</h1>");
-        body.AppendLine("<p class=\"lede\">Browse local workspace artifacts, inspect draft revisions, review the current approval queue, and jump into governed context views without changing canonical project truth.</p>");
+        body.AppendLine("<h1>Local project memory</h1>");
+        body.AppendLine("<p class=\"lede\">Create or select a Memora workspace, attach a local repository as an evidence source, and inspect governed context without uploading project code.</p>");
+        body.AppendLine("<div class=\"hero-actions\">");
+        body.AppendLine("<a class=\"button\" href=\"/get-started\">Get started</a>");
+        body.AppendLine("</div>");
         body.AppendLine("</section>");
 
         body.AppendLine("<section class=\"panel\">");
@@ -44,6 +47,60 @@ internal static class OperatorShellPageRenderer
         body.AppendLine(RenderScopeNote(options));
 
         return RenderLayout("Memora.Ui", options, projects, null, body.ToString());
+    }
+
+    public static string RenderGetStarted(
+        OperatorShellOptions options,
+        IReadOnlyList<OperatorProjectSummary> projects,
+        IReadOnlyList<string> validationErrors)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<section class=\"hero compact\">");
+        body.AppendLine("<p class=\"eyebrow\">Get Started</p>");
+        body.AppendLine("<h1>Attach a project</h1>");
+        body.AppendLine("<p class=\"lede\">Memora is local-first. It does not upload your repository. Create a Memora workspace here, then point it at a local Git checkout such as your portfolio repo.</p>");
+        body.AppendLine("</section>");
+
+        if (validationErrors.Count > 0)
+        {
+            body.AppendLine("<section class=\"panel alert\">");
+            body.AppendLine("<h2>Setup needs attention</h2>");
+            body.AppendLine("<ul class=\"list\">");
+            foreach (var error in validationErrors)
+            {
+                body.AppendLine($"<li>{Encode(error)}</li>");
+            }
+
+            body.AppendLine("</ul>");
+            body.AppendLine("</section>");
+        }
+
+        body.AppendLine("<section class=\"two-up\">");
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Create Workspace</h2><p class=\"muted\">Use a short id like <code>portfolio</code>. The repo path is optional, but this is where you attach your local project.</p></div>");
+        body.AppendLine("<form method=\"post\" action=\"/get-started/project\" class=\"edit-form\">");
+        body.AppendLine("<label><span>Project id</span><input type=\"text\" name=\"projectId\" value=\"portfolio\" /></label>");
+        body.AppendLine("<label><span>Display name</span><input type=\"text\" name=\"name\" value=\"Portfolio\" /></label>");
+        body.AppendLine("<label><span>Local Git repository path</span><input type=\"text\" name=\"localRepositoryPath\" placeholder=\"C:\\\\Users\\\\Alex Lucero\\\\source\\\\repos\\\\portfolio\" /></label>");
+        body.AppendLine("<button class=\"button\" type=\"submit\">Create workspace</button>");
+        body.AppendLine("</form>");
+        body.AppendLine("</article>");
+
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>GitHub Login</h2><p class=\"muted\">The app does not have an in-browser GitHub OAuth flow yet. Use GitHub CLI for now.</p></div>");
+        body.AppendLine("<pre>gh auth login</pre>");
+        body.AppendLine("<p>After logging in, Memora can use local GitHub tooling where current import paths support it. The installed UI still focuses on local workspaces and review surfaces.</p>");
+        body.AppendLine("<p><a class=\"button ghost\" href=\"/\">Back to projects</a></p>");
+        body.AppendLine("</article>");
+        body.AppendLine("</section>");
+
+        body.AppendLine("<section class=\"panel note\">");
+        body.AppendLine("<h2>What exists today</h2>");
+        body.AppendLine("<p>Project creation and local repository attachment are available here. Full in-app import execution, GitHub browser login, and upload-style onboarding are not current capabilities.</p>");
+        body.AppendLine($"<p class=\"muted\">Workspace root: {Encode(options.NormalizedWorkspacesRootPath)}</p>");
+        body.AppendLine("</section>");
+
+        return RenderLayout("Get started", options, projects, null, body.ToString());
     }
 
     public static string RenderProject(
@@ -665,7 +722,7 @@ internal static class OperatorShellPageRenderer
     {
         var html = new StringBuilder();
         html.AppendLine("<nav class=\"topnav\" aria-label=\"Primary navigation\">");
-        html.AppendLine("<div class=\"nav-group\"><span>Configure</span><a href=\"/\">Home</a>");
+        html.AppendLine("<div class=\"nav-group\"><span>Configure</span><a href=\"/\">Home</a><a href=\"/get-started\">Get Started</a>");
 
         if (!string.IsNullOrWhiteSpace(selectedProjectId))
         {

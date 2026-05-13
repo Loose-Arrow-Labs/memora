@@ -75,6 +75,30 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/get-started",
+    (LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    {
+        var html = OperatorShellPageRenderer.RenderGetStarted(options, service.GetProjects(), []);
+        return Results.Content(html, "text/html");
+    });
+
+app.MapPost(
+    "/get-started/project",
+    async (HttpRequest request, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    {
+        var form = await request.ReadFormAsync();
+        var result = service.CreateProject(OperatorCreateProjectInput.FromForm(form));
+
+        if (result.IsSuccess)
+        {
+            return Results.Redirect($"/projects/{Uri.EscapeDataString(result.ProjectId!)}");
+        }
+
+        var html = OperatorShellPageRenderer.RenderGetStarted(options, service.GetProjects(), result.ValidationErrors);
+        return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
+    });
+
+app.MapGet(
     "/projects/{projectId}",
     (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
     {
