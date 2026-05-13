@@ -6,6 +6,12 @@ namespace Memora.Context.Reasoning;
 
 public sealed class ContextInclusionReasoner
 {
+    // Request tokens carry a base weight (taskDescription=3, focusTags=4,
+    // focusArtifactIds=5). Artifact text weights are title=6, tags=5,
+    // headings=3, body=1. A "strong" match requires the product to exceed
+    // a title or tag hit on a task-description token: 3 * 5 = 15.
+    private const int StrongKeywordMatchThreshold = 15;
+
     public IReadOnlyList<ContextInclusionReason> ExplainInclusion(
         ContextBundleRequest request,
         ContextLayerKind layer,
@@ -94,9 +100,22 @@ public sealed class ContextInclusionReasoner
 
         if (rankedArtifact.Breakdown.DirectMatchStrength > 0)
         {
+            // Honest label: token overlap is what the deterministic ranker actually
+            // measures — keyword presence weighted by where the term appears
+            // (title > tags > headings > body). It is not a semantic match. A
+            // separate stronger label is emitted when the overlap is high enough
+            // that at least one request keyword hits a title or tag, which is
+            // closer to "this artifact is plausibly about the request".
             reasons.Add(new ContextInclusionReason(
-                "direct-task-match",
-                "Included because its content directly matches the request terms or focus tags."));
+                "request-keyword-overlap",
+                "Included because at least one request keyword appears in this artifact's title, tags, sections, or body."));
+
+            if (rankedArtifact.Breakdown.DirectMatchStrength >= StrongKeywordMatchThreshold)
+            {
+                reasons.Add(new ContextInclusionReason(
+                    "request-keyword-strong-match",
+                    "Included because a request keyword appears in this artifact's title or tags, not only in its body."));
+            }
         }
 
         return reasons;
