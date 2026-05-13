@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Memora.Mobile.MainPage"
+             Title="Memora Mobile Capture"
+             BackgroundColor="{StaticResource MemoraBackground}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <Label Text="Memora Mobile Capture" Style="{StaticResource HeaderLabel}" />
+            <Label Text="Local-first capture surface. Produces a non-canonical contribution packet for later desktop import."
+                   Style="{StaticResource SubtleLabel}" />
+
+            <!-- Intent -->
+            <Frame Style="{StaticResource SectionFrame}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="INTENT" Style="{StaticResource SectionLabel}" />
+                    <Picker x:Name="IntentPicker"
+                            Title="Pick an intent"
+                            SelectedIndexChanged="OnIntentChanged"
+                            Style="{StaticResource MemoraPicker}" />
+                    <Label x:Name="IntentHintLabel" Style="{StaticResource HintLabel}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Contribution -->
+            <Frame Style="{StaticResource SectionFrame}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="CONTRIBUTION" Style="{StaticResource SectionLabel}" />
+                    <Label Text="Title" Style="{StaticResource FieldLabel}" />
+                    <Entry x:Name="TitleEntry"
+                           Placeholder="Short human-readable label"
+                           MaxLength="200"
+                           TextChanged="OnFormChanged"
+                           Style="{StaticResource MemoraEntry}" />
+
+                    <Label Text="Body (markdown)" Style="{StaticResource FieldLabel}" />
+                    <Editor x:Name="BodyEditor"
+                            AutoSize="TextChanges"
+                            HeightRequest="200"
+                            TextChanged="OnBodyChanged"
+                            Style="{StaticResource MemoraEditor}" />
+                    <Label Text="Body template fills in when intent changes. Edit freely."
+                           Style="{StaticResource HintLabel}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Optional context -->
+            <Frame Style="{StaticResource SectionFrame}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="OPTIONAL CONTEXT" Style="{StaticResource SectionLabel}" />
+
+                    <Label Text="Tags" Style="{StaticResource FieldLabel}" />
+                    <Entry x:Name="TagsEntry"
+                           Placeholder="comma, separated, list"
+                           TextChanged="OnFormChanged"
+                           Style="{StaticResource MemoraEntry}" />
+
+                    <Label Text="Target project hint" Style="{StaticResource FieldLabel}" />
+                    <Entry x:Name="TargetHintEntry"
+                           Placeholder="workspace name or repo slug"
+                           TextChanged="OnFormChanged"
+                           Style="{StaticResource MemoraEntry}" />
+
+                    <Label Text="Device label" Style="{StaticResource FieldLabel}" />
+                    <Entry x:Name="DeviceLabelEntry"
+                           Placeholder="capture device or app version hint"
+                           TextChanged="OnFormChanged"
+                           Style="{StaticResource MemoraEntry}" />
+
+                    <VerticalStackLayout x:Name="ProposedTypeContainer" Spacing="4" IsVisible="False">
+                        <Label Text="Proposed artifact type" Style="{StaticResource FieldLabel}" />
+                        <Picker x:Name="ProposedTypePicker"
+                                Title="(unspecified)"
+                                SelectedIndexChanged="OnFormChanged"
+                                Style="{StaticResource MemoraPicker}" />
+                        <Label Text="Only meaningful for decision drafts and proposal drafts."
+                               Style="{StaticResource HintLabel}" />
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Envelope -->
+            <Frame Style="{StaticResource SectionFrame}">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="ENVELOPE" Style="{StaticResource SectionLabel}" />
+                    <Grid ColumnDefinitions="Auto,*" RowSpacing="4" ColumnSpacing="12">
+                        <Label Grid.Row="0" Grid.Column="0" Text="packet_version" Style="{StaticResource MetaKey}" />
+                        <Label Grid.Row="0" Grid.Column="1" Text="1" Style="{StaticResource MetaValue}" />
+
+                        <Label Grid.Row="1" Grid.Column="0" Text="packet_id" Style="{StaticResource MetaKey}" />
+                        <Label Grid.Row="1" Grid.Column="1" x:Name="MetaPacketId" Style="{StaticResource MetaValue}" />
+
+                        <Label Grid.Row="2" Grid.Column="0" Text="created_at" Style="{StaticResource MetaKey}" />
+                        <Label Grid.Row="2" Grid.Column="1" x:Name="MetaCreatedAt" Style="{StaticResource MetaValue}" />
+
+                        <Label Grid.Row="3" Grid.Column="0" Text="source" Style="{StaticResource MetaKey}" />
+                        <Label Grid.Row="3" Grid.Column="1" Text="mobile" Style="{StaticResource MetaValue}" />
+
+                        <Label Grid.Row="4" Grid.Column="0" Text="canonical" Style="{StaticResource MetaKey}" />
+                        <Label Grid.Row="4" Grid.Column="1" Text="false" Style="{StaticResource MetaValue}" />
+
+                        <Label Grid.Row="5" Grid.Column="0" Text="lifecycle_target" Style="{StaticResource MetaKey}" />
+                        <Label Grid.Row="5" Grid.Column="1" x:Name="MetaLifecycleTarget" Style="{StaticResource MetaValue}" />
+
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                    </Grid>
+                    <Label Text="packet_id and created_at are generated when the form loads."
+                           Style="{StaticResource HintLabel}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Preview -->
+            <Frame Style="{StaticResource SectionFrame}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="PACKET PREVIEW" Style="{StaticResource SectionLabel}" />
+                    <Editor x:Name="PreviewEditor"
+                            IsReadOnly="True"
+                            AutoSize="TextChanges"
+                            Style="{StaticResource MemoraPreviewEditor}" />
+                    <Label x:Name="ErrorsLabel" Style="{StaticResource ErrorLabel}" />
+                    <Label Text="Copy, file export, and local save are added in M13-03."
+                           Style="{StaticResource HintLabel}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label Text="Packet format: docs/mobile-contribution-packet.md. This surface is intentionally narrow: capture only, no copy/export/save controls yet."
+                   Style="{StaticResource HintLabel}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>
