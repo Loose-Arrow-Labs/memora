@@ -42,9 +42,8 @@ project memory, not as chat history or an execution runtime. Specifically:
 
 ## What Already Landed (Do Not Redo)
 
-Five open draft PRs against `main`, all green locally, all independent
-unless noted. Base your work on `main` after these land (or on the
-relevant PR's head if they are still open):
+Five PRs have already merged to `main`. Do not re-implement any of the
+following:
 
 - **PR #376** `feature/get-started-and-installer-package` — `/get-started`
   GET and `/get-started/project` POST routes that create a workspace
@@ -83,16 +82,13 @@ relevant PR's head if they are still open):
   PBR-11 (#366); the issue stays open in case dogfooding finds more
   strings.
 
-Do not re-implement any of the above. Treat each PR as known-good. If a
-PR is still open when you start, base your work on its head; if it has
-been merged, base on updated `main`. PRs are independent and can land
-in any order.
+Base your work on updated `main` (all five PRs above are merged).
 
 ## In-Scope: Trusted-Circle Beta Milestone
 
-GitHub milestone: **Trusted-Circle Beta** (number 20). After this turn's
-work landed PBR-01, PBR-02, PBR-04, and PBR-11 as the five PRs above,
-three issues remain on the milestone:
+GitHub milestone: **Trusted-Circle Beta** (number 20). After the five PRs
+above landed PBR-01, PBR-02, PBR-04, and PBR-11, three issues remain on
+the milestone:
 
 1. **#372 PBR-17** Finish the in-product attach-a-project flow. The
    local-repo half is done (PR #376). The GitHub side is not. For
