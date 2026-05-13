@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <Style x:Key="HeaderLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInk}" />
+    </Style>
+
+    <Style x:Key="SubtleLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInkDim}" />
+    </Style>
+
+    <Style x:Key="SectionLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="CharacterSpacing" Value="1.5" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInkDim}" />
+    </Style>
+
+    <Style x:Key="FieldLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInkDim}" />
+    </Style>
+
+    <Style x:Key="HintLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInkDim}" />
+    </Style>
+
+    <Style x:Key="ErrorLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraWarn}" />
+    </Style>
+
+    <Style x:Key="MetaKey" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInkDim}" />
+    </Style>
+
+    <Style x:Key="MetaValue" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInk}" />
+        <Setter Property="LineBreakMode" Value="CharacterWrap" />
+    </Style>
+
+    <Style x:Key="SectionFrame" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource MemoraPanel}" />
+        <Setter Property="BorderColor" Value="{StaticResource MemoraBorder}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="HasShadow" Value="False" />
+    </Style>
+
+    <Style x:Key="MemoraEntry" TargetType="Entry">
+        <Setter Property="BackgroundColor" Value="{StaticResource MemoraPanel2}" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInk}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource MemoraInkDim}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style x:Key="MemoraEditor" TargetType="Editor">
+        <Setter Property="BackgroundColor" Value="{StaticResource MemoraPanel2}" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInk}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource MemoraInkDim}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+    </Style>
+
+    <Style x:Key="MemoraPreviewEditor" TargetType="Editor">
+        <Setter Property="BackgroundColor" Value="{StaticResource MemoraPanel2}" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInk}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+    </Style>
+
+    <Style x:Key="MemoraPicker" TargetType="Picker">
+        <Setter Property="BackgroundColor" Value="{StaticResource MemoraPanel2}" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInk}" />
+        <Setter Property="TitleColor" Value="{StaticResource MemoraInkDim}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style TargetType="NavigationPage">
+        <Setter Property="BarBackgroundColor" Value="{StaticResource MemoraPanel}" />
+        <Setter Property="BarTextColor" Value="{StaticResource MemoraInk}" />
+    </Style>
+
+</ResourceDictionary>
