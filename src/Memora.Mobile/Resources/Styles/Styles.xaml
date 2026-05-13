@@ -91,4 +91,56 @@
         <Setter Property="BarTextColor" Value="{StaticResource MemoraInk}" />
     </Style>
 
+    <Style x:Key="MemoraButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource MemoraPanel2}" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInk}" />
+        <Setter Property="BorderColor" Value="{StaticResource MemoraBorder}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="HorizontalOptions" Value="Fill" />
+    </Style>
+
+    <Style x:Key="MemoraPrimaryButton" TargetType="Button" BasedOn="{StaticResource MemoraButton}">
+        <Setter Property="BackgroundColor" Value="#1F2C4D" />
+        <Setter Property="BorderColor" Value="{StaticResource MemoraAccent}" />
+    </Style>
+
+    <Style x:Key="MemoraGhostButton" TargetType="Button" BasedOn="{StaticResource MemoraButton}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+    </Style>
+
+    <Style x:Key="MemoraSmallButton" TargetType="Button" BasedOn="{StaticResource MemoraButton}">
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="HorizontalOptions" Value="Start" />
+    </Style>
+
+    <Style x:Key="MemoraSmallGhostButton" TargetType="Button" BasedOn="{StaticResource MemoraSmallButton}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+    </Style>
+
+    <Style x:Key="SavedItemFrame" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource MemoraPanel2}" />
+        <Setter Property="BorderColor" Value="{StaticResource MemoraBorder}" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="HasShadow" Value="False" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+
+    <Style x:Key="BadgeFrame" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource MemoraPanel}" />
+        <Setter Property="BorderColor" Value="{StaticResource MemoraBorder}" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="HasShadow" Value="False" />
+    </Style>
+
+    <Style x:Key="BadgeLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="TextColor" Value="{StaticResource MemoraInkDim}" />
+    </Style>
+
 </ResourceDictionary>

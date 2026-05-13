@@ -22,18 +22,25 @@ A single-page Android app that:
   - `lifecycle_target` constrained to non-canonical values
   - reserved canonical fields (`status`, `revision`, `project_id`, `id`,
     `approved_at`, `approved_by`) are never emitted
+- copies the current packet to the system clipboard
+- shares the current packet as a `.md` file through the Android share
+  sheet (so the file can land in Nextcloud, Drive, a chat app, or the
+  device's storage without Memora knowing or caring which)
+- saves and re-opens captured packets in app-private storage at
+  `FileSystem.AppDataDirectory/saved-packets/<packet_id>.json`
 
-## What It Is Not (M13-02)
+## What It Is Not
 
-This project is the M13-02 capture slice only. The following are
-deliberately out of scope and arrive in later issues:
+The following remain out of scope for this app and arrive in later
+Milestone 13 issues:
 
-- copy to clipboard (M13-03)
-- file export (M13-03)
-- local save and packet history (M13-03)
 - desktop import path (M13-04 — already in `Memora.Import.Mobile`)
-- shared-folder transfer (M13-05)
+- shared-folder transfer workflow (M13-05)
 - same-network sync (M13-06 — deferred)
+
+This is still a local-first capture app. There is no upload, no sync,
+and no remote backend. App-private storage is scoped to one device and
+one app install; uninstalling the app removes saved packets.
 
 ## Target Platforms
 
