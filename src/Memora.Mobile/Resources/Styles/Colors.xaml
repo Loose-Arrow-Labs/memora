@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <Color x:Key="MemoraBackground">#0F1115</Color>
+    <Color x:Key="MemoraPanel">#161A22</Color>
+    <Color x:Key="MemoraPanel2">#1D2230</Color>
+    <Color x:Key="MemoraInk">#E6E8EE</Color>
+    <Color x:Key="MemoraInkDim">#97A0B3</Color>
+    <Color x:Key="MemoraAccent">#7AA6FF</Color>
+    <Color x:Key="MemoraBorder">#2A3041</Color>
+    <Color x:Key="MemoraWarn">#FFB86B</Color>
+
+</ResourceDictionary>
