@@ -154,6 +154,7 @@ public sealed class LocalOperatorWorkspaceService
         {
             OperatorReviewDecision.Approve => ApproveReviewItem(artifactView),
             OperatorReviewDecision.Reject => RejectReviewItem(artifactView),
+            OperatorReviewDecision.Promote => PromoteReviewItem(artifactView),
             _ => OperatorReviewDecisionResult.Invalid(["Unsupported review decision."])
         };
     }
@@ -221,6 +222,33 @@ public sealed class LocalOperatorWorkspaceService
 
         return OperatorReviewDecisionResult.Success(
             $"Approved {decision.ApprovedArtifact.Id} revision {decision.ApprovedArtifact.Revision}.");
+    }
+
+    private OperatorReviewDecisionResult PromoteReviewItem(OperatorArtifactView artifactView)
+    {
+        var decision = _approvalWorkflow.Promote(
+            artifactView.SelectedArtifact.Artifact,
+            DateTimeOffset.UtcNow);
+
+        if (!decision.IsSuccess || decision.PromotedArtifact is null)
+        {
+            return OperatorReviewDecisionResult.Invalid(
+                decision.Validation.Issues.Select(issue => issue.DiagnosticMessage));
+        }
+
+        try
+        {
+            File.WriteAllText(
+                artifactView.SelectedArtifact.FilePath,
+                _artifactMarkdownWriter.Write(decision.PromotedArtifact));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return OperatorReviewDecisionResult.Invalid([$"Promotion persistence failed: {exception.Message}"]);
+        }
+
+        return OperatorReviewDecisionResult.Success(
+            $"Promoted {decision.PromotedArtifact.Id} revision {decision.PromotedArtifact.Revision} to draft. Re-open the queue to review and approve it.");
     }
 
     private OperatorReviewDecisionResult RejectReviewItem(OperatorArtifactView artifactView)
@@ -799,7 +827,8 @@ public sealed record OperatorArtifactEditInput(
 public enum OperatorReviewDecision
 {
     Approve,
-    Reject
+    Reject,
+    Promote
 }
 
 public sealed class OperatorReviewDecisionResult

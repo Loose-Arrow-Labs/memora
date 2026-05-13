@@ -405,6 +405,75 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
+    public async Task Review_promote_proposal_transitions_to_draft_and_enables_approve_button()
+    {
+        using var factory = new OperatorShellFactory();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory, new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        await OperatorShellFactory.WriteProposedPlanAsync(
+            workspaceRoot,
+            "PLN-995",
+            "Promotable proposal",
+            "evidence:missing-evidence",
+            "missing-evidence");
+        var draftPath = Path.Combine(workspaceRoot, "drafts", "plan", "PLN-995.r0001.md");
+
+        // Before promotion, the review page should show a Promote-to-draft form and no Approve form.
+        using var beforeClient = LocalAuthTestClient.CreateAuthorizedClient(factory);
+        var beforeHtml = await beforeClient.GetStringAsync("/projects/demo-project/review?path=drafts/plan/PLN-995.r0001.md");
+        Assert.Contains("Promote to draft", beforeHtml, StringComparison.Ordinal);
+        Assert.Contains("\"decision\" value=\"Promote\"", beforeHtml, StringComparison.Ordinal);
+
+        var response = await client.PostAsync(
+            "/projects/demo-project/review/decision",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["path"] = "drafts/plan/PLN-995.r0001.md",
+                ["decision"] = "Promote"
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.True(File.Exists(draftPath));
+        var promotedContents = await File.ReadAllTextAsync(draftPath);
+        Assert.Contains("status: draft", promotedContents, StringComparison.Ordinal);
+        Assert.DoesNotContain("status: proposed", promotedContents, StringComparison.Ordinal);
+
+        // After promotion, the review page should show an Approve form and no Promote form.
+        var afterHtml = await beforeClient.GetStringAsync("/projects/demo-project/review?path=drafts/plan/PLN-995.r0001.md");
+        Assert.Contains("\"decision\" value=\"Approve\"", afterHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"decision\" value=\"Promote\"", afterHtml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Review_promote_rejects_draft_artifact_with_validation_error()
+    {
+        using var factory = new OperatorShellFactory();
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(factory, new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
+        var draftPath = Path.Combine(workspaceRoot, "drafts", "plan", "PLN-001.r0001.md");
+        Assert.True(File.Exists(draftPath), "Expected the seeded PLN-001 draft to be present.");
+        var contentsBefore = await File.ReadAllTextAsync(draftPath);
+        Assert.Contains("status: draft", contentsBefore, StringComparison.Ordinal);
+
+        var response = await client.PostAsync(
+            "/projects/demo-project/review/decision",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["path"] = "drafts/plan/PLN-001.r0001.md",
+                ["decision"] = "Promote"
+            }));
+
+        // The decision route returns 400 + a re-rendered review page on validation
+        // failure (per Program.cs). Status should remain "draft" because Promote
+        // refuses non-proposed artifacts.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("approval.promote.status.invalid", body, StringComparison.Ordinal);
+        var contentsAfter = await File.ReadAllTextAsync(draftPath);
+        Assert.Equal(contentsBefore, contentsAfter);
+    }
+
+    [Fact]
     public async Task Root_without_local_token_returns_unauthorized()
     {
         using var client = _factory.CreateClient();

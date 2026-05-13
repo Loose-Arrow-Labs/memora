@@ -101,6 +101,10 @@ It is intentionally separate from roadmap and milestone planning docs.
   evidence provenance inspection, and decision-readiness context
 - UI approval and rejection actions routed through the existing governed
   approval workflow with filesystem-backed persistence
+- UI "Promote to draft" action for proposed artifacts that transitions
+  them to `draft` through the governed lifecycle so the existing
+  draft -> approved approval flow becomes reachable without hand-editing
+  YAML frontmatter
 - trust dashboard summary for pending proposals, stale drafts, relationship and
   rebuild diagnostics, missing project memory, and import warnings
 - grouped operator navigation for review, observe, trust, and configure
