@@ -127,12 +127,75 @@
                             AutoSize="TextChanges"
                             Style="{StaticResource MemoraPreviewEditor}" />
                     <Label x:Name="ErrorsLabel" Style="{StaticResource ErrorLabel}" />
-                    <Label Text="Copy, file export, and local save are added in M13-03."
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+                        <Button Grid.Row="0" Grid.Column="0"
+                                x:Name="CopyButton"
+                                Text="Copy to clipboard"
+                                Style="{StaticResource MemoraPrimaryButton}"
+                                Clicked="OnCopyClicked" />
+                        <Button Grid.Row="0" Grid.Column="1"
+                                x:Name="ShareButton"
+                                Text="Share .md file"
+                                Style="{StaticResource MemoraButton}"
+                                Clicked="OnShareClicked" />
+                        <Button Grid.Row="1" Grid.Column="0"
+                                x:Name="SaveButton"
+                                Text="Save on device"
+                                Style="{StaticResource MemoraButton}"
+                                Clicked="OnSaveClicked" />
+                        <Button Grid.Row="1" Grid.Column="1"
+                                x:Name="NewButton"
+                                Text="New packet"
+                                Style="{StaticResource MemoraGhostButton}"
+                                Clicked="OnNewClicked" />
+                    </Grid>
+                    <Label Text="Share opens the Android share sheet so the file lands in a shared folder, a chat app, or the device's storage. Save on device persists to app-private storage."
                            Style="{StaticResource HintLabel}" />
                 </VerticalStackLayout>
             </Frame>
 
-            <Label Text="Packet format: docs/mobile-contribution-packet.md. This surface is intentionally narrow: capture only, no copy/export/save controls yet."
+            <!-- Saved on this device -->
+            <Frame Style="{StaticResource SectionFrame}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="SAVED ON THIS DEVICE" Style="{StaticResource SectionLabel}" />
+                    <Label x:Name="SavedEmptyLabel"
+                           Text="No packets saved on this device yet."
+                           Style="{StaticResource HintLabel}"
+                           IsVisible="False" />
+                    <CollectionView x:Name="SavedList" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Style="{StaticResource SavedItemFrame}">
+                                    <VerticalStackLayout Spacing="4">
+                                        <HorizontalStackLayout Spacing="8">
+                                            <Frame Style="{StaticResource BadgeFrame}">
+                                                <Label Text="{Binding IntentLabel}" Style="{StaticResource BadgeLabel}" />
+                                            </Frame>
+                                            <Label Text="{Binding DisplayTitle}"
+                                                   Style="{StaticResource FieldLabel}"
+                                                   LineBreakMode="TailTruncation"
+                                                   HorizontalOptions="FillAndExpand" />
+                                        </HorizontalStackLayout>
+                                        <Label Text="{Binding MetaLine}" Style="{StaticResource HintLabel}" />
+                                        <HorizontalStackLayout Spacing="8">
+                                            <Button Text="Open"
+                                                    Style="{StaticResource MemoraSmallButton}"
+                                                    Clicked="OnOpenSavedClicked"
+                                                    CommandParameter="{Binding PacketId}" />
+                                            <Button Text="Delete"
+                                                    Style="{StaticResource MemoraSmallGhostButton}"
+                                                    Clicked="OnDeleteSavedClicked"
+                                                    CommandParameter="{Binding PacketId}" />
+                                        </HorizontalStackLayout>
+                                    </VerticalStackLayout>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label Text="Packet format: docs/mobile-contribution-packet.md. All actions stay on the device: copy uses the clipboard, share routes through the Android share sheet, save writes to app-private storage."
                    Style="{StaticResource HintLabel}" />
 
         </VerticalStackLayout>
