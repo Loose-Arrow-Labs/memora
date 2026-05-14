@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using Memora.Core.Artifacts;
 using Memora.Core.Import;
+using Memora.Import.GitHub;
 using Memora.Import.Readiness;
 using Memora.Ui.FirstRunImport;
 using Memora.Ui.Operator;
@@ -18,8 +19,11 @@ internal static class OperatorShellPageRenderer
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero\">");
         body.AppendLine("<p class=\"eyebrow\">Memora Human Loop</p>");
-        body.AppendLine("<h1>Minimal local operator shell</h1>");
-        body.AppendLine("<p class=\"lede\">Browse local workspace artifacts, inspect draft revisions, review the current approval queue, and jump into governed context views without changing canonical project truth.</p>");
+        body.AppendLine("<h1>Local project memory</h1>");
+        body.AppendLine("<p class=\"lede\">Create or select a Memora workspace, attach a local repository as an evidence source, and inspect governed context without uploading project code.</p>");
+        body.AppendLine("<div class=\"hero-actions\">");
+        body.AppendLine("<a class=\"button\" href=\"/get-started\">Get started</a>");
+        body.AppendLine("</div>");
         body.AppendLine("</section>");
 
         body.AppendLine("<section class=\"panel\">");
@@ -44,6 +48,145 @@ internal static class OperatorShellPageRenderer
         body.AppendLine(RenderScopeNote(options));
 
         return RenderLayout("Memora.Ui", options, projects, null, body.ToString());
+    }
+
+    public static string RenderGetStarted(
+        OperatorShellOptions options,
+        IReadOnlyList<OperatorProjectSummary> projects,
+        IReadOnlyList<string> validationErrors)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<section class=\"hero compact\">");
+        body.AppendLine("<p class=\"eyebrow\">Get Started</p>");
+        body.AppendLine("<h1>Attach a project</h1>");
+        body.AppendLine("<p class=\"lede\">Memora is local-first. It does not upload your repository. Create a Memora workspace here, then point it at a local Git checkout such as your portfolio repo.</p>");
+        body.AppendLine("</section>");
+
+        if (validationErrors.Count > 0)
+        {
+            body.AppendLine("<section class=\"panel alert\">");
+            body.AppendLine("<h2>Setup needs attention</h2>");
+            body.AppendLine("<ul class=\"list\">");
+            foreach (var error in validationErrors)
+            {
+                body.AppendLine($"<li>{Encode(error)}</li>");
+            }
+
+            body.AppendLine("</ul>");
+            body.AppendLine("</section>");
+        }
+
+        body.AppendLine("<section class=\"two-up\">");
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Create Workspace</h2><p class=\"muted\">Use a short id like <code>portfolio</code>. The repo path is optional, but this is where you attach your local project.</p></div>");
+        body.AppendLine("<form method=\"post\" action=\"/get-started/project\" class=\"edit-form\">");
+        body.AppendLine("<label><span>Project id</span><input type=\"text\" name=\"projectId\" value=\"portfolio\" /></label>");
+        body.AppendLine("<label><span>Display name</span><input type=\"text\" name=\"name\" value=\"Portfolio\" /></label>");
+        body.AppendLine("<label><span>Local Git repository path</span><input type=\"text\" name=\"localRepositoryPath\" placeholder=\"C:\\\\Users\\\\Alex Lucero\\\\source\\\\repos\\\\portfolio\" /></label>");
+        body.AppendLine("<button class=\"button\" type=\"submit\">Create workspace</button>");
+        body.AppendLine("</form>");
+        body.AppendLine("</article>");
+
+        body.AppendLine("<article class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Import From GitHub</h2><p class=\"muted\">Paste a GitHub personal access token (PAT). Memora will list your repositories so you can pick one. No OAuth, no browser redirect, no upload.</p></div>");
+        body.AppendLine("<form method=\"post\" action=\"/get-started/github/repos\" class=\"edit-form\">");
+        body.AppendLine("<label><span>Project id</span><input type=\"text\" name=\"projectId\" placeholder=\"acme-portfolio\" required /></label>");
+        body.AppendLine("<label><span>Display name</span><input type=\"text\" name=\"name\" placeholder=\"Acme portfolio\" /></label>");
+        body.AppendLine("<label><span>GitHub personal access token</span><input type=\"password\" name=\"personalAccessToken\" autocomplete=\"off\" required /></label>");
+        body.AppendLine("<p class=\"muted\">Token stays on this machine for the duration of the request. Memora does not write it to disk. Use a fine-grained token with read access to the repositories you want to import.</p>");
+        body.AppendLine("<button class=\"button\" type=\"submit\">Continue</button>");
+        body.AppendLine("</form>");
+        body.AppendLine("<p class=\"muted\">Already have <code>gh</code> authenticated locally? The local Git path above will work for any cloned checkout without a token.</p>");
+        body.AppendLine("</article>");
+        body.AppendLine("</section>");
+
+        body.AppendLine("<section class=\"panel note\">");
+        body.AppendLine("<h2>What exists today</h2>");
+        body.AppendLine("<p>Project creation, local repository attachment, and GitHub-via-PAT attach-and-import are available here. Full OAuth, organization-level consent, and live progress streaming during import remain follow-up scope.</p>");
+        body.AppendLine($"<p class=\"muted\">Workspace root: {Encode(options.NormalizedWorkspacesRootPath)}</p>");
+        body.AppendLine("</section>");
+
+        return RenderLayout("Get started", options, projects, null, body.ToString());
+    }
+
+    public static string RenderGitHubRepoPicker(
+        OperatorShellOptions options,
+        IReadOnlyList<OperatorProjectSummary> projects,
+        GitHubRepoPickerPageModel page)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<section class=\"hero compact\">");
+        body.AppendLine("<p class=\"eyebrow\">Get started · GitHub</p>");
+        body.AppendLine($"<h1>Pick a repository for {Encode(page.AccountLogin)}</h1>");
+        body.AppendLine("<p class=\"lede\">Memora will create a workspace, attach the selected GitHub repository, and run a bounded evidence import.</p>");
+        body.AppendLine("</section>");
+
+        if (page.ValidationErrors.Count > 0)
+        {
+            body.AppendLine("<section class=\"panel alert\">");
+            body.AppendLine("<h2>Setup needs attention</h2>");
+            body.AppendLine("<ul class=\"list\">");
+            foreach (var error in page.ValidationErrors)
+            {
+                body.AppendLine($"<li>{Encode(error)}</li>");
+            }
+
+            body.AppendLine("</ul>");
+            body.AppendLine("</section>");
+        }
+
+        body.AppendLine("<section class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Choose a repository</h2><p class=\"muted\">Showing repositories your token can access. Newest activity first.</p></div>");
+
+        if (page.Repositories.Count == 0)
+        {
+            body.AppendLine("<p>The token did not surface any repositories. Check token scopes and organization access, then start over.</p>");
+            body.AppendLine("<p><a class=\"button ghost\" href=\"/get-started\">Back to get started</a></p>");
+            body.AppendLine("</section>");
+            return RenderLayout("Pick a GitHub repository", options, projects, null, body.ToString());
+        }
+
+        body.AppendLine("<form method=\"post\" action=\"/get-started/github/start\" class=\"edit-form\">");
+        body.AppendLine($"<input type=\"hidden\" name=\"projectId\" value=\"{Encode(page.ProjectId)}\" />");
+        body.AppendLine($"<input type=\"hidden\" name=\"name\" value=\"{Encode(page.Name)}\" />");
+        body.AppendLine($"<input type=\"hidden\" name=\"personalAccessToken\" value=\"{Encode(page.PersonalAccessToken)}\" />");
+
+        body.AppendLine("<div class=\"table-scroll\">");
+        body.AppendLine("<table><thead><tr><th></th><th>Repository</th><th>Visibility</th><th>Default branch</th><th>Updated</th></tr></thead><tbody>");
+        var first = true;
+        foreach (var repository in page.Repositories)
+        {
+            var visibility = repository.IsPrivate ? "private" : "public";
+            var updated = repository.UpdatedAtUtc?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "unknown";
+            var checkedAttribute = first ? " checked" : string.Empty;
+            first = false;
+            body.AppendLine("<tr>");
+            body.AppendLine($"<td><input type=\"radio\" name=\"repositoryFullName\" value=\"{Encode(repository.FullName)}\" required{checkedAttribute} /></td>");
+            body.AppendLine($"<td><code>{Encode(repository.FullName)}</code></td>");
+            body.AppendLine($"<td>{Encode(visibility)}</td>");
+            body.AppendLine($"<td>{Encode(repository.DefaultBranch)}</td>");
+            body.AppendLine($"<td>{Encode(updated)}</td>");
+            body.AppendLine("</tr>");
+        }
+
+        body.AppendLine("</tbody></table>");
+        body.AppendLine("</div>");
+
+        body.AppendLine("<label><span>Import mode</span>");
+        body.AppendLine("<select name=\"importMode\">");
+        body.AppendLine("<option value=\"fast_baseline\" selected>Fast baseline — quick demo path, evidence stays reviewable</option>");
+        body.AppendLine("<option value=\"strict_governance\">Strict governance — every record must be reviewed before promotion</option>");
+        body.AppendLine("<option value=\"evidence_canonical\">Evidence canonical — imported evidence is treated as canonical</option>");
+        body.AppendLine("<option value=\"bulk_approval\">Bulk approval — group-approve baseline candidates</option>");
+        body.AppendLine("</select></label>");
+
+        body.AppendLine("<p class=\"muted\">Import is synchronous in this build. The page will refresh once evidence is persisted; large repositories may take longer than a normal request.</p>");
+        body.AppendLine("<button class=\"button\" type=\"submit\">Start import</button>");
+        body.AppendLine("<a class=\"button ghost\" href=\"/get-started\">Cancel</a>");
+        body.AppendLine("</form>");
+        body.AppendLine("</section>");
+
+        return RenderLayout("Pick a GitHub repository", options, projects, null, body.ToString());
     }
 
     public static string RenderProject(
@@ -398,7 +541,7 @@ internal static class OperatorShellPageRenderer
             var reviewLink = BuildReviewLink(snapshot.Workspace.ProjectId, item.Record.RelativePath);
             html.AppendLine("<tr>");
             html.AppendLine($"<td><strong>{Encode(artifact.Title)}</strong><br><code>{Encode(artifact.Id)}</code></td>");
-            html.AppendLine($"<td>{RenderStatusBadge(artifact.Status)}<br><span class=\"muted\">Non-canonical</span></td>");
+            html.AppendLine($"<td>{RenderStatusBadge(artifact.Status)}<br><span class=\"muted\">Pending review</span></td>");
             html.AppendLine($"<td>{Encode(artifact.Type.ToSchemaValue())}</td>");
             html.AppendLine($"<td>{Encode(artifact.Revision.ToString(CultureInfo.InvariantCulture))}</td>");
             html.AppendLine($"<td>{Encode(artifact.Provenance)}<br><span class=\"muted\">{Encode(artifact.Reason)}</span></td>");
@@ -448,9 +591,9 @@ internal static class OperatorShellPageRenderer
         if (artifact.Status == ArtifactStatus.Proposed)
         {
             body.AppendLine(ReviewUiComponents.RenderPanel(
-                "Non-Canonical Proposal",
-                "This proposal is review input only; it is not approved project truth.",
-                "<p>Use this view to inspect metadata, provenance, sections, and diff context before a governed lifecycle action changes filesystem-backed state.</p>",
+                "Pending review",
+                "This entry was proposed by an agent or operator. It is not part of approved project memory yet.",
+                "<p>Inspect the contents and provenance below, then choose <strong>Promote to draft</strong> to send it through the approval flow, or <strong>Reject</strong> to discard it.</p>",
                 "note"));
         }
 
@@ -512,11 +655,6 @@ internal static class OperatorShellPageRenderer
 
         body.AppendLine("</section>");
         body.AppendLine(RenderDecisionPanel(view));
-        body.AppendLine("<section class=\"panel note\">");
-        body.AppendLine("<h2>Current UI boundary</h2>");
-        body.AppendLine("<p>Approval and rejection actions now persist through the governed core workflow. The UI still cannot directly edit canonical truth or bypass lifecycle validation.</p>");
-        body.AppendLine("</section>");
-        body.AppendLine(RenderScopeNote(options));
 
         return RenderLayout($"{artifact.Title} review", options, projects, view.Project.Workspace.ProjectId, body.ToString());
     }
@@ -665,7 +803,7 @@ internal static class OperatorShellPageRenderer
     {
         var html = new StringBuilder();
         html.AppendLine("<nav class=\"topnav\" aria-label=\"Primary navigation\">");
-        html.AppendLine("<div class=\"nav-group\"><span>Configure</span><a href=\"/\">Home</a>");
+        html.AppendLine("<div class=\"nav-group\"><span>Configure</span><a href=\"/\">Home</a><a href=\"/get-started\">Get Started</a>");
 
         if (!string.IsNullOrWhiteSpace(selectedProjectId))
         {
@@ -1097,7 +1235,7 @@ internal static class OperatorShellPageRenderer
         var artifact = view.SelectedArtifact.Artifact;
         var html = new StringBuilder();
         html.AppendLine("<section class=\"panel decision-panel\">");
-        html.AppendLine("<div class=\"panel-header\"><h2>Decision Readiness</h2><p class=\"muted\">Core workflow alignment for this pending artifact.</p></div>");
+        html.AppendLine("<div class=\"panel-header\"><h2>What this needs before approval</h2><p class=\"muted\">Status of the pending item against the review rules.</p></div>");
         html.AppendLine(ReviewUiComponents.RenderMetadataGrid(
         [
             new("Pending status", RenderStatusBadge(artifact.Status), IsHtml: true),
@@ -1129,6 +1267,21 @@ internal static class OperatorShellPageRenderer
                 </form>
                 """);
         }
+        else if (artifact.Status == ArtifactStatus.Proposed)
+        {
+            // Proposed artifacts cannot be approved directly per the lifecycle
+            // rules. The operator promotes them to draft first, which lets the
+            // existing draft -> approved transition apply. The button text is
+            // user-facing language ("Promote to draft") rather than the lifecycle
+            // vocabulary so a new operator can tell what it does.
+            actions.Add($"""
+                <form method="post" action="{postPath}" class="inline-decision-form">
+                {pathInput}
+                <input type="hidden" name="decision" value="Promote" />
+                <button class="button" type="submit">Promote to draft</button>
+                </form>
+                """);
+        }
         else
         {
             actions.Add("<span class=\"button disabled\">Approve</span>");
@@ -1145,14 +1298,12 @@ internal static class OperatorShellPageRenderer
         return actions;
     }
 
-    private static string RenderScopeNote(OperatorShellOptions options)
-    {
-        var rootMode = options.UsesSeededSampleRoot
-            ? "The shell is using a writable local copy of the sample workspaces so you can explore without touching the repo fixtures."
-            : "The shell is using the configured workspace root directly.";
-
-        return $"<section class=\"panel note\"><h2>Current workflow scope</h2><p>{Encode(rootMode)}</p><p>Draft inspection, editing, approval, and rejection are wired through current core and storage behavior. Canonical truth still changes only through governed approval persistence.</p></section>";
-    }
+    // Per PBR-11, the "Current workflow scope" footer used to be rendered at
+    // the bottom of nearly every operator page. It was explaining the system
+    // to itself rather than helping the user finish a task. The footer is no
+    // longer emitted; this method is kept (returning an empty string) so the
+    // existing call sites stay valid without a wider renderer rewrite.
+    private static string RenderScopeNote(OperatorShellOptions options) => string.Empty;
 
     private static string RenderStatusBadge(ArtifactStatus status) =>
         ReviewUiComponents.RenderStatusBadge(status);

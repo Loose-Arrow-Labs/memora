@@ -129,6 +129,55 @@ public sealed class ArtifactFactoryTests
         Assert.Contains(result.Validation.Issues, issue => issue.Path == "canonical" && issue.Code == "artifact.session_summary.canonical.invalid");
     }
 
+    [Fact]
+    public void NoteArtifact_WithMinimalFrontmatterAndArbitraryBody_PassesValidation()
+    {
+        var frontmatter = ArtifactTestBuilder.CreateFrontmatter(ArtifactType.Note);
+        var sections = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Body"] = "Just a quick thought I want to keep around."
+        };
+
+        var result = _factory.Create(frontmatter, "Just a quick thought I want to keep around.", sections);
+
+        Assert.True(result.Validation.IsValid);
+        var note = Assert.IsType<NoteArtifact>(result.Artifact);
+        Assert.Equal(ArtifactType.Note, note.Type);
+        Assert.StartsWith("NTE-", note.Id);
+    }
+
+    [Fact]
+    public void NoteArtifact_RejectsTypeSpecificFrontmatter()
+    {
+        var frontmatter = ArtifactTestBuilder.CreateFrontmatter(ArtifactType.Note);
+        frontmatter["decision_date"] = "2026-05-14";
+        var sections = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Body"] = "Note body."
+        };
+
+        var result = _factory.Create(frontmatter, "Note body.", sections);
+
+        Assert.False(result.Validation.IsValid);
+        Assert.Contains(result.Validation.Issues, issue => issue.Code == "artifact.frontmatter.key.unknown" && issue.Path == "decision_date");
+    }
+
+    [Fact]
+    public void NoteArtifact_RejectsNonNotePrefixId()
+    {
+        var frontmatter = ArtifactTestBuilder.CreateFrontmatter(ArtifactType.Note);
+        frontmatter["id"] = "ADR-123";
+        var sections = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Body"] = "Note body."
+        };
+
+        var result = _factory.Create(frontmatter, "Note body.", sections);
+
+        Assert.False(result.Validation.IsValid);
+        Assert.Contains(result.Validation.Issues, issue => issue.Code == "artifact.id.invalid" && issue.Path == "id");
+    }
+
     [Theory]
     [MemberData(nameof(AllArtifactTypes))]
     public void MissingRequiredSection_FailsValidation(ArtifactType artifactType)
@@ -148,6 +197,14 @@ public sealed class ArtifactFactoryTests
     {
         foreach (var artifactType in Enum.GetValues<ArtifactType>())
         {
+            // The Note type is intentionally low-ceremony and has no required
+            // body sections, so the "missing required section" theory does not
+            // apply to it.
+            if (Memora.Core.Validation.ArtifactBodyRules.GetRequiredSections(artifactType).Count == 0)
+            {
+                continue;
+            }
+
             yield return [artifactType];
         }
     }

@@ -93,6 +93,48 @@ public sealed class ArtifactApprovalWorkflow
             supersededArtifact);
     }
 
+    public ArtifactApprovalDecisionResult Promote(
+        ArtifactDocument pendingArtifact,
+        DateTimeOffset decidedAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(pendingArtifact);
+
+        var issues = ValidateDecisionTimestamp(decidedAtUtc).ToList();
+
+        if (pendingArtifact.Status != ArtifactStatus.Proposed)
+        {
+            issues.Add(new ArtifactValidationIssue(
+                "approval.promote.status.invalid",
+                "Only proposed artifacts can be promoted to draft.",
+                "status"));
+        }
+
+        if (issues.Count > 0)
+        {
+            return ArtifactApprovalDecisionResult.FromValidation(pendingArtifact, issues);
+        }
+
+        var promotedRebuild = RebuildArtifact(
+            pendingArtifact,
+            ArtifactStatus.Draft,
+            pendingArtifact.Revision,
+            decidedAtUtc);
+
+        if (!promotedRebuild.Validation.IsValid || promotedRebuild.Artifact is null)
+        {
+            return ArtifactApprovalDecisionResult.FromValidation(
+                pendingArtifact,
+                MapRebuildIssues(pendingArtifact, promotedRebuild.Validation));
+        }
+
+        var promotedArtifact = promotedRebuild.Artifact;
+        issues.AddRange(LifecycleTransitionValidator.Validate(pendingArtifact, promotedArtifact).Issues);
+
+        return issues.Count > 0
+            ? ArtifactApprovalDecisionResult.FromValidation(pendingArtifact, issues)
+            : ArtifactApprovalDecisionResult.Promoted(pendingArtifact, promotedArtifact);
+    }
+
     public ArtifactApprovalDecisionResult Reject(
         ArtifactDocument pendingArtifact,
         DateTimeOffset decidedAtUtc)
@@ -239,12 +281,14 @@ public sealed class ArtifactApprovalDecisionResult
         ArtifactDocument? approvedArtifact,
         ArtifactDocument? rejectedArtifact,
         ArtifactDocument? supersededArtifact,
+        ArtifactDocument? promotedArtifact,
         IEnumerable<ArtifactValidationIssue> validationIssues)
     {
         PendingArtifact = pendingArtifact ?? throw new ArgumentNullException(nameof(pendingArtifact));
         ApprovedArtifact = approvedArtifact;
         RejectedArtifact = rejectedArtifact;
         SupersededArtifact = supersededArtifact;
+        PromotedArtifact = promotedArtifact;
         Validation = new ArtifactValidationResult(validationIssues);
     }
 
@@ -256,6 +300,8 @@ public sealed class ArtifactApprovalDecisionResult
 
     public ArtifactDocument? SupersededArtifact { get; }
 
+    public ArtifactDocument? PromotedArtifact { get; }
+
     public ArtifactValidationResult Validation { get; }
 
     public bool IsSuccess => Validation.IsValid;
@@ -264,15 +310,20 @@ public sealed class ArtifactApprovalDecisionResult
         ArtifactDocument pendingArtifact,
         ArtifactDocument approvedArtifact,
         ArtifactDocument? supersededArtifact) =>
-        new(pendingArtifact, approvedArtifact, null, supersededArtifact, []);
+        new(pendingArtifact, approvedArtifact, null, supersededArtifact, null, []);
 
     public static ArtifactApprovalDecisionResult Rejected(
         ArtifactDocument pendingArtifact,
         ArtifactDocument rejectedArtifact) =>
-        new(pendingArtifact, null, rejectedArtifact, null, []);
+        new(pendingArtifact, null, rejectedArtifact, null, null, []);
+
+    public static ArtifactApprovalDecisionResult Promoted(
+        ArtifactDocument pendingArtifact,
+        ArtifactDocument promotedArtifact) =>
+        new(pendingArtifact, null, null, null, promotedArtifact, []);
 
     public static ArtifactApprovalDecisionResult FromValidation(
         ArtifactDocument pendingArtifact,
         IEnumerable<ArtifactValidationIssue> issues) =>
-        new(pendingArtifact, null, null, null, issues);
+        new(pendingArtifact, null, null, null, null, issues);
 }

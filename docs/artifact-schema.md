@@ -184,6 +184,31 @@ Body sections required:
 
 Session summaries are supporting artifacts only and must not be treated as canonical truth by themselves.
 
+9. Note
+
+Notes are the low-ceremony catch-all type. Use this when a thought,
+observation, or pending finding does not yet fit one of the eight typed
+artifacts above. The typed schemas remain opt-in for users who want their
+structure; the `note` type is for the 80% case where the discipline of a
+typed schema would be friction before any value has been demonstrated.
+
+Additional frontmatter:
+
+- (none)
+
+Body sections required:
+
+- (none) — any non-empty body is acceptable.
+
+Notes still participate in the standard lifecycle (`proposed -> draft ->
+approved -> superseded/deprecated`) and the standard relationship model
+(`depends_on`, `affects`, `derived_from`, `supersedes`). They are saved to
+`canonical/notes/` once approved and to `drafts/note/` while pending review.
+The deterministic context ranker treats notes as the lowest-priority type
+so any typed approved artifact ranks above a note when both are eligible.
+
+The id prefix for notes is `NTE` (`NTE-001`, `NTE-002`, etc.).
+
 ---
 
 Lifecycle rules

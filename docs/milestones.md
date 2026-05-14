@@ -190,24 +190,32 @@ mode and the hybrid retrieval boundary.
 
 ## Milestone 11 - Human Review And Trust UI
 
-Goal: make review, approval, and trust inspection usable from the operator UI
-and IDE surfaces before deeper automation expands.
+Goal: make review, approval, and trust inspection usable from the operator UI,
+IDE surfaces, and planning tools before deeper automation expands.
 
 Includes:
 
 - proposal review interface with provenance preview
 - approval and rejection persistence through governed lifecycle rules
+- proposed-to-draft promotion path so the full lifecycle is traversable from
+  any review surface (closes PBR-01)
 - deterministic state view rendering
 - validation and lifecycle failure display
 - initial trust dashboard for pending proposals, stale drafts, broken
   relationships, rebuild diagnostics, and missing project memory
-- VS Code and Cursor review inbox and governed approve/reject bridge
+- VS Code and Cursor review inbox and governed approve/reject bridge wired
+  end-to-end against a real workspace
+- Obsidian review inbox plugin: sidebar panel showing the approval queue,
+  approve/reject commands routed through the governed API, read-only artifact
+  preview — same governed workflow as VS Code, surfaced in the planning
+  environment
 - review UI structure that keeps granular views organized without making them
   competing sources of truth
 
 Outcome: operators can inspect imported evidence, generated candidates, and
-agent proposals in the places they already work, while Memora remains the only
-governed authority for canonical memory.
+agent proposals in the places they already work — IDE for coding, Obsidian for
+planning — while Memora remains the only governed authority for canonical
+memory.
 
 ## Milestone 12 - Existing Repo And GitHub Evidence Understanding MVP
 
@@ -231,22 +239,40 @@ Includes:
 Outcome: Memora can explain what a legacy project appears to know from its code
 and history without confusing imported evidence with approved interpretation.
 
-## Milestone 13 - Mobile Contribution MVP
+## Milestone 13 - Capture Bridge MVP
 
-Goal: provide a local-first mobile capture path that feeds the same governed
-intake and review model without requiring hosted sync or mobile approval.
+Goal: provide a tool-agnostic local-first capture path that lets operators use
+the tools they already have — Obsidian, Notion, any markdown folder — as a
+proposal input surface, without building or maintaining a custom mobile app.
+
+The capture bridge is a folder-watch ingest path. Anything that can write a
+markdown file to a watched folder is a valid capture source. The MVP targets
+Obsidian because it is what the operator uses, syncs via Nextcloud, and already
+has a mobile app that works. The architecture must not assume Obsidian.
 
 Includes:
 
-- portable contribution packet format
-- simple local-first mobile capture surface
-- copy, export, and local save flows
-- desktop import path into non-canonical planning or proposal input
-- Nextcloud-style shared-folder transfer workflow
-- same-network sync feasibility spike only if it remains small and low-risk
+- desktop folder-watch service that monitors a configured inbox folder for new
+  markdown files matching the contribution packet format
+- automatic intake of watched packets as non-canonical planning or proposal
+  input, routed into the existing governed review path
+- Obsidian capture plugin (MVP): a community plugin that provides a "Send to
+  Memora" command, writes a correctly-formatted contribution packet to the
+  watched inbox folder, and respects the non-canonical packet contract
+- packet format validation at ingest with clear diagnostics for malformed or
+  non-compliant files
+- documentation for connecting other tools via the folder-watch pattern:
+  Notion markdown export, Logseq, Bear, Roam, or any tool that writes to a
+  folder
+- Nextcloud and shared-folder transfer as first-class supported transport given
+  existing operator setup — no custom sync protocol required
+- custom mobile app explicitly deferred: mobile capture is solved by Obsidian
+  mobile plus Nextcloud sync; a dedicated Memora mobile app is not in scope
+  unless the folder-watch pattern proves insufficient
 
-Outcome: mobile notes can become structured Memora evidence or proposals
-through the desktop review flow while preserving local-first boundaries.
+Outcome: operators can capture questions, decision drafts, planning notes, and
+proposal drafts from any tool or device they already use. Notes flow into
+Memora's governed review queue automatically. No new app is required.
 
 ## Milestone 14 - Observability And Replay Debugging
 
@@ -276,23 +302,32 @@ replays runtime behavior by re-executing it.
 
 ## Milestone 15 - Agentic Workflow Baseline
 
-Goal: make Memora straightforward to attach to common agent and chat tools
-after project import, review, and observability foundations exist.
+Goal: make Memora the shared governed context layer for a human operator
+working across multiple agents and tools simultaneously — the connected
+workspace described in CHR-002.
 
 Includes:
 
-- setup packs for Codex, Claude Code, Cursor, Cline/Roo, Gemini CLI, OpenCode,
-  Windsurf, and Aider where practical
-- deterministic session handoff packages
+- setup packs for Codex, Claude Code, ChatGPT (MCP + OpenAPI paths), Cursor,
+  Cline/Roo, Gemini CLI, OpenCode, Windsurf, and Aider where practical
+- validated end-to-end path: agent proposes → review inbox (VS Code or
+  Obsidian) → operator approves → canonical context updated → all other agents
+  see the change on next context retrieval
+- deterministic session handoff packages so any agent joining mid-project gets
+  the same grounded context without re-explanation
 - agent-facing contribution-style and project-state bundles
 - MCP and OpenAPI workflow validation across representative clients
+- enforcement validation: confirm agents connected via MCP can only call
+  propose_artifact, propose_update, record_outcome, and read tools — raw
+  filesystem write access is not an available path
 - local external workflow guidance updated around imported project workspaces
 - agent readiness report v2 that verifies each configured tool can resolve the
   intended Memora project
 
-Outcome: agents can reliably retrieve governed context, respect contribution
-style, submit reviewable proposals, and record outcomes for imported legacy
-projects.
+Outcome: a developer can work from ChatGPT, VS Code, Rider, or Obsidian and
+have all active agents operating against the same governed project context.
+Proposals from any agent appear in a single review inbox. Canonical truth is
+shared, deterministic, and never written by an agent directly.
 
 ## Milestone 16 - Remote Conversational Planning
 
@@ -313,29 +348,45 @@ canonical truth remains in governed Memora workspaces.
 
 ## Roadmap Bands
 
-### Band 1 - Core Product Build
+### Band 1 - Foundation (Complete)
+
+Core memory, relationships, context assembly, understanding outputs, workflow
+hardening, automation, retrieval, Machina alignment, state view, project
+import, repo and GitHub evidence understanding.
 
 - Milestone 1 - Memory Core
 - Milestone 2 - Relationship + Traceability Layer
 - Milestone 3 - Context Assembly Core
-
-### Band 2 - Usability And Ecosystem Fit
-
 - Milestone 4 - Understanding Outputs
 - Milestone 5 - Workflow Hardening
-
-### Band 3 - Automation And Runtime Evolution
-
 - Milestone 6 - Controlled Automation
 - Milestone 7 - Advanced Retrieval Evolution
 - Milestone 8 - Machina Alignment
 - Milestone 9 - Deterministic Project State View
 - Milestone 10 - Project Import And First Run
-- Milestone 11 - Human Review And Trust UI
 - Milestone 12 - Existing Repo And GitHub Evidence Understanding MVP
-- Milestone 13 - Mobile Contribution MVP
+
+### Band 2 - Connected Workspace MVP (Now)
+
+Get the governed human+agent workflow actually working end-to-end across the
+tools the operator already uses. This band is the direct expression of CHR-002.
+
+Priority order:
+
+- Milestone 11 - Human Review And Trust UI (close PBR-01, wire VS Code
+  end-to-end, ship Obsidian review inbox plugin)
+- Milestone 13 - Capture Bridge MVP (folder-watch ingest, Obsidian capture
+  plugin, tool-agnostic pattern documented)
+- Milestone 15 - Agentic Workflow Baseline (setup packs, enforcement
+  validation, connected workspace end-to-end)
+
+Private beta readiness issues (PBR-01 through PBR-20) run as a parallel
+track throughout Band 2. They are not a milestone but are blocking on the
+same surfaces.
+
+### Band 3 - Observability And Scale
+
 - Milestone 14 - Observability And Replay Debugging
-- Milestone 15 - Agentic Workflow Baseline
 - Milestone 16 - Remote Conversational Planning
 
 ## Guidance

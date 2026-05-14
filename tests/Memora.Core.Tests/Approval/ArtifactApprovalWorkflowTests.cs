@@ -113,6 +113,54 @@ public sealed class ArtifactApprovalWorkflowTests
     }
 
     [Fact]
+    public void Promote_ProposedArtifact_TransitionsToDraftWithSameRevision()
+    {
+        var proposed = CreatePlanArtifact(ArtifactStatus.Proposed, revision: 1, updatedAt: "2026-04-16T09:00:00Z");
+
+        var result = _workflow.Promote(
+            proposed,
+            new DateTimeOffset(2026, 04, 16, 10, 45, 00, TimeSpan.Zero));
+
+        Assert.True(result.IsSuccess);
+        var promoted = Assert.IsType<PlanArtifact>(result.PromotedArtifact);
+        Assert.Equal(ArtifactStatus.Draft, promoted.Status);
+        Assert.Equal(proposed.Id, promoted.Id);
+        Assert.Equal(proposed.Revision, promoted.Revision);
+        Assert.True(promoted.UpdatedAtUtc > proposed.UpdatedAtUtc);
+        Assert.Null(result.ApprovedArtifact);
+        Assert.Null(result.RejectedArtifact);
+        Assert.Null(result.SupersededArtifact);
+    }
+
+    [Fact]
+    public void Promote_DraftArtifact_IsRejectedByValidation()
+    {
+        var draft = CreatePlanArtifact(ArtifactStatus.Draft, revision: 1);
+
+        var result = _workflow.Promote(
+            draft,
+            new DateTimeOffset(2026, 04, 16, 10, 50, 00, TimeSpan.Zero));
+
+        Assert.False(result.IsSuccess);
+        Assert.Null(result.PromotedArtifact);
+        Assert.Contains(result.Validation.Issues, issue => issue.Code == "approval.promote.status.invalid");
+    }
+
+    [Fact]
+    public void Promote_ApprovedArtifact_IsRejectedByValidation()
+    {
+        var approved = CreatePlanArtifact(ArtifactStatus.Approved, revision: 1);
+
+        var result = _workflow.Promote(
+            approved,
+            new DateTimeOffset(2026, 04, 16, 10, 55, 00, TimeSpan.Zero));
+
+        Assert.False(result.IsSuccess);
+        Assert.Null(result.PromotedArtifact);
+        Assert.Contains(result.Validation.Issues, issue => issue.Code == "approval.promote.status.invalid");
+    }
+
+    [Fact]
     public void Approve_WithMismatchedCurrentApprovedArtifact_FailsValidation()
     {
         var generation = _draftGenerator.Generate(PlanningIntakeTestBuilder.CreateValidIntake());

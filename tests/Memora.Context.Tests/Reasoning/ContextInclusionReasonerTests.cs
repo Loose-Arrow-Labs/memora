@@ -68,7 +68,7 @@ public sealed class ContextInclusionReasonerTests
     }
 
     [Fact]
-    public void ExplainInclusion_AddsMilestoneAndDirectMatchReasonsFromRankingBreakdown()
+    public void ExplainInclusion_AddsMilestoneAndKeywordOverlapReasonsFromRankingBreakdown()
     {
         var request = new ContextBundleRequest("memora", "Prepare milestone 3 context.");
         var rankedArtifact = CreateRankedArtifact(
@@ -79,7 +79,37 @@ public sealed class ContextInclusionReasonerTests
         var reasons = _reasoner.ExplainInclusion(request, ContextLayerKind.Layer2, rankedArtifact);
 
         Assert.Contains(reasons, reason => reason.Code == "milestone-relevance");
-        Assert.Contains(reasons, reason => reason.Code == "direct-task-match");
+        Assert.Contains(reasons, reason => reason.Code == "request-keyword-overlap");
+        Assert.DoesNotContain(reasons, reason => reason.Code == "request-keyword-strong-match");
+    }
+
+    [Fact]
+    public void ExplainInclusion_AddsStrongKeywordMatchWhenScoreExceedsThreshold()
+    {
+        var request = new ContextBundleRequest("memora", "Caching strategy for context packages.");
+        var rankedArtifact = CreateRankedArtifact(
+            new ContextBundleArtifact(CreateDecisionArtifact("ADR-001", ArtifactStatus.Approved, ArtifactLinks.Empty), ContextArtifactOrigin.CanonicalApproved),
+            milestoneRelevance: 0,
+            directMatchStrength: 18);
+
+        var reasons = _reasoner.ExplainInclusion(request, ContextLayerKind.Layer2, rankedArtifact);
+
+        Assert.Contains(reasons, reason => reason.Code == "request-keyword-overlap");
+        Assert.Contains(reasons, reason => reason.Code == "request-keyword-strong-match");
+    }
+
+    [Fact]
+    public void ExplainInclusion_OmitsKeywordOverlapReasonWhenScoreIsZero()
+    {
+        var request = new ContextBundleRequest("memora", "Anything.");
+        var rankedArtifact = CreateRankedArtifact(
+            new ContextBundleArtifact(CreateDecisionArtifact("ADR-001", ArtifactStatus.Approved, ArtifactLinks.Empty), ContextArtifactOrigin.CanonicalApproved),
+            milestoneRelevance: 0,
+            directMatchStrength: 0);
+
+        var reasons = _reasoner.ExplainInclusion(request, ContextLayerKind.Layer2, rankedArtifact);
+
+        Assert.DoesNotContain(reasons, reason => reason.Code is "request-keyword-overlap" or "request-keyword-strong-match" or "direct-task-match");
     }
 
     [Fact]
@@ -122,7 +152,7 @@ public sealed class ContextInclusionReasonerTests
         var reasons = _reasoner.ExplainInclusion(request, ContextLayerKind.Layer2, rankedArtifact);
 
         Assert.Equal(
-            ["approved-default", "explicit-focus-artifact", "milestone-relevance", "direct-task-match"],
+            ["approved-default", "explicit-focus-artifact", "milestone-relevance", "request-keyword-overlap"],
             reasons.Select(reason => reason.Code));
     }
 

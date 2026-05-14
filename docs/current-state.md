@@ -8,7 +8,10 @@ It is intentionally separate from roadmap and milestone planning docs.
 ### Foundation
 
 - .NET 10 solution with product projects for Core, Import, Storage, Index, Context, API, MCP, and UI
-- typed artifact models, enums, and lifecycle rules in `Memora.Core`
+- typed artifact models, enums, and lifecycle rules in `Memora.Core`, including
+  the low-ceremony `note` artifact type (no required body sections, no
+  type-specific frontmatter, `NTE-NNN` id prefix) for the 80% capture case
+  where the eight typed schemas would be friction
 - artifact validation, diagnostic formatting, planning intake, draft editing, approval queue building, and revision diffs
 - revision diffs include deterministic change areas, display labels, and raw paths
 - markdown plus frontmatter parsing in `Memora.Storage`
@@ -101,6 +104,15 @@ It is intentionally separate from roadmap and milestone planning docs.
   evidence provenance inspection, and decision-readiness context
 - UI approval and rejection actions routed through the existing governed
   approval workflow with filesystem-backed persistence
+- UI "Promote to draft" action for proposed artifacts that transitions
+  them to `draft` through the governed lifecycle so the existing
+  draft -> approved approval flow becomes reachable without hand-editing
+  YAML frontmatter
+- review and proposals pages use user-facing labels ("Pending review",
+  "What this needs before approval", "Promote to draft") instead of the
+  earlier internal vocabulary ("Non-Canonical Proposal", "Decision
+  Readiness", "Current UI boundary", "Current workflow scope"); the
+  underlying API and contract names are unchanged
 - trust dashboard summary for pending proposals, stale drafts, relationship and
   rebuild diagnostics, missing project memory, and import warnings
 - grouped operator navigation for review, observe, trust, and configure
@@ -110,6 +122,22 @@ It is intentionally separate from roadmap and milestone planning docs.
   disposition, readiness report details, and next actions
 - context viewer page backed by the shared deterministic state-view contract
 - understanding output page with context, traceability, and component views
+- first-run `/get-started` page that creates a Memora workspace and optionally
+  attaches a local Git repository through the existing repository attachment
+  service, with capability honesty about what is and is not implemented
+  (GitHub browser/OAuth import is not yet implemented; current GitHub-backed
+  paths rely on local GitHub CLI authentication)
+
+### Local Packaging
+
+- Windows portable package script at `build/package-windows.ps1` that publishes
+  self-contained `Memora.Ui` and `Memora.Api` binaries, plus `install-memora.ps1`,
+  `uninstall-memora.ps1`, and start scripts that bootstrap the local-access
+  token under the workspace root and print a one-time `localToken` URL
+- Installation walkthrough documented in `docs/installer-package.md` covering
+  package layout, install location (`%LOCALAPPDATA%\Memora`), workspace root
+  default (`%USERPROFILE%\memora-workspaces`), Start Menu shortcuts, and the
+  GitHub CLI path for current GitHub-backed workflows
 
 ### Operator Guidance
 

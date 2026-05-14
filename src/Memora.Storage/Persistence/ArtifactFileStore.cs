@@ -58,6 +58,7 @@ public sealed class ArtifactFileStore
             ArtifactType.Outcome => workspace.CanonicalOutcomesPath,
             ArtifactType.RepoStructure => workspace.CanonicalRepoPath,
             ArtifactType.SessionSummary => workspace.SummariesRootPath,
+            ArtifactType.Note => workspace.CanonicalNotesPath,
             _ => throw new ArgumentOutOfRangeException(nameof(artifactType), artifactType, "Unsupported artifact type.")
         };
 }

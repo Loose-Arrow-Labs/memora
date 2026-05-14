@@ -5,6 +5,7 @@ using Memora.Core.Import;
 using Memora.Core.Revisions;
 using Memora.Index.Rebuild;
 using Memora.Import.Evidence;
+using Memora.Import.Attachment;
 using Memora.Import.Readiness;
 using Memora.Storage.Parsing;
 using Memora.Storage.Persistence;
@@ -56,6 +57,61 @@ public sealed class LocalOperatorWorkspaceService
     {
         var workspace = TryGetWorkspace(projectId);
         return workspace is null ? null : LoadProjectSnapshot(workspace);
+    }
+
+    public OperatorCreateProjectResult CreateProject(OperatorCreateProjectInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+
+        var projectId = NormalizeProjectId(input.ProjectId);
+        var name = string.IsNullOrWhiteSpace(input.Name)
+            ? projectId
+            : input.Name.Trim();
+
+        if (string.IsNullOrWhiteSpace(projectId))
+        {
+            return OperatorCreateProjectResult.Invalid(["Project id is required."]);
+        }
+
+        if (!IsSafeProjectId(projectId))
+        {
+            return OperatorCreateProjectResult.Invalid(["Project id may contain only letters, numbers, hyphen, and underscore."]);
+        }
+
+        var projectRoot = Path.Combine(_options.NormalizedWorkspacesRootPath, projectId);
+        if (Directory.Exists(projectRoot))
+        {
+            return OperatorCreateProjectResult.Invalid([$"Project workspace '{projectId}' already exists."]);
+        }
+
+        try
+        {
+            CreateWorkspaceSkeleton(projectRoot);
+            WriteProjectMetadata(projectRoot, projectId, name);
+
+            if (!string.IsNullOrWhiteSpace(input.LocalRepositoryPath))
+            {
+                var attachmentService = new RepositoryAttachmentService(_options.NormalizedWorkspacesRootPath);
+                var attachResult = attachmentService.Attach(new RepositoryAttachmentRequest(
+                    projectId,
+                    RepositoryAttachmentKind.LocalGit,
+                    input.LocalRepositoryPath.Trim(),
+                    null,
+                    null));
+
+                if (!attachResult.IsSuccess)
+                {
+                    return OperatorCreateProjectResult.Invalid(
+                        attachResult.Errors.Select(error => $"{error.Code}: {error.Message}"));
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            return OperatorCreateProjectResult.Invalid([$"Project workspace could not be created: {exception.Message}"]);
+        }
+
+        return OperatorCreateProjectResult.Success(projectId);
     }
 
     public OperatorArtifactView? TryGetArtifactView(string projectId, string relativePath)
@@ -154,6 +210,7 @@ public sealed class LocalOperatorWorkspaceService
         {
             OperatorReviewDecision.Approve => ApproveReviewItem(artifactView),
             OperatorReviewDecision.Reject => RejectReviewItem(artifactView),
+            OperatorReviewDecision.Promote => PromoteReviewItem(artifactView),
             _ => OperatorReviewDecisionResult.Invalid(["Unsupported review decision."])
         };
     }
@@ -221,6 +278,33 @@ public sealed class LocalOperatorWorkspaceService
 
         return OperatorReviewDecisionResult.Success(
             $"Approved {decision.ApprovedArtifact.Id} revision {decision.ApprovedArtifact.Revision}.");
+    }
+
+    private OperatorReviewDecisionResult PromoteReviewItem(OperatorArtifactView artifactView)
+    {
+        var decision = _approvalWorkflow.Promote(
+            artifactView.SelectedArtifact.Artifact,
+            DateTimeOffset.UtcNow);
+
+        if (!decision.IsSuccess || decision.PromotedArtifact is null)
+        {
+            return OperatorReviewDecisionResult.Invalid(
+                decision.Validation.Issues.Select(issue => issue.DiagnosticMessage));
+        }
+
+        try
+        {
+            File.WriteAllText(
+                artifactView.SelectedArtifact.FilePath,
+                _artifactMarkdownWriter.Write(decision.PromotedArtifact));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return OperatorReviewDecisionResult.Invalid([$"Promotion persistence failed: {exception.Message}"]);
+        }
+
+        return OperatorReviewDecisionResult.Success(
+            $"Promoted {decision.PromotedArtifact.Id} revision {decision.PromotedArtifact.Revision} to draft. Re-open the queue to review and approve it.");
     }
 
     private OperatorReviewDecisionResult RejectReviewItem(OperatorArtifactView artifactView)
@@ -655,6 +739,60 @@ public sealed class LocalOperatorWorkspaceService
             .Trim()
             .Replace('\\', '/');
 
+    private static string NormalizeProjectId(string? projectId) =>
+        string.IsNullOrWhiteSpace(projectId)
+            ? string.Empty
+            : projectId.Trim();
+
+    private static bool IsSafeProjectId(string projectId) =>
+        projectId.All(character =>
+            char.IsAsciiLetterOrDigit(character) ||
+            character is '-' or '_');
+
+    private static void CreateWorkspaceSkeleton(string projectRoot)
+    {
+        var directories = new[]
+        {
+            "canonical/charters",
+            "canonical/constraints",
+            "canonical/decisions",
+            "canonical/outcomes",
+            "canonical/plans",
+            "canonical/questions",
+            "canonical/repo",
+            "drafts/constraint",
+            "drafts/decision",
+            "drafts/outcome",
+            "drafts/plan",
+            "drafts/question",
+            "summaries"
+        };
+
+        foreach (var directory in directories)
+        {
+            Directory.CreateDirectory(Path.Combine(projectRoot, directory));
+        }
+    }
+
+    private static void WriteProjectMetadata(string projectRoot, string projectId, string name)
+    {
+        var payload = $$"""
+        {
+          "projectId": "{{EscapeJson(projectId)}}",
+          "name": "{{EscapeJson(name)}}",
+          "status": "active",
+          "repositoryAttachments": []
+        }
+        """;
+
+        File.WriteAllText(Path.Combine(projectRoot, "project.json"), payload);
+    }
+
+    private static string EscapeJson(string value) =>
+        value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
+
     private static bool IsUnderRoot(string filePath, string rootPath)
     {
         var fullPath = Path.GetFullPath(filePath);
@@ -796,10 +934,52 @@ public sealed record OperatorArtifactEditInput(
                 .ToArray();
 }
 
+public sealed record OperatorCreateProjectInput(
+    string? ProjectId,
+    string? Name,
+    string? LocalRepositoryPath)
+{
+    public static OperatorCreateProjectInput FromForm(IFormCollection form)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+
+        return new OperatorCreateProjectInput(
+            form["projectId"].ToString(),
+            form["name"].ToString(),
+            form["localRepositoryPath"].ToString());
+    }
+}
+
+public sealed class OperatorCreateProjectResult
+{
+    private OperatorCreateProjectResult(
+        bool isSuccess,
+        string? projectId,
+        IReadOnlyList<string> validationErrors)
+    {
+        IsSuccess = isSuccess;
+        ProjectId = projectId;
+        ValidationErrors = validationErrors;
+    }
+
+    public bool IsSuccess { get; }
+
+    public string? ProjectId { get; }
+
+    public IReadOnlyList<string> ValidationErrors { get; }
+
+    public static OperatorCreateProjectResult Success(string projectId) =>
+        new(true, projectId, []);
+
+    public static OperatorCreateProjectResult Invalid(IEnumerable<string> validationErrors) =>
+        new(false, null, validationErrors.ToArray());
+}
+
 public enum OperatorReviewDecision
 {
     Approve,
-    Reject
+    Reject,
+    Promote
 }
 
 public sealed class OperatorReviewDecisionResult
