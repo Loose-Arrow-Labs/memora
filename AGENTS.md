@@ -173,6 +173,7 @@ Each issue execution must be treated as a fresh reasoning task.
 You MUST build understanding from:
 
 - `AGENTS.md`
+- approved Memora artifacts when a configured workspace is available
 - relevant repo docs
 - the current GitHub issue
 - the current branch and working tree state
@@ -450,6 +451,46 @@ After the milestone stack is reviewed and merged, return to the normal cleanup r
 3. Preserve architecture
 4. Preserve workflow integrity
 5. Then implement functionality
+
+---
+
+## 18. Using Memora During Agent Work
+
+Memora should be used as governed project memory, not as chat history or an
+execution runtime.
+
+When a configured Memora workspace is available:
+
+1. Read approved Memora artifacts as project memory before relying on drafts,
+   proposals, imported evidence, summaries, or prior conversation.
+2. Treat approved artifacts as canonical project truth.
+3. Treat drafts, proposals, imported evidence, generated candidates, summaries,
+   and retrieval results as review inputs, not truth.
+4. Use deterministic context retrieval through the current local companion API
+   when available and useful.
+5. Do not write canonical Memora artifacts directly.
+6. If durable project knowledge is discovered during the task, capture it as a
+   reviewable proposal, update, or outcome through Memora's governed surfaces.
+7. Keep handoff notes explicit: what was read from approved memory, what was
+   inferred from code, what was changed, what remains uncertain, and what should
+   be proposed for approval.
+
+Claude, Codex, ChatGPT, and IDE agents must follow the same boundary:
+
+- Memora provides grounded project memory and reviewable write proposals.
+- Agents reason and implement outside Memora.
+- Humans approve canonical truth.
+- Hosted MCP registration, automatic GitHub import UX, and direct canonical
+  agent writes must not be assumed unless the current docs and code say they
+  exist.
+
+For current provider-specific usage, read:
+
+- `docs/claude-integration.md`
+- `docs/codex-integration.md`
+- `docs/chatgpt-integration.md`
+- `docs/external-runtime-contract.md`
+- `docs/current-state.md`
 
 ---
 

@@ -117,6 +117,22 @@ It is intentionally separate from roadmap and milestone planning docs.
   disposition, readiness report details, and next actions
 - context viewer page backed by the shared deterministic state-view contract
 - understanding output page with context, traceability, and component views
+- first-run `/get-started` page that creates a Memora workspace and optionally
+  attaches a local Git repository through the existing repository attachment
+  service, with capability honesty about what is and is not implemented
+  (GitHub browser/OAuth import is not yet implemented; current GitHub-backed
+  paths rely on local GitHub CLI authentication)
+
+### Local Packaging
+
+- Windows portable package script at `build/package-windows.ps1` that publishes
+  self-contained `Memora.Ui` and `Memora.Api` binaries, plus `install-memora.ps1`,
+  `uninstall-memora.ps1`, and start scripts that bootstrap the local-access
+  token under the workspace root and print a one-time `localToken` URL
+- Installation walkthrough documented in `docs/installer-package.md` covering
+  package layout, install location (`%LOCALAPPDATA%\Memora`), workspace root
+  default (`%USERPROFILE%\memora-workspaces`), Start Menu shortcuts, and the
+  GitHub CLI path for current GitHub-backed workflows
 
 ### Operator Guidance
 
