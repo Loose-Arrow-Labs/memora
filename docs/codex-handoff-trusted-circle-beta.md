@@ -42,53 +42,85 @@ project memory, not as chat history or an execution runtime. Specifically:
 
 ## What Already Landed (Do Not Redo)
 
-PR #376 (`feature/get-started-and-installer-package`) introduces:
+Five open draft PRs against `main`, all green locally, all independent
+unless noted. Base your work on `main` after these land (or on the
+relevant PR's head if they are still open):
 
-- `/get-started` GET and `/get-started/project` POST routes that create a
-  workspace skeleton and optionally attach a local Git repository through the
-  existing `RepositoryAttachmentService`.
-- A rebuilt home hero ("Local project memory" + a Get started CTA) that
-  replaces the previous "Minimal local operator shell" header.
-- A Windows portable package (`build/package-windows.ps1`,
-  `docs/installer-package.md`) with installer, uninstaller, and start scripts.
-- `AGENTS.md` section 18 governing how every agent (Claude, Codex, ChatGPT,
-  IDE) must use Memora.
-- `docs/current-state.md` updates for the new behavior.
+- **PR #376** `feature/get-started-and-installer-package` — `/get-started`
+  GET and `/get-started/project` POST routes that create a workspace
+  skeleton and optionally attach a local Git repository through the
+  existing `RepositoryAttachmentService`. Home hero rebuilt around "Local
+  project memory" with a Get started CTA. Windows portable package
+  (`build/package-windows.ps1`, `docs/installer-package.md`) with
+  installer, uninstaller, and start scripts. AGENTS.md section 18 added.
+  This handoff doc lives here.
+- **PR #377** `feature/honest-inclusion-reasons` — replaces the misleading
+  `direct-task-match` inclusion reason code with `request-keyword-overlap`
+  (any positive score) and a new `request-keyword-strong-match` (score
+  crosses an internal title-or-tag-hit threshold). Deterministic ranker
+  behavior unchanged. Closes PBR-04 (#359). 39/39 `Memora.Context.Tests`
+  pass.
+- **PR #378** `feature/promote-proposed-to-draft` — adds
+  `ArtifactApprovalWorkflow.Promote(...)` and an
+  `ArtifactApprovalDecisionResult.PromotedArtifact` slot, a
+  `OperatorReviewDecision.Promote` value, a service handler that rewrites
+  the draft file with the promoted artifact, and a "Promote to draft"
+  button on the review page when the artifact is proposed. 3 new
+  workflow tests + 2 new UI smoke tests. Closes PBR-01 (#356). **The
+  agent loop now closes through the UI.**
+- **PR #379** `feature/note-artifact-type` — adds a ninth artifact type,
+  `note` (`NTE-NNN` prefix, no required body sections, no type-specific
+  frontmatter, `TypePriority = 0` in the deterministic ranker). Saved at
+  `drafts/note/` while pending and `canonical/notes/` once approved. 3
+  new factory tests. Closes PBR-02 (#357).
+- **PR #380** `feature/operator-ui-vocab-pass` — operator review-page
+  vocab audit: "Non-Canonical Proposal" -> "Pending review",
+  "Decision Readiness" -> "What this needs before approval",
+  "Non-canonical" status cell -> "Pending review", and the
+  "Current UI boundary" + "Current workflow scope" footer panels removed
+  from every page (`RenderScopeNote` is now a no-op stub). Test
+  assertions updated to forbid the removed strings. Partial close on
+  PBR-11 (#366); the issue stays open in case dogfooding finds more
+  strings.
 
-The trusted-circle beta milestone scope was opened by that PR. Do not
-re-implement any of the above. If PR #376 is still open when you start, base
-your work on its head; if it has been merged, base on updated `main`.
+Do not re-implement any of the above. Treat each PR as known-good. If a
+PR is still open when you start, base your work on its head; if it has
+been merged, base on updated `main`. PRs are independent and can land
+in any order.
 
 ## In-Scope: Trusted-Circle Beta Milestone
 
-GitHub milestone: **Trusted-Circle Beta** (number 20). Seven issues, in
-roughly the right sequence to land them:
+GitHub milestone: **Trusted-Circle Beta** (number 20). After this turn's
+work landed PBR-01, PBR-02, PBR-04, and PBR-11 as the five PRs above,
+three issues remain on the milestone:
 
-1. **#356 PBR-01** Close the agent loop with a proposed-to-draft promotion path.
+1. **#372 PBR-17** Finish the in-product attach-a-project flow. The
+   local-repo half is done (PR #376). The GitHub side is not. For
+   trusted-circle beta, GitHub CLI guidance plus a "paste a personal
+   access token" form is acceptable; full OAuth is explicitly
+   post-beta.
 2. **#371 PBR-16** Filesystem-style hierarchical navigation
    (`Memora > Project > {Agent resources, Artifacts, Project root}`).
-3. **#372 PBR-17** Finish the in-product attach-a-project flow — the local-repo
-   half is done; the GitHub side is not. For trusted-circle beta, **GitHub CLI
-   guidance plus a "paste a personal access token" form is acceptable**. Full
-   OAuth is explicitly post-beta.
-4. **#366 PBR-11** Translate user-facing strings out of internal vocabulary
-   (the home hero is already updated; finish the rest of the operator UI).
-5. **#357 PBR-02** Ship a low-ceremony `note` artifact type with no required
-   body sections and no ID prefix format.
-6. **#359 PBR-04** Make context inclusion reasons honest (either implement
-   real keyword matching, or remove the `direct-task-match` label and ship
-   `approved-default` only).
-7. **#361 PBR-06** Polish the ten-minute first-run walkthrough end to end
-   against a real public repository.
+   The biggest piece left and the one that reshapes how the rest of
+   the UI reads. Worth doing before PBR-06 because the walkthrough
+   should show the new nav.
+3. **#361 PBR-06** Polish the ten-minute first-run walkthrough end to
+   end against a real public repository. Use this to validate the
+   full stack: PR #376 attach -> PR #378 promote -> PR #380 vocab ->
+   new nav from #371 -> import flow.
+
+If PBR-11 (#366) is reopened during the walkthrough because the audit
+found more strings, treat that as scope creep on this milestone and
+either land a follow-up PR or push it to the strangers-beta tier.
 
 Issue order matters because:
 
-- PBR-01 unblocks the central agent loop. Without it, every other surface
-  has a hole in the middle.
-- PBR-16 reshapes navigation. PBR-11's vocabulary changes and PBR-17's
-  attach-a-project flow land more cleanly on top of the new tree.
-- PBR-02 and PBR-04 are independent and can be done in parallel.
-- PBR-06 is last because it validates the rest.
+- PBR-17 is the most user-felt gap remaining (attach a GitHub repo
+  from inside the UI). Land it first so the walkthrough has something
+  real to drive.
+- PBR-16 reshapes navigation. PBR-06's walkthrough should reflect the
+  new nav, so land it before the walkthrough.
+- PBR-06 is last because it validates the rest end to end.
 
 ## Explicit Out-of-Scope
 
@@ -221,6 +253,8 @@ When stopping, hand off back with:
 
 ## If You Have Time for Only One Thing
 
-Land PBR-01 (#356). The agent loop is the central reason Memora exists.
-Without that promotion path, every other surface on this milestone is
-building on top of a workflow that does not actually close.
+Land PBR-17 (#372 — GitHub side of attach-a-project). The agent loop
+already closes thanks to PR #378. The next-largest user-felt gap is
+"I want to use Memora on my GitHub repo and the UI does not help me
+get there." A personal-access-token paste form is sufficient for
+trusted-circle beta; OAuth is post-beta.
