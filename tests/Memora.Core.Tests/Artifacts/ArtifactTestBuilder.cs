@@ -96,6 +96,7 @@ internal static class ArtifactTestBuilder
             ArtifactType.Outcome => "OUT",
             ArtifactType.RepoStructure => "REP",
             ArtifactType.SessionSummary => "SUM",
+            ArtifactType.Note => "NTE",
             _ => throw new ArgumentOutOfRangeException(nameof(artifactType), artifactType, "Unsupported artifact type.")
         };
 }

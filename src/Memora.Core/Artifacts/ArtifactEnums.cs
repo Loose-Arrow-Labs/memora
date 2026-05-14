@@ -11,7 +11,12 @@ public enum ArtifactType
     Question,
     Outcome,
     RepoStructure,
-    SessionSummary
+    SessionSummary,
+    // Low-ceremony catch-all type with no required body sections and no
+    // type-specific frontmatter. Use this when a thought, observation, or
+    // pending finding does not yet fit one of the typed artifacts. The eight
+    // typed schemas above remain opt-in for users who want their structure.
+    Note
 }
 
 public enum ArtifactStatus
@@ -87,7 +92,8 @@ public static class ArtifactSchemaValues
             ["question"] = ArtifactType.Question,
             ["outcome"] = ArtifactType.Outcome,
             ["repo_structure"] = ArtifactType.RepoStructure,
-            ["session_summary"] = ArtifactType.SessionSummary
+            ["session_summary"] = ArtifactType.SessionSummary,
+            ["note"] = ArtifactType.Note
         });
 
     private static readonly IReadOnlyDictionary<ArtifactType, string> ArtifactTypeNames = CreateReverseMap(ArtifactTypes);

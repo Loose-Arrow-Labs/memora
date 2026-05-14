@@ -109,6 +109,7 @@ public sealed class ArtifactFactory
             ArtifactType.Outcome => CreateOutcomeArtifact(frontmatter, body, sections, id, projectId, status, title, createdAt, updatedAt, revision, tags, provenance, reason, links, collector),
             ArtifactType.RepoStructure => CreateRepoStructureArtifact(frontmatter, body, sections, id, projectId, status, title, createdAt, updatedAt, revision, tags, provenance, reason, links, collector),
             ArtifactType.SessionSummary => CreateSessionSummaryArtifact(frontmatter, body, sections, id, projectId, status, title, createdAt, updatedAt, revision, tags, provenance, reason, links, collector),
+            ArtifactType.Note => new NoteArtifact(id, projectId, status, title, createdAt, updatedAt, revision, tags, provenance, reason, links, body, sections),
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unsupported artifact type.")
         };
     }

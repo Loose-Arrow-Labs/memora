@@ -23,6 +23,7 @@ public sealed record ProjectWorkspace
         CanonicalQuestionsPath = Path.Combine(CanonicalRootPath, "questions");
         CanonicalOutcomesPath = Path.Combine(CanonicalRootPath, "outcomes");
         CanonicalRepoPath = Path.Combine(CanonicalRootPath, "repo");
+        CanonicalNotesPath = Path.Combine(CanonicalRootPath, "notes");
     }
 
     public ProjectMetadata Metadata { get; }
@@ -54,4 +55,6 @@ public sealed record ProjectWorkspace
     public string CanonicalOutcomesPath { get; }
 
     public string CanonicalRepoPath { get; }
+
+    public string CanonicalNotesPath { get; }
 }

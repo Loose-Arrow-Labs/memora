@@ -63,6 +63,11 @@ public static class ArtifactBodyRules
                 "Artifacts Updated",
                 "Open Threads"
             ],
+            ArtifactType.Note =>
+            [
+                // Notes are intentionally low-ceremony: any non-empty body is
+                // acceptable. No required sections.
+            ],
             _ => throw new ArgumentOutOfRangeException(nameof(artifactType), artifactType, "Unsupported artifact type.")
         };
 }
