@@ -60,6 +60,42 @@ The current retrieval path in `Memora.Context` includes:
 These improvements deepen retrieval and reduce repeated work, but they do not
 change what counts as truth or how inclusion is justified.
 
+### Inclusion Reason Labels
+
+The current set of inclusion reason codes returned by the reasoner:
+
+- `approved-default` — included because approved artifacts are the default
+  context grounding in v1.
+- `draft-explicitly-allowed` — included because the request opted in to
+  drafts or proposals.
+- `noncanonical-history` — included as supporting non-canonical history
+  rather than canonical truth.
+- `layer1-charter-anchor`, `layer1-active-plan-anchor`, `layer1-repo-anchor`,
+  `layer3-supporting-history` — layer-specific anchor reasons.
+- `explicit-focus-artifact` — included because the request named this
+  artifact by id.
+- `related-focus-artifact`, `traversed-focus-artifact` — included because
+  an explicit stored relationship (direct or bounded traversal) connects to
+  a focused artifact.
+- `milestone-relevance` — included because the artifact matches the same
+  milestone markers as the request.
+- `request-keyword-overlap` — included because at least one request keyword
+  appears in this artifact's title, tags, sections, or body. This is honest
+  about what the deterministic ranker measures: keyword presence weighted
+  by where the term appears (title > tags > headings > body). It is not a
+  semantic match.
+- `request-keyword-strong-match` — included because the keyword overlap is
+  strong enough that at least one request term hits a title or tag, not
+  only a body sentence. Emitted in addition to `request-keyword-overlap`
+  when the ranker's direct-match score crosses an internal threshold.
+
+The previous `direct-task-match` code is replaced by the two keyword-overlap
+codes above. The change is purely a relabeling for honesty; the underlying
+deterministic ranking behavior is unchanged. The old label overstated the
+strength of the connection — a body-only token hit was reported with the
+same label as a title hit. The new labels are explicit about what the
+ranker actually found.
+
 ## What Caching Changes
 
 Cached context packages are a derived convenience only.
