@@ -8,7 +8,10 @@ It is intentionally separate from roadmap and milestone planning docs.
 ### Foundation
 
 - .NET 10 solution with product projects for Core, Import, Storage, Index, Context, API, MCP, and UI
-- typed artifact models, enums, and lifecycle rules in `Memora.Core`
+- typed artifact models, enums, and lifecycle rules in `Memora.Core`, including
+  the low-ceremony `note` artifact type (no required body sections, no
+  type-specific frontmatter, `NTE-NNN` id prefix) for the 80% capture case
+  where the eight typed schemas would be friction
 - artifact validation, diagnostic formatting, planning intake, draft editing, approval queue building, and revision diffs
 - revision diffs include deterministic change areas, display labels, and raw paths
 - markdown plus frontmatter parsing in `Memora.Storage`

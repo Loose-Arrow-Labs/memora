@@ -14,10 +14,11 @@ public static partial class ArtifactIdValidator
         [ArtifactType.Question] = "QST",
         [ArtifactType.Outcome] = "OUT",
         [ArtifactType.RepoStructure] = "REP",
-        [ArtifactType.SessionSummary] = "SUM"
+        [ArtifactType.SessionSummary] = "SUM",
+        [ArtifactType.Note] = "NTE"
     };
 
-    [GeneratedRegex("^(CHR|PLN|ADR|CNS|QST|OUT|REP|SUM)-\\d{3,}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^(CHR|PLN|ADR|CNS|QST|OUT|REP|SUM|NTE)-\\d{3,}$", RegexOptions.CultureInvariant)]
     private static partial Regex ArtifactIdPattern();
 
     public static bool IsValid(string? artifactId) =>

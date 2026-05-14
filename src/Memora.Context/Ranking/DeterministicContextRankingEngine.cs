@@ -19,7 +19,12 @@ public sealed class DeterministicContextRankingEngine
             [ArtifactType.Constraint] = 4,
             [ArtifactType.Question] = 3,
             [ArtifactType.Outcome] = 2,
-            [ArtifactType.SessionSummary] = 1
+            [ArtifactType.SessionSummary] = 1,
+            // Notes are explicitly the lowest-priority artifact type for
+            // ranking. They are a low-ceremony capture path, not a primary
+            // grounding source, so the deterministic ranker prefers any
+            // typed approved artifact above a note when both are eligible.
+            [ArtifactType.Note] = 0
         };
 
     public IReadOnlyList<RankedContextArtifact> Rank(

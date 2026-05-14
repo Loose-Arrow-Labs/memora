@@ -130,6 +130,7 @@ public sealed class DraftArtifactEditor
             ArtifactType.Outcome => new HashSet<string>(["outcome"], StringComparer.Ordinal),
             ArtifactType.RepoStructure => new HashSet<string>(["snapshot_source"], StringComparer.Ordinal),
             ArtifactType.SessionSummary => new HashSet<string>(["session_type"], StringComparer.Ordinal),
+            ArtifactType.Note => [],
             _ => throw new ArgumentOutOfRangeException(nameof(artifactType), artifactType, "Unsupported artifact type.")
         };
 

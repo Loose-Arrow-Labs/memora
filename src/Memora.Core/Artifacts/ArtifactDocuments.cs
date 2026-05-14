@@ -137,6 +137,22 @@ public sealed record RepoStructureArtifact(
     SnapshotSource SnapshotSource)
     : ArtifactDocument(Id, ProjectId, ArtifactType.RepoStructure, Status, Title, CreatedAtUtc, UpdatedAtUtc, Revision, Tags, Provenance, Reason, Links, Body, Sections);
 
+public sealed record NoteArtifact(
+    string Id,
+    string ProjectId,
+    ArtifactStatus Status,
+    string Title,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset UpdatedAtUtc,
+    int Revision,
+    IReadOnlyList<string> Tags,
+    string Provenance,
+    string Reason,
+    ArtifactLinks Links,
+    string Body,
+    IReadOnlyDictionary<string, string> Sections)
+    : ArtifactDocument(Id, ProjectId, ArtifactType.Note, Status, Title, CreatedAtUtc, UpdatedAtUtc, Revision, Tags, Provenance, Reason, Links, Body, Sections);
+
 public sealed record SessionSummaryArtifact(
     string Id,
     string ProjectId,
