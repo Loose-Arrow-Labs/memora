@@ -14,7 +14,8 @@ internal static class OperatorShellPageRenderer
 {
     public static string RenderHome(
         OperatorShellOptions options,
-        IReadOnlyList<OperatorProjectSummary> projects)
+        IReadOnlyList<OperatorProjectSummary> projects,
+        HierarchicalCookieState cookieState)
     {
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero\">");
@@ -47,7 +48,7 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</section>");
         body.AppendLine(RenderScopeNote(options));
 
-        return RenderLayout("Memora.Ui", options, projects, null, body.ToString());
+        return RenderLayout("Memora.Ui", options, projects, HierarchicalSelection.ForRoot(), cookieState, body.ToString());
     }
 
     public static string RenderGetStarted(
@@ -192,7 +193,8 @@ internal static class OperatorShellPageRenderer
     public static string RenderProject(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
-        OperatorProjectSnapshot snapshot)
+        OperatorProjectSnapshot snapshot,
+        HierarchicalCookieState cookieState)
     {
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero compact\">");
@@ -280,13 +282,17 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</section>");
         body.AppendLine(RenderScopeNote(options));
 
-        return RenderLayout(snapshot.Workspace.Metadata.Name, options, projects, snapshot.Workspace.ProjectId, body.ToString());
+        var selection = HierarchicalSelection.ForProject(
+            snapshot.Workspace.ProjectId,
+            $"/projects/{snapshot.Workspace.ProjectId}");
+        return RenderLayout(snapshot.Workspace.Metadata.Name, options, projects, selection, cookieState, body.ToString());
     }
 
     public static string RenderFirstRunImport(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
-        FirstRunImportStatusPage page)
+        FirstRunImportStatusPage page,
+        HierarchicalCookieState cookieState)
     {
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero compact\">");
@@ -359,7 +365,12 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</section>");
 
         body.AppendLine(RenderScopeNote(options));
-        return RenderLayout($"{page.ProjectName} first-run import", options, projects, page.ProjectId, body.ToString());
+        var selection = HierarchicalSelection.ForLeaf(
+            page.ProjectId,
+            HierarchicalSection.ProjectRoot,
+            "first-run",
+            $"/projects/{page.ProjectId}/first-run-import");
+        return RenderLayout($"{page.ProjectName} first-run import", options, projects, selection, cookieState, body.ToString());
     }
 
     public static string RenderArtifact(
@@ -367,6 +378,7 @@ internal static class OperatorShellPageRenderer
         IReadOnlyList<OperatorProjectSummary> projects,
         OperatorArtifactView view,
         IReadOnlyList<string> validationErrors,
+        HierarchicalCookieState cookieState,
         string? antiforgeryFieldName = null,
         string? antiforgeryRequestToken = null)
     {
@@ -419,13 +431,19 @@ internal static class OperatorShellPageRenderer
 
         body.AppendLine(RenderScopeNote(options));
 
-        return RenderLayout(artifact.Title, options, projects, view.Project.Workspace.ProjectId, body.ToString());
+        var selection = HierarchicalSelection.ForLeaf(
+            view.Project.Workspace.ProjectId,
+            HierarchicalSection.Artifacts,
+            "artifacts",
+            $"/projects/{view.Project.Workspace.ProjectId}/artifacts?path={view.SelectedArtifact.RelativePath}");
+        return RenderLayout(artifact.Title, options, projects, selection, cookieState, body.ToString());
     }
 
     public static string RenderQueue(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
-        OperatorProjectSnapshot snapshot)
+        OperatorProjectSnapshot snapshot,
+        HierarchicalCookieState cookieState)
     {
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero compact\">");
@@ -440,13 +458,19 @@ internal static class OperatorShellPageRenderer
             RenderPendingReviewItems(snapshot)));
         body.AppendLine(RenderScopeNote(options));
 
-        return RenderLayout($"{snapshot.Workspace.Metadata.Name} queue", options, projects, snapshot.Workspace.ProjectId, body.ToString());
+        var selection = HierarchicalSelection.ForLeaf(
+            snapshot.Workspace.ProjectId,
+            HierarchicalSection.Artifacts,
+            "queue",
+            $"/projects/{snapshot.Workspace.ProjectId}/queue");
+        return RenderLayout($"{snapshot.Workspace.Metadata.Name} queue", options, projects, selection, cookieState, body.ToString());
     }
 
     public static string RenderProposalReview(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
-        OperatorProjectSnapshot snapshot)
+        OperatorProjectSnapshot snapshot,
+        HierarchicalCookieState cookieState)
     {
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero compact\">");
@@ -461,13 +485,19 @@ internal static class OperatorShellPageRenderer
             RenderProposalTable(snapshot)));
         body.AppendLine(RenderScopeNote(options));
 
-        return RenderLayout($"{snapshot.Workspace.Metadata.Name} proposals", options, projects, snapshot.Workspace.ProjectId, body.ToString());
+        var selection = HierarchicalSelection.ForLeaf(
+            snapshot.Workspace.ProjectId,
+            HierarchicalSection.Artifacts,
+            "proposals",
+            $"/projects/{snapshot.Workspace.ProjectId}/proposals");
+        return RenderLayout($"{snapshot.Workspace.Metadata.Name} proposals", options, projects, selection, cookieState, body.ToString());
     }
 
     public static string RenderTrustDashboard(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
-        OperatorTrustDashboard dashboard)
+        OperatorTrustDashboard dashboard,
+        HierarchicalCookieState cookieState)
     {
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero compact\">");
@@ -493,7 +523,12 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</section>");
         body.AppendLine(RenderScopeNote(options));
 
-        return RenderLayout($"{dashboard.ProjectName} trust", options, projects, dashboard.ProjectId, body.ToString());
+        var trustSelection = HierarchicalSelection.ForLeaf(
+            dashboard.ProjectId,
+            HierarchicalSection.Artifacts,
+            "trust",
+            $"/projects/{dashboard.ProjectId}/trust");
+        return RenderLayout($"{dashboard.ProjectName} trust", options, projects, trustSelection, cookieState, body.ToString());
     }
 
     private static string RenderPendingReviewItems(OperatorProjectSnapshot snapshot)
@@ -558,6 +593,7 @@ internal static class OperatorShellPageRenderer
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
         OperatorArtifactView view,
+        HierarchicalCookieState cookieState,
         IReadOnlyList<string>? decisionErrors = null)
     {
         var artifact = view.SelectedArtifact.Artifact;
@@ -656,7 +692,12 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</section>");
         body.AppendLine(RenderDecisionPanel(view));
 
-        return RenderLayout($"{artifact.Title} review", options, projects, view.Project.Workspace.ProjectId, body.ToString());
+        var reviewSelection = HierarchicalSelection.ForLeaf(
+            view.Project.Workspace.ProjectId,
+            HierarchicalSection.Artifacts,
+            "queue",
+            $"/projects/{view.Project.Workspace.ProjectId}/review?path={view.SelectedArtifact.RelativePath}");
+        return RenderLayout($"{artifact.Title} review", options, projects, reviewSelection, cookieState, body.ToString());
     }
 
     private static string RenderProvenanceReview(OperatorProvenanceReview review)
@@ -761,7 +802,8 @@ internal static class OperatorShellPageRenderer
         string title,
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
-        string? selectedProjectId,
+        HierarchicalSelection selection,
+        HierarchicalCookieState cookieState,
         string body)
     {
         var html = new StringBuilder();
@@ -777,27 +819,69 @@ internal static class OperatorShellPageRenderer
         html.AppendLine("</head>");
         html.AppendLine("<body>");
         html.AppendLine("<div class=\"shell\">");
-        html.AppendLine("<header class=\"topbar\">");
-        html.AppendLine("<div class=\"topbar-main\">");
+        html.AppendLine("<header class=\"topbar topbar--thin\">");
         html.AppendLine("<div class=\"brand-block\">");
-        html.AppendLine("<a class=\"brand\" href=\"/\">Memora.Ui</a>");
-        html.AppendLine("<p class=\"topbar-copy\">Human-loop operator shell for local workspace files.</p>");
+        html.AppendLine("<a class=\"brand\" href=\"/\">Memora</a>");
+        html.AppendLine("<p class=\"topbar-copy muted\">Local project memory</p>");
         html.AppendLine("</div>");
-        html.AppendLine(RenderNavigation(selectedProjectId));
-        html.AppendLine("</div>");
-        html.AppendLine(RenderProjectSelector(projects, selectedProjectId));
         html.AppendLine("</header>");
-        html.AppendLine("<main>");
+        html.AppendLine("<div class=\"shell-body\">");
+        html.AppendLine(HierarchicalNavigationRenderer.RenderTreeSidebar(projects, selection, cookieState));
+        html.AppendLine("<main class=\"content-pane\">");
+        html.AppendLine(HierarchicalNavigationRenderer.RenderBreadcrumbs(projects, selection));
         html.AppendLine(body);
         html.AppendLine("</main>");
+        html.AppendLine("</div>");
         html.AppendLine("<footer class=\"footer\">");
         html.AppendLine($"<span>Workspace root: <code>{Encode(options.NormalizedWorkspacesRootPath)}</code></span>");
         html.AppendLine("</footer>");
         html.AppendLine("</div>");
+        html.AppendLine("<script>");
+        html.AppendLine(TreeStateScript);
+        html.AppendLine("</script>");
         html.AppendLine("</body>");
         html.AppendLine("</html>");
         return html.ToString();
     }
+
+    public static string RenderSectionLanding(
+        OperatorShellOptions options,
+        IReadOnlyList<OperatorProjectSummary> projects,
+        OperatorProjectSummary project,
+        HierarchicalSection section,
+        HierarchicalCookieState cookieState)
+    {
+        var body = HierarchicalNavigationRenderer.RenderSectionLanding(project, section, isAddProjectAvailable: false);
+        var selection = HierarchicalSelection.ForSection(
+            project.ProjectId,
+            section,
+            HierarchicalNavigationRenderer.SectionLandingPath(project.ProjectId, section));
+        return RenderLayout($"{project.Name} · {SectionTitle(section)}", options, projects, selection, cookieState, body);
+    }
+
+    private static string SectionTitle(HierarchicalSection section) =>
+        section switch
+        {
+            HierarchicalSection.AgentResources => "Agent resources",
+            HierarchicalSection.ProjectRoot => "Project root",
+            _ => "Artifacts"
+        };
+
+    private const string TreeStateScript = """
+(function () {
+  const COOKIE = 'memora.tree.expanded';
+  function persist() {
+    const ids = Array.from(document.querySelectorAll('details.tree-node[open]'))
+      .map(node => node.dataset.treeId)
+      .filter(Boolean);
+    const value = encodeURIComponent(ids.join(','));
+    document.cookie = COOKIE + '=' + value + ';path=/;max-age=31536000;SameSite=Strict';
+  }
+  document.querySelectorAll('details.tree-node').forEach(node => {
+    node.addEventListener('toggle', persist);
+  });
+})();
+""";
 
     private static string RenderNavigation(string? selectedProjectId)
     {
@@ -1402,18 +1486,39 @@ body { margin: 0; font-family: "Iowan Old Style", "Palatino Linotype", "Book Ant
 a { color: #7d341f; }
 code, pre, select, input, textarea, button { font-family: "Cascadia Code", "Consolas", monospace; }
 code, pre { overflow-wrap: anywhere; word-break: break-word; }
-.shell { max-width: 1180px; margin: 0 auto; padding: 24px; }
+.shell { max-width: 1280px; margin: 0 auto; padding: 24px; }
 .topbar, .footer, .hero, .panel, .project-card, .section-card { backdrop-filter: blur(8px); background: rgba(255, 249, 241, 0.82); border: 1px solid rgba(91, 56, 35, 0.16); box-shadow: 0 18px 40px rgba(57, 35, 21, 0.08); }
 .topbar, .footer { border-radius: 24px; padding: 18px 22px; }
 .topbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 320px); gap: 20px; align-items: end; margin-bottom: 20px; }
+.topbar.topbar--thin { grid-template-columns: 1fr; align-items: center; }
 .topbar-main { min-width: 0; display: grid; gap: 14px; }
-.brand-block { min-width: 0; }
+.brand-block { min-width: 0; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
 .brand { font-size: 1.4rem; font-weight: 700; text-decoration: none; }
 .topbar-copy, .muted { color: #695748; overflow-wrap: anywhere; }
-.topnav { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
-.nav-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px; border: 1px solid rgba(91, 56, 35, 0.12); border-radius: 16px; background: rgba(255, 255, 255, 0.34); }
-.nav-group span { color: #8a6041; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0 4px; }
-.topnav a { display: inline-flex; align-items: center; min-height: 34px; padding: 7px 10px; border: 1px solid rgba(125, 52, 31, 0.18); border-radius: 999px; background: rgba(255, 255, 255, 0.52); color: #7d341f; text-decoration: none; }
+.shell-body { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.tree-pane { position: sticky; top: 24px; background: rgba(255, 249, 241, 0.82); border: 1px solid rgba(91, 56, 35, 0.16); box-shadow: 0 18px 40px rgba(57, 35, 21, 0.08); border-radius: 24px; padding: 18px 16px; max-height: calc(100vh - 60px); overflow-y: auto; }
+.tree-nav details.tree-node { margin: 4px 0; }
+.tree-nav summary.tree-summary { cursor: pointer; padding: 6px 4px; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tree-nav summary.tree-summary:hover { background: rgba(255, 255, 255, 0.55); }
+.tree-nav .tree-label { font-weight: 700; }
+.tree-nav .tree-hint { color: #8a6041; font-size: 0.72rem; }
+.tree-nav .tree-list { list-style: none; padding-left: 18px; margin: 4px 0 0; display: grid; gap: 2px; }
+.tree-nav .tree-link { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 8px; border-radius: 10px; color: #4d3825; text-decoration: none; }
+.tree-nav .tree-link.tree-leaf { padding-left: 12px; color: #695748; font-size: 0.92rem; }
+.tree-nav .tree-link:hover { background: rgba(255, 255, 255, 0.55); }
+.tree-nav .tree-link.is-selected { background: rgba(125, 52, 31, 0.16); color: #7d341f; font-weight: 700; }
+.tree-nav .tree-add-action { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(91, 56, 35, 0.24); }
+.tree-nav .tree-add { color: #7d341f; text-decoration: none; font-weight: 600; }
+.tree-empty { display: grid; gap: 10px; padding: 12px 4px; }
+.tree-empty-title { font-weight: 700; margin: 0; }
+.tree-empty-hint { color: #695748; margin: 0; }
+.content-pane { min-width: 0; }
+.breadcrumbs { margin-bottom: 12px; font-size: 0.92rem; }
+.breadcrumbs ol { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.breadcrumbs li::after { content: "›"; color: #8a6041; padding-left: 8px; }
+.breadcrumbs li:last-child::after { content: ""; }
+.breadcrumbs a { color: #7d341f; text-decoration: none; }
+.breadcrumbs li[aria-current="page"] { color: #4d3825; font-weight: 600; }
 .selector { display: grid; grid-template-columns: 1fr; gap: 4px; min-width: 0; max-width: 100%; }
 .selector-title { font-size: 0.92rem; }
 .selector-hint { color: #695748; font-size: 0.78rem; }
@@ -1480,6 +1585,10 @@ pre { white-space: pre-wrap; margin: 0; }
 .alert { border-color: rgba(146, 50, 40, 0.34); }
 .note { background: rgba(245, 232, 210, 0.85); }
 .footer { margin-top: 20px; }
+@media (max-width: 960px) {
+  .shell-body { grid-template-columns: 1fr; }
+  .tree-pane { position: static; max-height: none; }
+}
 @media (max-width: 720px) {
   .shell { padding: 16px; }
   .topbar { grid-template-columns: 1fr; align-items: stretch; }

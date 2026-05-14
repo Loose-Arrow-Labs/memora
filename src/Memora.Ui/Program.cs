@@ -73,10 +73,11 @@ app.Use(async (context, next) =>
 
 app.MapGet(
     "/",
-    (LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
     {
         var projects = service.GetProjects();
-        var html = OperatorShellPageRenderer.RenderHome(options, projects);
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderHome(options, projects, cookieState);
         return Results.Content(html, "text/html");
     });
 
@@ -193,7 +194,7 @@ app.MapPost(
 
 app.MapGet(
     "/projects/{projectId}",
-    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
     {
         var snapshot = service.TryGetProject(projectId);
         if (snapshot is null)
@@ -201,7 +202,40 @@ app.MapGet(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderProject(options, service.GetProjects(), snapshot);
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderProject(options, service.GetProjects(), snapshot, cookieState);
+        return Results.Content(html, "text/html");
+    });
+
+app.MapGet(
+    "/projects/{projectId}/agent-resources",
+    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
+    {
+        var projects = service.GetProjects();
+        var project = projects.FirstOrDefault(p => string.Equals(p.ProjectId, projectId, StringComparison.Ordinal));
+        if (project is null)
+        {
+            return Results.NotFound();
+        }
+
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderSectionLanding(options, projects, project, HierarchicalSection.AgentResources, cookieState);
+        return Results.Content(html, "text/html");
+    });
+
+app.MapGet(
+    "/projects/{projectId}/project-root",
+    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
+    {
+        var projects = service.GetProjects();
+        var project = projects.FirstOrDefault(p => string.Equals(p.ProjectId, projectId, StringComparison.Ordinal));
+        if (project is null)
+        {
+            return Results.NotFound();
+        }
+
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderSectionLanding(options, projects, project, HierarchicalSection.ProjectRoot, cookieState);
         return Results.Content(html, "text/html");
     });
 
@@ -221,11 +255,13 @@ app.MapGet(
         }
 
         var tokens = antiforgery.GetAndStoreTokens(httpContext);
+        var cookieState = ReadTreeCookieState(httpContext);
         var html = OperatorShellPageRenderer.RenderArtifact(
             options,
             service.GetProjects(),
             artifactView,
             [],
+            cookieState,
             tokens.FormFieldName,
             tokens.RequestToken);
         return Results.Content(html, "text/html");
@@ -276,11 +312,13 @@ app.MapPost(
         }
 
         var tokens = antiforgery.GetAndStoreTokens(request.HttpContext);
+        var cookieState = ReadTreeCookieState(request.HttpContext);
         var html = OperatorShellPageRenderer.RenderArtifact(
             options,
             service.GetProjects(),
             artifactView,
             result.ValidationErrors,
+            cookieState,
             tokens.FormFieldName,
             tokens.RequestToken);
         return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
@@ -288,7 +326,7 @@ app.MapPost(
 
 app.MapGet(
     "/projects/{projectId}/queue",
-    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
     {
         var snapshot = service.TryGetProject(projectId);
         if (snapshot is null)
@@ -296,13 +334,14 @@ app.MapGet(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderQueue(options, service.GetProjects(), snapshot);
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderQueue(options, service.GetProjects(), snapshot, cookieState);
         return Results.Content(html, "text/html");
     });
 
 app.MapGet(
     "/projects/{projectId}/proposals",
-    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
     {
         var snapshot = service.TryGetProject(projectId);
         if (snapshot is null)
@@ -310,13 +349,14 @@ app.MapGet(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderProposalReview(options, service.GetProjects(), snapshot);
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderProposalReview(options, service.GetProjects(), snapshot, cookieState);
         return Results.Content(html, "text/html");
     });
 
 app.MapGet(
     "/projects/{projectId}/trust",
-    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (string projectId, LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
     {
         var dashboard = service.TryBuildTrustDashboard(projectId);
         if (dashboard is null)
@@ -324,13 +364,14 @@ app.MapGet(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderTrustDashboard(options, service.GetProjects(), dashboard);
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderTrustDashboard(options, service.GetProjects(), dashboard, cookieState);
         return Results.Content(html, "text/html");
     });
 
 app.MapGet(
     "/projects/{projectId}/first-run-import",
-    (string projectId, string? importMode, FileSystemFirstRunImportStatusService importStatusService, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (string projectId, string? importMode, FileSystemFirstRunImportStatusService importStatusService, LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
     {
         var page = importStatusService.TryBuildPage(projectId, importMode);
         if (page is null)
@@ -338,13 +379,14 @@ app.MapGet(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderFirstRunImport(options, service.GetProjects(), page);
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderFirstRunImport(options, service.GetProjects(), page, cookieState);
         return Results.Content(html, "text/html");
     });
 
 app.MapGet(
     "/projects/{projectId}/review",
-    (string projectId, string? path, LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (string projectId, string? path, LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -357,7 +399,8 @@ app.MapGet(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderReview(options, service.GetProjects(), artifactView);
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderReview(options, service.GetProjects(), artifactView, cookieState);
         return Results.Content(html, "text/html");
     });
 
@@ -387,7 +430,8 @@ app.MapPost(
             return Results.NotFound();
         }
 
-        var html = OperatorShellPageRenderer.RenderReview(options, service.GetProjects(), artifactView, result.ValidationErrors);
+        var cookieState = ReadTreeCookieState(request.HttpContext);
+        var html = OperatorShellPageRenderer.RenderReview(options, service.GetProjects(), artifactView, cookieState, result.ValidationErrors);
         return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
     });
 
@@ -512,5 +556,9 @@ static string BuildRedirectWithoutLocalToken(HttpRequest request)
 
     return request.PathBase + request.Path + QueryString.Create(query);
 }
+
+static HierarchicalCookieState ReadTreeCookieState(HttpContext httpContext) =>
+    HierarchicalCookieState.Parse(
+        httpContext.Request.Cookies.TryGetValue(HierarchicalCookieState.CookieName, out var raw) ? raw : null);
 
 public partial class Program;

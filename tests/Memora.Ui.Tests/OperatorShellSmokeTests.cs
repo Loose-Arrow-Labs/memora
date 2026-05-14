@@ -24,7 +24,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Root_renders_project_selector()
+    public async Task Root_renders_project_selector_and_tree_sidebar()
     {
         using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
 
@@ -32,7 +32,9 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
 
         Assert.Contains("Select a project", html);
         Assert.Contains("Demo Project", html);
-        Assert.Contains("Project Selector", html);
+        Assert.Contains("class=\"tree-pane\"", html, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"Primary navigation\"", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"tree-label\">Memora</span>", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -47,7 +49,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Project_page_renders_artifact_browser_and_queue()
+    public async Task Project_page_renders_artifact_browser_queue_and_hierarchical_tree()
     {
         using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
 
@@ -57,11 +59,10 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
         Assert.Contains("Approval Queue", html);
         Assert.Contains("CHR-001.r0001.md", html);
         Assert.Contains("Primary navigation", html);
-        Assert.Contains(">Understanding</a>", html);
-        Assert.Contains(">Review</span>", html);
-        Assert.Contains(">Observe</span>", html);
-        Assert.Contains(">Trust</span>", html);
-        Assert.Contains(">Configure</span>", html);
+        Assert.Contains("Agent resources", html, StringComparison.Ordinal);
+        Assert.Contains("Project root", html, StringComparison.Ordinal);
+        Assert.Contains("class=\"breadcrumbs\"", html, StringComparison.Ordinal);
+        Assert.Contains("aria-current=\"page\"", html, StringComparison.Ordinal);
     }
 
     [Fact]
