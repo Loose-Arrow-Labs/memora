@@ -1129,6 +1129,21 @@ internal static class OperatorShellPageRenderer
                 </form>
                 """);
         }
+        else if (artifact.Status == ArtifactStatus.Proposed)
+        {
+            // Proposed artifacts cannot be approved directly per the lifecycle
+            // rules. The operator promotes them to draft first, which lets the
+            // existing draft -> approved transition apply. The button text is
+            // user-facing language ("Promote to draft") rather than the lifecycle
+            // vocabulary so a new operator can tell what it does.
+            actions.Add($"""
+                <form method="post" action="{postPath}" class="inline-decision-form">
+                {pathInput}
+                <input type="hidden" name="decision" value="Promote" />
+                <button class="button" type="submit">Promote to draft</button>
+                </form>
+                """);
+        }
         else
         {
             actions.Add("<span class=\"button disabled\">Approve</span>");
