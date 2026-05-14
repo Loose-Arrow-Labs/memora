@@ -541,7 +541,7 @@ internal static class OperatorShellPageRenderer
             var reviewLink = BuildReviewLink(snapshot.Workspace.ProjectId, item.Record.RelativePath);
             html.AppendLine("<tr>");
             html.AppendLine($"<td><strong>{Encode(artifact.Title)}</strong><br><code>{Encode(artifact.Id)}</code></td>");
-            html.AppendLine($"<td>{RenderStatusBadge(artifact.Status)}<br><span class=\"muted\">Non-canonical</span></td>");
+            html.AppendLine($"<td>{RenderStatusBadge(artifact.Status)}<br><span class=\"muted\">Pending review</span></td>");
             html.AppendLine($"<td>{Encode(artifact.Type.ToSchemaValue())}</td>");
             html.AppendLine($"<td>{Encode(artifact.Revision.ToString(CultureInfo.InvariantCulture))}</td>");
             html.AppendLine($"<td>{Encode(artifact.Provenance)}<br><span class=\"muted\">{Encode(artifact.Reason)}</span></td>");
@@ -591,9 +591,9 @@ internal static class OperatorShellPageRenderer
         if (artifact.Status == ArtifactStatus.Proposed)
         {
             body.AppendLine(ReviewUiComponents.RenderPanel(
-                "Non-Canonical Proposal",
-                "This proposal is review input only; it is not approved project truth.",
-                "<p>Use this view to inspect metadata, provenance, sections, and diff context before a governed lifecycle action changes filesystem-backed state.</p>",
+                "Pending review",
+                "This entry was proposed by an agent or operator. It is not part of approved project memory yet.",
+                "<p>Inspect the contents and provenance below, then choose <strong>Promote to draft</strong> to send it through the approval flow, or <strong>Reject</strong> to discard it.</p>",
                 "note"));
         }
 
@@ -655,11 +655,6 @@ internal static class OperatorShellPageRenderer
 
         body.AppendLine("</section>");
         body.AppendLine(RenderDecisionPanel(view));
-        body.AppendLine("<section class=\"panel note\">");
-        body.AppendLine("<h2>Current UI boundary</h2>");
-        body.AppendLine("<p>Approval and rejection actions now persist through the governed core workflow. The UI still cannot directly edit canonical truth or bypass lifecycle validation.</p>");
-        body.AppendLine("</section>");
-        body.AppendLine(RenderScopeNote(options));
 
         return RenderLayout($"{artifact.Title} review", options, projects, view.Project.Workspace.ProjectId, body.ToString());
     }
@@ -1240,7 +1235,7 @@ internal static class OperatorShellPageRenderer
         var artifact = view.SelectedArtifact.Artifact;
         var html = new StringBuilder();
         html.AppendLine("<section class=\"panel decision-panel\">");
-        html.AppendLine("<div class=\"panel-header\"><h2>Decision Readiness</h2><p class=\"muted\">Core workflow alignment for this pending artifact.</p></div>");
+        html.AppendLine("<div class=\"panel-header\"><h2>What this needs before approval</h2><p class=\"muted\">Status of the pending item against the review rules.</p></div>");
         html.AppendLine(ReviewUiComponents.RenderMetadataGrid(
         [
             new("Pending status", RenderStatusBadge(artifact.Status), IsHtml: true),
@@ -1303,14 +1298,12 @@ internal static class OperatorShellPageRenderer
         return actions;
     }
 
-    private static string RenderScopeNote(OperatorShellOptions options)
-    {
-        var rootMode = options.UsesSeededSampleRoot
-            ? "The shell is using a writable local copy of the sample workspaces so you can explore without touching the repo fixtures."
-            : "The shell is using the configured workspace root directly.";
-
-        return $"<section class=\"panel note\"><h2>Current workflow scope</h2><p>{Encode(rootMode)}</p><p>Draft inspection, editing, approval, and rejection are wired through current core and storage behavior. Canonical truth still changes only through governed approval persistence.</p></section>";
-    }
+    // Per PBR-11, the "Current workflow scope" footer used to be rendered at
+    // the bottom of nearly every operator page. It was explaining the system
+    // to itself rather than helping the user finish a task. The footer is no
+    // longer emitted; this method is kept (returning an empty string) so the
+    // existing call sites stay valid without a wider renderer rewrite.
+    private static string RenderScopeNote(OperatorShellOptions options) => string.Empty;
 
     private static string RenderStatusBadge(ArtifactStatus status) =>
         ReviewUiComponents.RenderStatusBadge(status);

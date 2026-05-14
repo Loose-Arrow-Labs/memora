@@ -116,18 +116,23 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
 
         Assert.Contains("Revision Review", html);
         Assert.Contains("Review item ", html);
-        Assert.Contains("Decision Readiness", html);
+        // The previous "Decision Readiness" / "Current UI boundary" / "Current
+        // workflow scope" labels were architecture vocabulary aimed at the
+        // engineer building Memora, not at the user. PBR-11 replaces or
+        // removes them.
+        Assert.Contains("What this needs before approval", html);
+        Assert.DoesNotContain("Decision Readiness", html);
+        Assert.DoesNotContain("Current UI boundary", html);
+        Assert.DoesNotContain("Current workflow scope", html);
         Assert.Contains("Approve", html);
         Assert.Contains("Reject", html);
         Assert.Contains("Return to queue", html);
         Assert.Contains("Previous item", html);
         Assert.Contains("Next item", html);
-        Assert.Contains("Current UI boundary", html);
-        Assert.Contains("persist through the governed core workflow", html, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task Proposal_page_renders_pending_proposals_as_non_canonical()
+    public async Task Proposal_page_renders_pending_proposals_as_pending_review()
     {
         using var factory = new OperatorShellFactory();
         var proposalDirectory = Path.Combine(factory.WorkspacesRootPath, "demo-project", "drafts", "plan");
@@ -174,7 +179,10 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
 
         Assert.Contains("Proposal Review", html, StringComparison.Ordinal);
         Assert.Contains("Proposed review workflow", html, StringComparison.Ordinal);
-        Assert.Contains("Non-canonical", html, StringComparison.Ordinal);
+        // PBR-11: "Non-canonical" is internal vocabulary. The user-facing label
+        // is "Pending review".
+        Assert.Contains("Pending review", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Non-canonical", html, StringComparison.Ordinal);
         Assert.Contains("Inspect proposal details and diff", html, StringComparison.Ordinal);
     }
 
