@@ -108,13 +108,13 @@ public sealed class ContextInclusionReasoner
             // closer to "this artifact is plausibly about the request".
             reasons.Add(new ContextInclusionReason(
                 "request-keyword-overlap",
-                "Included because at least one request keyword appears in this artifact's title, tags, sections, or body."));
+                "Included because at least one request keyword appears in the artifact title, tags, sections, or body."));
 
             if (rankedArtifact.Breakdown.DirectMatchStrength >= StrongKeywordMatchThreshold)
             {
                 reasons.Add(new ContextInclusionReason(
                     "request-keyword-strong-match",
-                    "Included because a request keyword appears in this artifact's title or tags, not only in its body."));
+                    "Included because a request keyword appears in the artifact title or tags, not only in the body."));
             }
         }
 
