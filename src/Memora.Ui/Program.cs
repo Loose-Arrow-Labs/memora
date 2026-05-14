@@ -29,6 +29,12 @@ builder.Services.AddSingleton<LocalOperatorWorkspaceService>();
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<OperatorShellOptions>();
+    var workspaceService = sp.GetRequiredService<LocalOperatorWorkspaceService>();
+    return new GitHubImportFlowService(options, workspaceService);
+});
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<OperatorShellOptions>();
     return new FileSystemFirstRunImportStatusService(options.NormalizedWorkspacesRootPath);
 });
 builder.Services.AddSingleton(sp =>
@@ -96,6 +102,93 @@ app.MapPost(
 
         var html = OperatorShellPageRenderer.RenderGetStarted(options, service.GetProjects(), result.ValidationErrors);
         return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
+    });
+
+app.MapPost(
+    "/get-started/github/repos",
+    async (HttpRequest request, GitHubImportFlowService flowService, LocalOperatorWorkspaceService workspaceService, OperatorShellOptions options) =>
+    {
+        var form = await request.ReadFormAsync();
+        var projectId = form["projectId"].ToString();
+        var name = form["name"].ToString();
+        var personalAccessToken = form["personalAccessToken"].ToString();
+
+        if (string.IsNullOrWhiteSpace(projectId) || string.IsNullOrWhiteSpace(personalAccessToken))
+        {
+            var html = OperatorShellPageRenderer.RenderGetStarted(
+                options,
+                workspaceService.GetProjects(),
+                ["Project id and personal access token are required to continue."]);
+            return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var discovery = flowService.ListUserRepositories(personalAccessToken);
+        if (!discovery.IsSuccess || discovery.Account is null)
+        {
+            var html = OperatorShellPageRenderer.RenderGetStarted(
+                options,
+                workspaceService.GetProjects(),
+                discovery.ValidationErrors);
+            return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var page = new GitHubRepoPickerPageModel(
+            projectId,
+            name,
+            personalAccessToken,
+            discovery.Account.Login,
+            discovery.Repositories,
+            []);
+        var pickerHtml = OperatorShellPageRenderer.RenderGitHubRepoPicker(options, workspaceService.GetProjects(), page);
+        return Results.Content(pickerHtml, "text/html");
+    });
+
+app.MapPost(
+    "/get-started/github/start",
+    async (HttpRequest request, GitHubImportFlowService flowService, LocalOperatorWorkspaceService workspaceService, OperatorShellOptions options) =>
+    {
+        var form = await request.ReadFormAsync();
+        var projectId = form["projectId"].ToString();
+        var name = form["name"].ToString();
+        var personalAccessToken = form["personalAccessToken"].ToString();
+        var repositoryFullName = form["repositoryFullName"].ToString();
+        var importMode = form["importMode"].ToString();
+
+        var setupRequest = new GitHubProjectSetupRequest(
+            projectId,
+            name,
+            personalAccessToken,
+            repositoryFullName,
+            string.IsNullOrWhiteSpace(importMode) ? "fast_baseline" : importMode);
+
+        var result = flowService.SetupProject(setupRequest);
+
+        if (result.IsSuccess && result.ProjectId is not null)
+        {
+            return Results.Redirect($"/projects/{Uri.EscapeDataString(result.ProjectId)}/first-run-import");
+        }
+
+        if (string.IsNullOrWhiteSpace(personalAccessToken))
+        {
+            var html = OperatorShellPageRenderer.RenderGetStarted(
+                options,
+                workspaceService.GetProjects(),
+                result.ValidationErrors);
+            return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var discovery = flowService.ListUserRepositories(personalAccessToken);
+        var repositories = discovery.IsSuccess ? discovery.Repositories : [];
+        var accountLogin = discovery.Account?.Login ?? "your account";
+        var page = new GitHubRepoPickerPageModel(
+            projectId,
+            name,
+            personalAccessToken,
+            accountLogin,
+            repositories,
+            result.ValidationErrors);
+        var pickerHtml = OperatorShellPageRenderer.RenderGitHubRepoPicker(options, workspaceService.GetProjects(), page);
+        return Results.Content(pickerHtml, "text/html", statusCode: StatusCodes.Status400BadRequest);
     });
 
 app.MapGet(
