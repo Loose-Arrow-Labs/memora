@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using Memora.Core.Artifacts;
 using Memora.Core.Import;
+using Memora.Import.GitHub;
 using Memora.Import.Readiness;
 using Memora.Ui.FirstRunImport;
 using Memora.Ui.Operator;
@@ -87,20 +88,105 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</article>");
 
         body.AppendLine("<article class=\"panel\">");
-        body.AppendLine("<div class=\"panel-header\"><h2>GitHub Login</h2><p class=\"muted\">The app does not have an in-browser GitHub OAuth flow yet. Use GitHub CLI for now.</p></div>");
-        body.AppendLine("<pre>gh auth login</pre>");
-        body.AppendLine("<p>After logging in, Memora can use local GitHub tooling where current import paths support it. The installed UI still focuses on local workspaces and review surfaces.</p>");
-        body.AppendLine("<p><a class=\"button ghost\" href=\"/\">Back to projects</a></p>");
+        body.AppendLine("<div class=\"panel-header\"><h2>Import From GitHub</h2><p class=\"muted\">Paste a GitHub personal access token (PAT). Memora will list your repositories so you can pick one. No OAuth, no browser redirect, no upload.</p></div>");
+        body.AppendLine("<form method=\"post\" action=\"/get-started/github/repos\" class=\"edit-form\">");
+        body.AppendLine("<label><span>Project id</span><input type=\"text\" name=\"projectId\" placeholder=\"acme-portfolio\" required /></label>");
+        body.AppendLine("<label><span>Display name</span><input type=\"text\" name=\"name\" placeholder=\"Acme portfolio\" /></label>");
+        body.AppendLine("<label><span>GitHub personal access token</span><input type=\"password\" name=\"personalAccessToken\" autocomplete=\"off\" required /></label>");
+        body.AppendLine("<p class=\"muted\">Token stays on this machine for the duration of the request. Memora does not write it to disk. Use a fine-grained token with read access to the repositories you want to import.</p>");
+        body.AppendLine("<button class=\"button\" type=\"submit\">Continue</button>");
+        body.AppendLine("</form>");
+        body.AppendLine("<p class=\"muted\">Already have <code>gh</code> authenticated locally? The local Git path above will work for any cloned checkout without a token.</p>");
         body.AppendLine("</article>");
         body.AppendLine("</section>");
 
         body.AppendLine("<section class=\"panel note\">");
         body.AppendLine("<h2>What exists today</h2>");
-        body.AppendLine("<p>Project creation and local repository attachment are available here. Full in-app import execution, GitHub browser login, and upload-style onboarding are not current capabilities.</p>");
+        body.AppendLine("<p>Project creation, local repository attachment, and GitHub-via-PAT attach-and-import are available here. Full OAuth, organization-level consent, and live progress streaming during import remain follow-up scope.</p>");
         body.AppendLine($"<p class=\"muted\">Workspace root: {Encode(options.NormalizedWorkspacesRootPath)}</p>");
         body.AppendLine("</section>");
 
         return RenderLayout("Get started", options, projects, null, body.ToString());
+    }
+
+    public static string RenderGitHubRepoPicker(
+        OperatorShellOptions options,
+        IReadOnlyList<OperatorProjectSummary> projects,
+        GitHubRepoPickerPageModel page)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<section class=\"hero compact\">");
+        body.AppendLine("<p class=\"eyebrow\">Get started · GitHub</p>");
+        body.AppendLine($"<h1>Pick a repository for {Encode(page.AccountLogin)}</h1>");
+        body.AppendLine("<p class=\"lede\">Memora will create a workspace, attach the selected GitHub repository, and run a bounded evidence import.</p>");
+        body.AppendLine("</section>");
+
+        if (page.ValidationErrors.Count > 0)
+        {
+            body.AppendLine("<section class=\"panel alert\">");
+            body.AppendLine("<h2>Setup needs attention</h2>");
+            body.AppendLine("<ul class=\"list\">");
+            foreach (var error in page.ValidationErrors)
+            {
+                body.AppendLine($"<li>{Encode(error)}</li>");
+            }
+
+            body.AppendLine("</ul>");
+            body.AppendLine("</section>");
+        }
+
+        body.AppendLine("<section class=\"panel\">");
+        body.AppendLine("<div class=\"panel-header\"><h2>Choose a repository</h2><p class=\"muted\">Showing repositories your token can access. Newest activity first.</p></div>");
+
+        if (page.Repositories.Count == 0)
+        {
+            body.AppendLine("<p>The token did not surface any repositories. Check token scopes and organization access, then start over.</p>");
+            body.AppendLine("<p><a class=\"button ghost\" href=\"/get-started\">Back to get started</a></p>");
+            body.AppendLine("</section>");
+            return RenderLayout("Pick a GitHub repository", options, projects, null, body.ToString());
+        }
+
+        body.AppendLine("<form method=\"post\" action=\"/get-started/github/start\" class=\"edit-form\">");
+        body.AppendLine($"<input type=\"hidden\" name=\"projectId\" value=\"{Encode(page.ProjectId)}\" />");
+        body.AppendLine($"<input type=\"hidden\" name=\"name\" value=\"{Encode(page.Name)}\" />");
+        body.AppendLine($"<input type=\"hidden\" name=\"personalAccessToken\" value=\"{Encode(page.PersonalAccessToken)}\" />");
+
+        body.AppendLine("<div class=\"table-scroll\">");
+        body.AppendLine("<table><thead><tr><th></th><th>Repository</th><th>Visibility</th><th>Default branch</th><th>Updated</th></tr></thead><tbody>");
+        var first = true;
+        foreach (var repository in page.Repositories)
+        {
+            var visibility = repository.IsPrivate ? "private" : "public";
+            var updated = repository.UpdatedAtUtc?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "unknown";
+            var checkedAttribute = first ? " checked" : string.Empty;
+            first = false;
+            body.AppendLine("<tr>");
+            body.AppendLine($"<td><input type=\"radio\" name=\"repositoryFullName\" value=\"{Encode(repository.FullName)}\" required{checkedAttribute} /></td>");
+            body.AppendLine($"<td><code>{Encode(repository.FullName)}</code></td>");
+            body.AppendLine($"<td>{Encode(visibility)}</td>");
+            body.AppendLine($"<td>{Encode(repository.DefaultBranch)}</td>");
+            body.AppendLine($"<td>{Encode(updated)}</td>");
+            body.AppendLine("</tr>");
+        }
+
+        body.AppendLine("</tbody></table>");
+        body.AppendLine("</div>");
+
+        body.AppendLine("<label><span>Import mode</span>");
+        body.AppendLine("<select name=\"importMode\">");
+        body.AppendLine("<option value=\"fast_baseline\" selected>Fast baseline — quick demo path, evidence stays reviewable</option>");
+        body.AppendLine("<option value=\"strict_governance\">Strict governance — every record must be reviewed before promotion</option>");
+        body.AppendLine("<option value=\"evidence_canonical\">Evidence canonical — imported evidence is treated as canonical</option>");
+        body.AppendLine("<option value=\"bulk_approval\">Bulk approval — group-approve baseline candidates</option>");
+        body.AppendLine("</select></label>");
+
+        body.AppendLine("<p class=\"muted\">Import is synchronous in this build. The page will refresh once evidence is persisted; large repositories may take longer than a normal request.</p>");
+        body.AppendLine("<button class=\"button\" type=\"submit\">Start import</button>");
+        body.AppendLine("<a class=\"button ghost\" href=\"/get-started\">Cancel</a>");
+        body.AppendLine("</form>");
+        body.AppendLine("</section>");
+
+        return RenderLayout("Pick a GitHub repository", options, projects, null, body.ToString());
     }
 
     public static string RenderProject(
