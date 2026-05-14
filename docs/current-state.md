@@ -108,6 +108,11 @@ It is intentionally separate from roadmap and milestone planning docs.
   them to `draft` through the governed lifecycle so the existing
   draft -> approved approval flow becomes reachable without hand-editing
   YAML frontmatter
+- review and proposals pages use user-facing labels ("Pending review",
+  "What this needs before approval", "Promote to draft") instead of the
+  earlier internal vocabulary ("Non-Canonical Proposal", "Decision
+  Readiness", "Current UI boundary", "Current workflow scope"); the
+  underlying API and contract names are unchanged
 - trust dashboard summary for pending proposals, stale drafts, relationship and
   rebuild diagnostics, missing project memory, and import warnings
 - grouped operator navigation for review, observe, trust, and configure
