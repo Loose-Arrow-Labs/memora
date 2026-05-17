@@ -9,7 +9,7 @@ public sealed class DeterministicContextRankingEngineTests
     private readonly DeterministicContextRankingEngine _engine = new();
 
     [Fact]
-    public void Rank_PrefersApprovedArtifactsOverDraftsWhenOtherFactorsMatch()
+    public void Rank_PrefersApprovedOverDraftsWhenMatched()
     {
         var request = new ContextBundleRequest("memora", "Need milestone 3 context.");
         var approved = CreateCandidate("PLN-001", ArtifactStatus.Approved, ContextArtifactOrigin.CanonicalApproved);
@@ -116,7 +116,7 @@ public sealed class DeterministicContextRankingEngineTests
     }
 
     [Fact]
-    public void Rank_PreservesBreakdownsForIdenticalInputsRegardlessOfInputOrder()
+    public void Rank_IdenticalInputs_PreservesBreakdownsRegardlessOfOrder()
     {
         var request = new ContextBundleRequest(
             "memora",

@@ -16,7 +16,7 @@ public sealed class RepositoryAttachmentServiceTests : IDisposable
     private readonly WorkspaceDiscovery _workspaceDiscovery = new();
 
     [Fact]
-    public void Attach_LocalGit_PersistsRepositoryMetadataWithoutUsingSourceAsWorkspace()
+    public void Attach_LocalGit_PersistsMetadataWithoutSourceWorkspace()
     {
         CreateWorkspace("memora");
         var repoPath = CreateSourceRepository("memora-source");
@@ -48,7 +48,7 @@ public sealed class RepositoryAttachmentServiceTests : IDisposable
     }
 
     [Fact]
-    public void Attach_GitHub_PersistsRemoteIdentityAndDefaultBranch()
+    public void Attach_GitHub_PersistsRemoteIdentityDefaultBranch()
     {
         CreateWorkspace("memora");
         var service = CreateService();

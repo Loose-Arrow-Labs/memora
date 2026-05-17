@@ -39,7 +39,7 @@ public sealed class AgentInteractionContractTests
     }
 
     [Fact]
-    public void ProposalContent_NormalizesTagsAndPreservesSections()
+    public void ProposalContent_NormalizesTagsPreservesSections()
     {
         var content = new ArtifactProposalContent(
             "Context decision",
@@ -88,7 +88,7 @@ public sealed class AgentInteractionContractTests
     }
 
     [Fact]
-    public void ExternalRuntimeContract_PublishesProviderAgnosticProposalOnlyOperations()
+    public void ExternalRuntimeContract_PublishesProposalOnlyOperations()
     {
         var contract = ExternalRuntimeContract.Current;
 

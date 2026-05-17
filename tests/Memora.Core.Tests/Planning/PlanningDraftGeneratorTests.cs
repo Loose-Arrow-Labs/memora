@@ -8,7 +8,7 @@ public sealed class PlanningDraftGeneratorTests
     private readonly PlanningDraftGenerator _generator = new();
 
     [Fact]
-    public void ValidIntake_GeneratesDraftArtifactsAndPlanningSummary()
+    public void ValidIntake_GeneratesDraftArtifactsSummary()
     {
         var intake = PlanningIntakeTestBuilder.CreateValidIntake();
 
@@ -88,7 +88,7 @@ public sealed class PlanningDraftGeneratorTests
     }
 
     [Fact]
-    public void InvalidIntake_ReturnsValidationAndDoesNotGenerateArtifacts()
+    public void InvalidIntake_ValidationBlocksArtifactGeneration()
     {
         var intake = PlanningIntakeTestBuilder.CreateValidIntake() with
         {

@@ -18,7 +18,7 @@ public sealed class ContextViewerTests : IDisposable
     private readonly ArtifactFileStore _fileStore = new();
 
     [Fact]
-    public async Task ContextViewer_LoadsAndRendersBundleDetails()
+    public async Task ContextViewer_LoadsRendersBundleDetails()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateCharterArtifact());
