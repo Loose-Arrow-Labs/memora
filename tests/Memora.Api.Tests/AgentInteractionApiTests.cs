@@ -139,7 +139,7 @@ public sealed class AgentInteractionApiTests
     }
 
     [Fact]
-    public async Task PostReviewDecision_ReturnsGovernedDecisionContractForIdeClients()
+    public async Task PostReviewDecision_ReturnsGovernedContractForIde()
     {
         using var factory = CreateFactory(new TestAgentInteractionService());
         using var client = CreateAuthorizedClient(factory);
