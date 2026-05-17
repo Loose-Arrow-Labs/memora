@@ -20,7 +20,7 @@ public sealed class TraceabilityQueryServiceTests : IDisposable
     private readonly TraceabilityQueryService _service = new();
 
     [Fact]
-    public void Query_Direct_ReturnsIncomingAndOutgoingPathsDeterministically()
+    public void Query_Direct_ReturnsIncomingOutgoingPaths()
     {
         var workspace = CreateWorkspace("alpha-workspace", "alpha", "Alpha");
         SeedTraceabilityWorkspace(workspace);
@@ -81,7 +81,7 @@ public sealed class TraceabilityQueryServiceTests : IDisposable
     }
 
     [Fact]
-    public void Query_Impact_ReturnsExplicitAndReverseDependencyPaths()
+    public void Query_Impact_ReturnsExplicitReversePaths()
     {
         var workspace = CreateWorkspace("alpha-workspace", "alpha", "Alpha");
         SeedTraceabilityWorkspace(workspace);

@@ -58,7 +58,7 @@ public sealed class OptionalRetrievalExtensionTests
     }
 
     [Fact]
-    public void ExternalCandidate_CarriesAdvisoryArtifactIdAndExplanationOnly()
+    public void ExternalCandidate_CarriesAdvisoryIdExplanationOnly()
     {
         var candidate = new ExternalRetrievalCandidate(
             " ADR-001 ",

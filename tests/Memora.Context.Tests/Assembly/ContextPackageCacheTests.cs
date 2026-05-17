@@ -10,7 +10,7 @@ public sealed class ContextPackageCacheTests
     private readonly ContextPackageCache _cache = new();
 
     [Fact]
-    public void GetOrBuild_ReusesContextPackageForIdenticalRequestAndArtifactSet()
+    public void GetOrBuild_ReusesPackageForIdenticalRequestArtifacts()
     {
         var request = new ContextBundleRequest("memora", "Prepare cached context.");
         var artifacts = new[] { CreateCharterArtifact() };
