@@ -9,7 +9,7 @@ public sealed class SafeAutomationTriggerEvaluatorTests
     private readonly SafeAutomationTriggerEvaluator _evaluator = new();
 
     [Fact]
-    public void FromLifecycleTransition_RepresentsArtifactStatusChangeWithoutMutation()
+    public void LifecycleTransition_StatusChange_NoMutation()
     {
         var before = CreateSessionSummary(ArtifactStatus.Proposed, revision: 1);
         var after = CreateSessionSummary(ArtifactStatus.Draft, revision: 1);
@@ -29,7 +29,7 @@ public sealed class SafeAutomationTriggerEvaluatorTests
     }
 
     [Fact]
-    public void Evaluate_IgnoresLifecycleEventWhenPolicyRequiresExplicitTrigger()
+    public void Evaluate_Lifecycle_IgnoredWithoutExplicitTrigger()
     {
         var policy = CreateSessionSummaryPolicy(enabled: true);
         var before = CreateSessionSummary(ArtifactStatus.Proposed, revision: 1);
@@ -47,7 +47,7 @@ public sealed class SafeAutomationTriggerEvaluatorTests
     }
 
     [Fact]
-    public void Evaluate_AllowsExplicitOperatorRequestForMatchingPolicyPermission()
+    public void Evaluate_OperatorRequest_AllowedForPermission()
     {
         var policy = CreateSessionSummaryPolicy(enabled: true);
         var triggerEvent = ControlledAutomationTriggerEvent.ExplicitOperatorRequest(
