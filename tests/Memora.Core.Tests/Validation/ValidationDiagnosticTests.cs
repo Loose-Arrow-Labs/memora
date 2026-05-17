@@ -6,7 +6,7 @@ namespace Memora.Core.Tests.Validation;
 public sealed class ValidationDiagnosticTests
 {
     [Fact]
-    public void ArtifactValidationIssue_DiagnosticMessage_IncludesCodeAndPath()
+    public void ValidationIssue_Diagnostic_ContainsCodePath()
     {
         var issue = new ArtifactValidationIssue(
             "artifact.title.required",
