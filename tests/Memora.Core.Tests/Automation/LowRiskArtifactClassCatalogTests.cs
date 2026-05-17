@@ -6,7 +6,7 @@ namespace Memora.Core.Tests.Automation;
 public sealed class LowRiskArtifactClassCatalogTests
 {
     [Fact]
-    public void Definitions_AreExplicitlyBoundedAndNonCanonical()
+    public void Definitions_AreBoundedNonCanonical()
     {
         var definitions = LowRiskArtifactClassCatalog.GetDefinitions();
 

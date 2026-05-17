@@ -29,7 +29,7 @@ public sealed class FirstRunMemoryGeneratorTests
     }
 
     [Fact]
-    public void Generate_CreatesBuildAndTestCommandCandidates()
+    public void Generate_CreatesBuildTestCommandCandidates()
     {
         var result = _generator.Generate(
             "memora",

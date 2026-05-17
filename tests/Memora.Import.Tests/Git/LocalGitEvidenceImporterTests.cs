@@ -17,7 +17,7 @@ public sealed class LocalGitEvidenceImporterTests : IDisposable
     private readonly FileBackedImportedEvidenceStore _evidenceStore = new();
 
     [Fact]
-    public void Import_WritesDeterministicGitEvidenceAndPreventsDuplicates()
+    public void Import_GitEvidence_DeterministicNoDuplicates()
     {
         var repoPath = CreateSourceRepository("memora-source");
         var workspacePath = CreateWorkspaceWithLocalAttachment("memora", repoPath);
