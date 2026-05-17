@@ -503,7 +503,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void WriteSessionSummary_InvalidPolicy_IsBlockedAndDoesNotWrite()
+    public void WriteSessionSummary_InvalidPolicy_BlockedNoWrite()
     {
         var workspace = CreateWorkspace("memora");
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
