@@ -28,7 +28,7 @@ public sealed class RuntimeContractCompatibilityTests : IDisposable
     private readonly ArtifactFileStore _fileStore = new();
 
     [Fact]
-    public async Task PublishedRuntimeSurfaces_SupportSharedContextAndProposalFlows()
+    public async Task PublishedSurfaces_SharedContextProposalFlows()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateCharterArtifact());
@@ -72,7 +72,7 @@ public sealed class RuntimeContractCompatibilityTests : IDisposable
     }
 
     [Fact]
-    public async Task PublishedRuntimeSurfaces_SurfaceRepeatableProposalValidationErrors()
+    public async Task PublishedSurfaces_ProposalValidationErrors()
     {
         CreateWorkspace("memora");
 
@@ -94,7 +94,7 @@ public sealed class RuntimeContractCompatibilityTests : IDisposable
     }
 
     [Fact]
-    public async Task PublishedRuntimeSurfaces_ProduceStableStateViewAcrossRepeatedRuns()
+    public async Task PublishedSurfaces_RepeatedRuns_StableStateView()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateCharterArtifact());
