@@ -8,7 +8,7 @@ public sealed class PlanningDraftGeneratorTests
     private readonly PlanningDraftGenerator _generator = new();
 
     [Fact]
-    public void ValidIntake_GeneratesDraftArtifactsAndPlanningSummary()
+    public void ValidIntake_GeneratesDraftArtifactsSummary()
     {
         var intake = PlanningIntakeTestBuilder.CreateValidIntake();
 
@@ -53,7 +53,7 @@ public sealed class PlanningDraftGeneratorTests
     }
 
     [Fact]
-    public void IdenticalInput_ProducesDeterministicDraftIdsAndBodies()
+    public void IdenticalInput_ProducesDeterministicDraftIdsBodies()
     {
         var intake = PlanningIntakeTestBuilder.CreateValidIntake() with
         {
@@ -88,7 +88,7 @@ public sealed class PlanningDraftGeneratorTests
     }
 
     [Fact]
-    public void InvalidIntake_ReturnsValidationAndDoesNotGenerateArtifacts()
+    public void InvalidIntake_ValidationBlocksArtifactGeneration()
     {
         var intake = PlanningIntakeTestBuilder.CreateValidIntake() with
         {
