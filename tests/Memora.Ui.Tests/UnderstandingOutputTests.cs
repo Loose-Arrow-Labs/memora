@@ -18,7 +18,7 @@ public sealed class UnderstandingOutputTests : IDisposable
     private readonly ArtifactFileStore _fileStore = new();
 
     [Fact]
-    public async Task UnderstandingRoute_RendersContextTraceabilityAndComponentSummary()
+    public async Task UnderstandingRoute_RendersTraceabilitySummary()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateCharterArtifact());
