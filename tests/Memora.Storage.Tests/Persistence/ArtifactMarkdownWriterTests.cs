@@ -10,7 +10,7 @@ public sealed class ArtifactMarkdownWriterTests
     private readonly ArtifactMarkdownParser _parser = new();
 
     [Fact]
-    public void Write_TitleWithSingleAndDoubleQuotes_RoundTrips()
+    public void Write_TitleSingleDoubleQuotes_RoundTrips()
     {
         const string title = "it's \"complex\"";
 
@@ -22,7 +22,7 @@ public sealed class ArtifactMarkdownWriterTests
     }
 
     [Fact]
-    public void Write_DoubleQuotedTitleWithBackslashes_PreservesLiteralBackslashes()
+    public void Write_DoubleQuotedTitleBackslashes_PreservesLiterals()
     {
         const string title = @"it's \\server\share";
 
@@ -63,7 +63,7 @@ public sealed class ArtifactMarkdownWriterTests
     [InlineData("`template")]
     [InlineData("contains # comment")]
     [InlineData("key: value")]
-    public void Write_ReservedYamlTitleScalars_AreQuotedAndRoundTrip(string title)
+    public void Write_ReservedYamlTitleScalars_QuotedRoundTrip(string title)
     {
         var markdown = _writer.Write(CreatePlanArtifact(title));
 
