@@ -27,7 +27,7 @@ public sealed class RuntimeFacingPrototypeTests : IDisposable
     private readonly ArtifactFileStore _fileStore = new();
 
     [Fact]
-    public async Task OpenApiRuntimePrototype_CanRetrieveContextAndSubmitProposalWithoutMutatingCanonicalTruth()
+    public async Task OpenApiPrototype_ContextSubmit_NoCanonicalMutation()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateCharterArtifact());
@@ -89,7 +89,7 @@ public sealed class RuntimeFacingPrototypeTests : IDisposable
     }
 
     [Fact]
-    public async Task OpenApiRuntimePrototype_CanCompleteGoldenPathWithoutMutatingDefaultStateView()
+    public async Task OpenApiPrototype_GoldenPath_PreservesDefaultView()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateCharterArtifact());
@@ -158,7 +158,7 @@ public sealed class RuntimeFacingPrototypeTests : IDisposable
     }
 
     [Fact]
-    public async Task OpenApiRuntimePrototype_ProducesStableStateViewAcrossRepeatedRuns()
+    public async Task OpenApiPrototype_RepeatedRuns_StableStateView()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateCharterArtifact());
