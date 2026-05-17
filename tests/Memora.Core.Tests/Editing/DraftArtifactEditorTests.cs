@@ -14,7 +14,7 @@ public sealed class DraftArtifactEditorTests
     private readonly ArtifactFactory _artifactFactory = new();
 
     [Fact]
-    public void Edit_DraftPlan_UpdatesFieldsAndIncrementsRevision()
+    public void Edit_DraftPlan_UpdatesFieldsIncrementsRevision()
     {
         var generation = _generator.Generate(PlanningIntakeTestBuilder.CreateValidIntake());
         var original = Assert.IsType<PlanArtifact>(generation.DraftArtifacts[0]);
