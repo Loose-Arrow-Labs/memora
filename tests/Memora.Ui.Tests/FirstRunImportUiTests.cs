@@ -15,7 +15,7 @@ public sealed class FirstRunImportUiTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Fact]
-    public async Task FirstRunImportRoute_RendersModeEvidenceCandidateAndReadinessState()
+    public async Task FirstRunImportRoute_RendersModeEvidenceReadiness()
     {
         CreateImportedWorkspace("memora");
 
