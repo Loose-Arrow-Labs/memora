@@ -136,7 +136,7 @@ public sealed class ImportContentSafetyFilterTests : IDisposable
     }
 
     [Fact]
-    public void GitHubImport_MixedBatch_BlocksOffendingRecordAndPersistsSafeRecords()
+    public void GitHubImport_MixedBatch_BlocksOffenderPersistsSafe()
     {
         var workspacePath = CreateWorkspace("memora-mixed", localPath: null, github: true);
         var privateKey = """
