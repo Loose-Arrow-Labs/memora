@@ -116,7 +116,7 @@ public sealed class DeterministicContextRankingEngineTests
     }
 
     [Fact]
-    public void Rank_PreservesBreakdownsForIdenticalInputsRegardlessOfInputOrder()
+    public void Rank_IdenticalInputs_PreservesBreakdownsRegardlessOfOrder()
     {
         var request = new ContextBundleRequest(
             "memora",

@@ -41,7 +41,7 @@ public sealed class ContextBundleModelsTests
     }
 
     [Fact]
-    public void BundleArtifact_SessionSummaryOriginRequiresSessionSummaryArtifact()
+    public void BundleArtifact_SessionSummaryOriginRequiresSummaryArtifact()
     {
         var approvedPlan = CreatePlanArtifact(ArtifactStatus.Approved, revision: 1);
 
