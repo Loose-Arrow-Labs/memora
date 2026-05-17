@@ -22,7 +22,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     private readonly ArtifactFileStore _fileStore = new();
 
     [Fact]
-    public void GetProject_ReturnsAttachedRepositoryMetadataForIntegrationResolution()
+    public void GetProject_ReturnsRepositoryMetadataForIntegration()
     {
         var workspace = CreateWorkspace("memora");
         File.WriteAllText(
@@ -125,7 +125,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ProposeArtifact_ConcurrentDuplicateWrites_ReturnStructuredConflicts()
+    public async Task ProposeArtifact_ConcurrentWrites_ReturnsConflicts()
     {
         var workspace = CreateWorkspace("memora");
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
@@ -143,7 +143,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ProposeArtifact_UnrelatedMalformedExistingArtifact_StillPersistsProposalWithDiagnostics()
+    public void ProposeArtifact_MalformedExisting_StillPersistsProposal()
     {
         var workspace = CreateWorkspace("memora");
         WriteMalformedDraft(workspace, "BROKEN", revision: 1);
@@ -162,7 +162,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ProposeArtifact_MalformedExistingArtifactWithSameId_BlocksProposal()
+    public void ProposeArtifact_MalformedSameId_BlocksProposal()
     {
         var workspace = CreateWorkspace("memora");
         WriteMalformedDraft(workspace, "ADR-292", revision: 1);
@@ -181,7 +181,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ProposeArtifact_ForeignProjectExistingArtifactWithSameId_BlocksProposal()
+    public void ProposeArtifact_ForeignProjectSameId_BlocksProposal()
     {
         var workspace = CreateWorkspace("memora");
         WriteForeignProjectDraft(workspace, "ADR-292", revision: 1);
@@ -200,7 +200,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ProposeUpdate_CreatesNewProposedRevisionWithoutChangingApprovedFile()
+    public void ProposeUpdate_NewRevision_LeavesApprovedUnchanged()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateApprovedDecisionArtifact());
@@ -220,7 +220,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ProposeUpdate_ConcurrentSameRevisionWrites_ReturnStructuredConflicts()
+    public async Task ProposeUpdate_ConcurrentRevision_ReturnsConflicts()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateApprovedDecisionArtifact());
@@ -239,7 +239,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ProposeUpdate_ForeignProjectExistingArtifactWithSameId_BlocksProposal()
+    public void ProposeUpdate_ForeignProjectSameId_BlocksProposal()
     {
         var workspace = CreateWorkspace("memora");
         WriteForeignProjectDraft(workspace, "ADR-292", revision: 1);
@@ -258,7 +258,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ProposeArtifact_InvalidProposal_ReturnsValidationErrorsAndDoesNotWriteFile()
+    public void ProposeArtifact_InvalidProposal_ReturnsValidation()
     {
         var workspace = CreateWorkspace("memora");
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
@@ -307,7 +307,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void RecordOutcome_InvalidOutcome_ReturnsValidationErrorsAndDoesNotWriteFile()
+    public void RecordOutcome_Invalid_ReturnsValidationNoWrite()
     {
         var workspace = CreateWorkspace("memora");
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
@@ -337,7 +337,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void GetReviewInbox_ReturnsReviewableDraftAndProposedArtifactsOnly()
+    public void GetReviewInbox_ReturnsReviewableDraftProposed()
     {
         var workspace = CreateWorkspace("memora");
         _fileStore.Save(workspace, CreateApprovedDecisionArtifact());
@@ -401,7 +401,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ApplyReviewDecision_Approve_PersistsApprovedArtifactAndRemovesDraft()
+    public void ApplyReview_Approve_PersistsApprovedRemovesDraft()
     {
         var workspace = CreateWorkspace("memora");
         var draftPath = _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-005", ArtifactStatus.Draft, "Draft decision"));
@@ -420,7 +420,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ApplyReviewDecision_Reject_PersistsDeprecatedArtifactInReviewPath()
+    public void ApplyReview_Reject_PersistsDeprecatedInReviewPath()
     {
         var workspace = CreateWorkspace("memora");
         var draftPath = _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-006", ArtifactStatus.Proposed, "Proposed decision"));
@@ -441,7 +441,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ApplyReviewDecision_Approve_ReturnsLifecycleErrorForProposedArtifact()
+    public void ApplyReview_Approve_ReturnsLifecycleErrorForProposed()
     {
         var workspace = CreateWorkspace("memora");
         var draftPath = _fileStore.Save(workspace, CreateReviewDecisionArtifact("ADR-007", ArtifactStatus.Proposed, "Proposed decision"));
@@ -457,7 +457,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void WriteSessionSummary_ExplicitPolicyGovernedTrigger_PersistsToSummaryStorage()
+    public void WriteSessionSummary_ExplicitTrigger_PersistsSummary()
     {
         var workspace = CreateWorkspace("memora");
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
@@ -478,7 +478,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void WriteSessionSummary_LifecycleTrigger_IsBlockedAndDoesNotWrite()
+    public void WriteSessionSummary_LifecycleTrigger_BlockedNoWrite()
     {
         var workspace = CreateWorkspace("memora");
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
@@ -534,7 +534,7 @@ public sealed class FileSystemAgentInteractionServiceTests : IDisposable
     }
 
     [Fact]
-    public void WriteSessionSummary_CanonicalTrueContent_IsBlockedAndDoesNotWrite()
+    public void WriteSessionSummary_CanonicalContent_BlockedNoWrite()
     {
         var workspace = CreateWorkspace("memora");
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
