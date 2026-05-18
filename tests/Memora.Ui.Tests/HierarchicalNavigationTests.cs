@@ -26,6 +26,7 @@ public sealed class HierarchicalNavigationTests : IClassFixture<OperatorShellFac
         Assert.Contains(">Agent resources</a>", html, StringComparison.Ordinal);
         Assert.Contains(">Artifacts</a>", html, StringComparison.Ordinal);
         Assert.Contains(">Project root</a>", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<summary class=\"tree-summary\">" + Environment.NewLine + "<a", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -76,6 +77,7 @@ public sealed class HierarchicalNavigationTests : IClassFixture<OperatorShellFac
         Assert.Contains("Demo Project · Agent resources", html, StringComparison.Ordinal);
         Assert.Contains("PBR-19", html, StringComparison.Ordinal);
         Assert.Contains("aria-current=\"page\">Agent resources</li>", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("No \"Add a project\" route is wired", html, StringComparison.Ordinal);
     }
 
     [Fact]

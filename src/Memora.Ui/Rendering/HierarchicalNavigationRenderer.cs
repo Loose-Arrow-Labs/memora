@@ -60,9 +60,10 @@ public static class HierarchicalNavigationRenderer
         html.AppendLine("<li>");
         html.AppendLine($"<details class=\"tree-node tree-project\" data-tree-id=\"{Encode(nodeId)}\"{openAttr}>");
         html.AppendLine("<summary class=\"tree-summary\">");
-        html.AppendLine($"<a class=\"tree-link{(isSelectedProject && selection.Section == HierarchicalSection.None ? " is-selected" : string.Empty)}\" href=\"/projects/{Encode(projectId)}\">{Encode(project.Name)}</a>");
+        html.AppendLine($"<span class=\"tree-label\">{Encode(project.Name)}</span>");
         html.AppendLine($"<span class=\"tree-hint\">{Encode(project.ProjectId)}</span>");
         html.AppendLine("</summary>");
+        html.AppendLine($"<a class=\"tree-link tree-node-target{(isSelectedProject && selection.Section == HierarchicalSection.None ? " is-selected" : string.Empty)}\" href=\"/projects/{Encode(projectId)}\">{Encode(project.Name)}</a>");
 
         html.AppendLine("<ul class=\"tree-list\">");
         html.AppendLine(RenderSectionNode(projectId, "Agent resources", HierarchicalSection.AgentResources, selection, cookieState));
@@ -93,9 +94,8 @@ public static class HierarchicalNavigationRenderer
         var html = new StringBuilder();
         html.AppendLine("<li>");
         html.AppendLine($"<details class=\"tree-node tree-section\" data-tree-id=\"{Encode(nodeId)}\"{openAttr}>");
-        html.AppendLine("<summary class=\"tree-summary\">");
-        html.AppendLine($"<a class=\"tree-link{(isSelectedLanding ? " is-selected" : string.Empty)}\" href=\"{Encode(sectionLanding)}\">{Encode(label)}</a>");
-        html.AppendLine("</summary>");
+        html.AppendLine($"<summary class=\"tree-summary\"><span class=\"tree-label\">{Encode(label)}</span></summary>");
+        html.AppendLine($"<a class=\"tree-link tree-node-target{(isSelectedLanding ? " is-selected" : string.Empty)}\" href=\"{Encode(sectionLanding)}\">{Encode(label)}</a>");
 
         html.AppendLine("<ul class=\"tree-list\">");
         foreach (var leaf in SectionLeaves(projectId, section))

@@ -107,7 +107,7 @@ internal static class OperatorShellPageRenderer
         body.AppendLine($"<p class=\"muted\">Workspace root: {Encode(options.NormalizedWorkspacesRootPath)}</p>");
         body.AppendLine("</section>");
 
-        return RenderLayout("Get started", options, projects, null, body.ToString());
+        return RenderLayout("Get started", options, projects, HierarchicalSelection.ForRoot(), HierarchicalCookieState.Empty, body.ToString());
     }
 
     public static string RenderGitHubRepoPicker(
@@ -144,7 +144,7 @@ internal static class OperatorShellPageRenderer
             body.AppendLine("<p>The token did not surface any repositories. Check token scopes and organization access, then start over.</p>");
             body.AppendLine("<p><a class=\"button ghost\" href=\"/get-started\">Back to get started</a></p>");
             body.AppendLine("</section>");
-            return RenderLayout("Pick a GitHub repository", options, projects, null, body.ToString());
+            return RenderLayout("Pick a GitHub repository", options, projects, HierarchicalSelection.ForRoot(), HierarchicalCookieState.Empty, body.ToString());
         }
 
         body.AppendLine("<form method=\"post\" action=\"/get-started/github/start\" class=\"edit-form\">");
@@ -187,7 +187,7 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</form>");
         body.AppendLine("</section>");
 
-        return RenderLayout("Pick a GitHub repository", options, projects, null, body.ToString());
+        return RenderLayout("Pick a GitHub repository", options, projects, HierarchicalSelection.ForRoot(), HierarchicalCookieState.Empty, body.ToString());
     }
 
     public static string RenderProject(
@@ -851,7 +851,7 @@ internal static class OperatorShellPageRenderer
         HierarchicalSection section,
         HierarchicalCookieState cookieState)
     {
-        var body = HierarchicalNavigationRenderer.RenderSectionLanding(project, section, isAddProjectAvailable: false);
+        var body = HierarchicalNavigationRenderer.RenderSectionLanding(project, section, isAddProjectAvailable: true);
         var selection = HierarchicalSelection.ForSection(
             project.ProjectId,
             section,
@@ -1504,6 +1504,7 @@ code, pre { overflow-wrap: anywhere; word-break: break-word; }
 .tree-nav .tree-hint { color: #8a6041; font-size: 0.72rem; }
 .tree-nav .tree-list { list-style: none; padding-left: 18px; margin: 4px 0 0; display: grid; gap: 2px; }
 .tree-nav .tree-link { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 8px; border-radius: 10px; color: #4d3825; text-decoration: none; }
+.tree-nav .tree-node-target { margin-left: 18px; }
 .tree-nav .tree-link.tree-leaf { padding-left: 12px; color: #695748; font-size: 0.92rem; }
 .tree-nav .tree-link:hover { background: rgba(255, 255, 255, 0.55); }
 .tree-nav .tree-link.is-selected { background: rgba(125, 52, 31, 0.16); color: #7d341f; font-weight: 700; }
