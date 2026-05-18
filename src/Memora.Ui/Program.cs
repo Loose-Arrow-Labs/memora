@@ -83,9 +83,10 @@ app.MapGet(
 
 app.MapGet(
     "/get-started",
-    (LocalOperatorWorkspaceService service, OperatorShellOptions options) =>
+    (LocalOperatorWorkspaceService service, OperatorShellOptions options, HttpContext httpContext) =>
     {
-        var html = OperatorShellPageRenderer.RenderGetStarted(options, service.GetProjects(), []);
+        var cookieState = ReadTreeCookieState(httpContext);
+        var html = OperatorShellPageRenderer.RenderGetStarted(options, service.GetProjects(), cookieState, []);
         return Results.Content(html, "text/html");
     });
 
@@ -101,7 +102,8 @@ app.MapPost(
             return Results.Redirect($"/projects/{Uri.EscapeDataString(result.ProjectId!)}");
         }
 
-        var html = OperatorShellPageRenderer.RenderGetStarted(options, service.GetProjects(), result.ValidationErrors);
+        var cookieState = ReadTreeCookieState(request.HttpContext);
+        var html = OperatorShellPageRenderer.RenderGetStarted(options, service.GetProjects(), cookieState, result.ValidationErrors);
         return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
     });
 
@@ -116,9 +118,11 @@ app.MapPost(
 
         if (string.IsNullOrWhiteSpace(projectId) || string.IsNullOrWhiteSpace(personalAccessToken))
         {
+            var cookieState = ReadTreeCookieState(request.HttpContext);
             var html = OperatorShellPageRenderer.RenderGetStarted(
                 options,
                 workspaceService.GetProjects(),
+                cookieState,
                 ["Project id and personal access token are required to continue."]);
             return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
         }
@@ -126,9 +130,11 @@ app.MapPost(
         var discovery = flowService.ListUserRepositories(personalAccessToken);
         if (!discovery.IsSuccess || discovery.Account is null)
         {
+            var cookieState = ReadTreeCookieState(request.HttpContext);
             var html = OperatorShellPageRenderer.RenderGetStarted(
                 options,
                 workspaceService.GetProjects(),
+                cookieState,
                 discovery.ValidationErrors);
             return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
         }
@@ -140,7 +146,8 @@ app.MapPost(
             discovery.Account.Login,
             discovery.Repositories,
             []);
-        var pickerHtml = OperatorShellPageRenderer.RenderGitHubRepoPicker(options, workspaceService.GetProjects(), page);
+        var pickerCookieState = ReadTreeCookieState(request.HttpContext);
+        var pickerHtml = OperatorShellPageRenderer.RenderGitHubRepoPicker(options, workspaceService.GetProjects(), pickerCookieState, page);
         return Results.Content(pickerHtml, "text/html");
     });
 
@@ -171,9 +178,11 @@ app.MapPost(
 
         if (string.IsNullOrWhiteSpace(personalAccessToken))
         {
+            var cookieState = ReadTreeCookieState(request.HttpContext);
             var html = OperatorShellPageRenderer.RenderGetStarted(
                 options,
                 workspaceService.GetProjects(),
+                cookieState,
                 result.ValidationErrors);
             return Results.Content(html, "text/html", statusCode: StatusCodes.Status400BadRequest);
         }
@@ -188,7 +197,8 @@ app.MapPost(
             accountLogin,
             repositories,
             result.ValidationErrors);
-        var pickerHtml = OperatorShellPageRenderer.RenderGitHubRepoPicker(options, workspaceService.GetProjects(), page);
+        var pickerCookieState = ReadTreeCookieState(request.HttpContext);
+        var pickerHtml = OperatorShellPageRenderer.RenderGitHubRepoPicker(options, workspaceService.GetProjects(), pickerCookieState, page);
         return Results.Content(pickerHtml, "text/html", statusCode: StatusCodes.Status400BadRequest);
     });
 

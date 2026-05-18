@@ -54,6 +54,7 @@ internal static class OperatorShellPageRenderer
     public static string RenderGetStarted(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
+        HierarchicalCookieState cookieState,
         IReadOnlyList<string> validationErrors)
     {
         var body = new StringBuilder();
@@ -107,12 +108,13 @@ internal static class OperatorShellPageRenderer
         body.AppendLine($"<p class=\"muted\">Workspace root: {Encode(options.NormalizedWorkspacesRootPath)}</p>");
         body.AppendLine("</section>");
 
-        return RenderLayout("Get started", options, projects, HierarchicalSelection.ForRoot(), HierarchicalCookieState.Empty, body.ToString());
+        return RenderLayout("Get started", options, projects, HierarchicalSelection.ForRoot(), cookieState, body.ToString());
     }
 
     public static string RenderGitHubRepoPicker(
         OperatorShellOptions options,
         IReadOnlyList<OperatorProjectSummary> projects,
+        HierarchicalCookieState cookieState,
         GitHubRepoPickerPageModel page)
     {
         var body = new StringBuilder();
@@ -144,7 +146,7 @@ internal static class OperatorShellPageRenderer
             body.AppendLine("<p>The token did not surface any repositories. Check token scopes and organization access, then start over.</p>");
             body.AppendLine("<p><a class=\"button ghost\" href=\"/get-started\">Back to get started</a></p>");
             body.AppendLine("</section>");
-            return RenderLayout("Pick a GitHub repository", options, projects, HierarchicalSelection.ForRoot(), HierarchicalCookieState.Empty, body.ToString());
+            return RenderLayout("Pick a GitHub repository", options, projects, HierarchicalSelection.ForRoot(), cookieState, body.ToString());
         }
 
         body.AppendLine("<form method=\"post\" action=\"/get-started/github/start\" class=\"edit-form\">");
@@ -187,7 +189,7 @@ internal static class OperatorShellPageRenderer
         body.AppendLine("</form>");
         body.AppendLine("</section>");
 
-        return RenderLayout("Pick a GitHub repository", options, projects, HierarchicalSelection.ForRoot(), HierarchicalCookieState.Empty, body.ToString());
+        return RenderLayout("Pick a GitHub repository", options, projects, HierarchicalSelection.ForRoot(), cookieState, body.ToString());
     }
 
     public static string RenderProject(

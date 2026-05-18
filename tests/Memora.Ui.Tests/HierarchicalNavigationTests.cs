@@ -104,6 +104,22 @@ public sealed class HierarchicalNavigationTests : IClassFixture<OperatorShellFac
     }
 
     [Fact]
+    public async Task GetStarted_PreservesExpandedTreeCookie()
+    {
+        using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
+        client.DefaultRequestHeaders.Add(
+            "Cookie",
+            $"{HierarchicalCookieState.CookieName}=project:demo-project:artifacts");
+
+        var html = await client.GetStringAsync("/get-started");
+
+        Assert.Contains(
+            "data-tree-id=\"project:demo-project:artifacts\" open",
+            html,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task QueuePage_TreeHighlightsQueueLeafUnderArtifacts()
     {
         using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
