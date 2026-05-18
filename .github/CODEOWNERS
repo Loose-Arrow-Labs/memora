@@ -1,0 +1,23 @@
+# Security-sensitive repository surfaces.
+# Keep this list small and focused so review requests remain meaningful.
+
+/.github/workflows/ @alucero270
+/.github/actions/ @alucero270
+/build/ @alucero270
+*.sh @alucero270
+*.ps1 @alucero270
+*.cmd @alucero270
+*.bat @alucero270
+*.csproj @alucero270
+/Directory.Build.props @alucero270
+/Directory.Build.targets @alucero270
+/global.json @alucero270
+/nuget.config @alucero270
+/NuGet.config @alucero270
+/packages.lock.json @alucero270
+
+# Integration and execution boundaries.
+/src/Memora.Api/ @alucero270
+/src/Memora.Mcp/ @alucero270
+/src/Memora.Import/ @alucero270
+/integrations/ @alucero270
