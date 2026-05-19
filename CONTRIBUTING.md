@@ -33,6 +33,12 @@ Refer to:
 5. Validate against acceptance criteria
 6. Submit PR for review
 
+Branches must use:
+
+```text
+feature/<issue-number>-<short-name>
+```
+
 ---
 
 ## Commit Message Guidelines
@@ -77,6 +83,25 @@ Each PR must:
 - Include tests where applicable
 - Pass build and validation checks
 - Not introduce architectural drift
+
+The `Contribution Policy` GitHub Actions workflow enforces these baseline
+requirements automatically:
+
+- PR title or body must include `Closes #<issue>` or `References #<issue>`
+- branch name must match `feature/<issue-number>-<short-name>`
+- commit subjects must follow `type(scope): short description`
+- source changes under `src/` must include a related test change under `tests/`
+- security-sensitive paths require maintainer review
+- architecture-sensitive additions require maintainer review
+
+Security-sensitive changes include CI/CD workflows, GitHub Actions, Docker
+files, install scripts, shell scripts, PowerShell scripts, project/dependency
+files, and VS Code extension package files. Maintainers can acknowledge these
+changes by applying the `policy/security-reviewed` label after review.
+
+Architecture-sensitive additions include vector database or semantic retrieval
+dependencies in non-documentation code. Maintainers can acknowledge these
+changes by applying the `policy/architecture-reviewed` label after review.
 
 ---
 

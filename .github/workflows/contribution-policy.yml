@@ -1,0 +1,201 @@
+name: Contribution Policy
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  guard:
+    name: Guard
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+      PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+      PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      PR_BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+      PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+    steps:
+      - name: Validate PR metadata and changed files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          fail() {
+            echo "::error title=$1::$2"
+            exit 1
+          }
+
+          note() {
+            echo "::notice title=$1::$2"
+          }
+
+          require_reference_pattern='(Closes|References) #[0-9]+'
+          branch_pattern='^feature/[0-9]+-[a-z0-9][a-z0-9._-]*$'
+          commit_subject_pattern='^(feat|fix|refactor|test|docs|chore)(\([a-z0-9._-]+\))?: .{1,100}$'
+
+          if [[ "${PR_AUTHOR}" == "dependabot[bot]" ]]; then
+            note "Dependabot PR" "Skipping issue-reference and branch-name checks for dependency maintenance."
+          else
+            combined_pr_text="${PR_TITLE}"$'\n'"${PR_BODY:-}"
+            if ! grep -Eq "${require_reference_pattern}" <<< "${combined_pr_text}"; then
+              fail "Missing issue reference" "PR title or body must include 'Closes #<issue>' or 'References #<issue>'."
+            fi
+
+            if ! [[ "${PR_BRANCH}" =~ ${branch_pattern} ]]; then
+              if [[ "${PR_HEAD_REPO}" == "${PR_BASE_REPO}" ]]; then
+                fail "Invalid branch name" "Use branch format feature/<issue-number>-<short-name>."
+              else
+                note "External branch name" "Fork branches are allowed, but maintainers should prefer feature/<issue-number>-<short-name> for local branches."
+              fi
+            fi
+          fi
+
+          if [[ "${PR_AUTHOR}" != "dependabot[bot]" ]]; then
+            commit_failure=false
+            while IFS= read -r subject; do
+              if ! [[ "${subject}" =~ ${commit_subject_pattern} ]]; then
+                echo "::error title=Invalid commit subject::${subject}"
+                commit_failure=true
+              fi
+            done < <(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/commits" --jq '.[].commit.message | split("\n")[0]')
+
+            if [[ "${commit_failure}" == "true" ]]; then
+              exit 1
+            fi
+          fi
+
+          mapfile -t labels < <(gh api "repos/${REPO}/issues/${PR_NUMBER}/labels" --jq '.[].name')
+          has_label() {
+            local expected="$1"
+            local label
+            for label in "${labels[@]}"; do
+              [[ "${label}" == "${expected}" ]] && return 0
+            done
+            return 1
+          }
+
+          mapfile -t files < <(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files" --jq '.[].filename')
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            fail "No changed files" "GitHub reported no changed files for this PR."
+          fi
+
+          has_source_change=false
+          has_test_change=false
+          has_risky_path=false
+          risky_paths=()
+
+          for file in "${files[@]}"; do
+            case "${file}" in
+              src/*.cs|src/**/*.cs)
+                has_source_change=true
+                ;;
+            esac
+
+            case "${file}" in
+              tests/*.cs|tests/**/*.cs|*Tests.cs)
+                has_test_change=true
+                ;;
+            esac
+
+            case "${file}" in
+              .github/workflows/*|.github/actions/*|Dockerfile|Dockerfile.*|docker-compose*.yml|docker-compose*.yaml|build/*|*.sh|*.ps1|*.cmd|*.bat|*.csproj|Directory.Build.props|Directory.Build.targets|global.json|nuget.config|NuGet.config|packages.lock.json|integrations/vscode-memora/package.json|integrations/vscode-memora/package-lock.json)
+                has_risky_path=true
+                risky_paths+=("${file}")
+                ;;
+            esac
+          done
+
+          if [[ "${has_source_change}" == "true" && "${has_test_change}" != "true" ]]; then
+            fail "Missing test changes" "PRs that change C# files under src/ must also change at least one C# test file under tests/."
+          fi
+
+          if [[ "${has_risky_path}" == "true" ]]; then
+            if has_label "policy/security-reviewed"; then
+              note "Risky paths acknowledged" "policy/security-reviewed is present for: ${risky_paths[*]}"
+            else
+              fail "Security-sensitive paths changed" "Maintainer label policy/security-reviewed is required for: ${risky_paths[*]}"
+            fi
+          fi
+
+      - name: Scan added lines for risky behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t labels < <(gh api "repos/${REPO}/issues/${PR_NUMBER}/labels" --jq '.[].name')
+          has_label() {
+            local expected="$1"
+            local label
+            for label in "${labels[@]}"; do
+              [[ "${label}" == "${expected}" ]] && return 0
+            done
+            return 1
+          }
+
+          risky_pattern='(curl[[:space:]].*\|[[:space:]]*(bash|sh)|Invoke-WebRequest|Invoke-RestMethod|wget[[:space:]]|Process\.Start|ProcessStartInfo|cmd\.exe|powershell\.exe|/bin/bash|/bin/sh|postinstall|preinstall|prepare[[:space:]]*:|HttpClient|https?://|token|secret|credential|password|telemetry|analytics|MCP.*execute|execute.*MCP|shell execution|exec\(|system\()'
+          architecture_pattern='(Pinecone|Qdrant|Weaviate|Milvus|Chroma|pgvector|VectorDb|VectorStore|semantic retrieval|vector retrieval|embedding service)'
+
+          tmp_diff="$(mktemp)"
+          gh pr diff "${PR_NUMBER}" --repo "${REPO}" --patch > "${tmp_diff}"
+
+          risky_hits=()
+          architecture_hits=()
+          current_file=""
+
+          while IFS= read -r line; do
+            if [[ "${line}" =~ ^\+\+\+[[:space:]]b/(.+)$ ]]; then
+              current_file="${BASH_REMATCH[1]}"
+              continue
+            fi
+
+            [[ "${line}" =~ ^\+[^+] ]] || continue
+
+            # Avoid false positives from pure C# test method renames such as
+            # "ProjectLookup_AlignedAcrossApiAndMcpSurfaces".
+            if [[ "${line}" =~ ^\+[[:space:]]+public[[:space:]]+(async[[:space:]]+)?(Task|void)[[:space:]]+[A-Za-z0-9_]+\( ]]; then
+              continue
+            fi
+
+            if [[ "${line}" =~ ${risky_pattern} ]]; then
+              risky_hits+=("${current_file}: ${line}")
+            fi
+
+            case "${current_file}" in
+              docs/*|README.md|CONTRIBUTING.md)
+                ;;
+              *)
+                if [[ "${line}" =~ ${architecture_pattern} ]]; then
+                  architecture_hits+=("${current_file}: ${line}")
+                fi
+                ;;
+            esac
+          done < "${tmp_diff}"
+
+          if [[ "${#risky_hits[@]}" -gt 0 ]]; then
+            if has_label "policy/security-reviewed"; then
+              printf '::notice title=Risky added lines acknowledged::policy/security-reviewed is present\n'
+            else
+              printf '::error title=Risky added lines require review::Add maintainer label policy/security-reviewed after review.\n'
+              printf '%s\n' "${risky_hits[@]}"
+              exit 1
+            fi
+          fi
+
+          if [[ "${#architecture_hits[@]}" -gt 0 ]]; then
+            if has_label "policy/architecture-reviewed"; then
+              printf '::notice title=Architecture-sensitive additions acknowledged::policy/architecture-reviewed is present\n'
+            else
+              printf '::error title=Architecture-sensitive additions require review::Add maintainer label policy/architecture-reviewed after review.\n'
+              printf '%s\n' "${architecture_hits[@]}"
+              exit 1
+            fi
+          fi
