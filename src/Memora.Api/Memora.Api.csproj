@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
     <ProjectReference Include="..\Memora.Context\Memora.Context.csproj" />
     <ProjectReference Include="..\Memora.Core\Memora.Core.csproj" />
     <ProjectReference Include="..\Memora.Hosting\Memora.Hosting.csproj" />
