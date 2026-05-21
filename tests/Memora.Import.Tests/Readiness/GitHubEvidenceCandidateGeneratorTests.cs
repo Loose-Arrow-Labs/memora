@@ -111,7 +111,7 @@ public sealed class GitHubEvidenceCandidateGeneratorTests
     }
 
     [Fact]
-    public void Generate_StrictGovernance_EvidenceDerivedCandidatesRequireReview()
+    public void Generate_StrictGovernance_CandidatesRequireReview()
     {
         var records = new[]
         {
@@ -215,7 +215,7 @@ public sealed class GitHubEvidenceCandidateGeneratorTests
     }
 
     [Fact]
-    public void Generate_MergedPullRequests_ProducesContributionStyleCandidate()
+    public void Generate_MergedPullRequests_ProducesContributionCandidate()
     {
         var records = new[]
         {

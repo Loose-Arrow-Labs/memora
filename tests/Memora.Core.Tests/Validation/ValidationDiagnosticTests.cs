@@ -6,7 +6,7 @@ namespace Memora.Core.Tests.Validation;
 public sealed class ValidationDiagnosticTests
 {
     [Fact]
-    public void ArtifactValidationIssue_DiagnosticMessage_IncludesCodeAndPath()
+    public void ValidationIssue_Diagnostic_ContainsCodePath()
     {
         var issue = new ArtifactValidationIssue(
             "artifact.title.required",
@@ -31,7 +31,7 @@ public sealed class ValidationDiagnosticTests
     }
 
     [Fact]
-    public void PlanningIntakeValidationIssue_DiagnosticMessage_UsesSameShape()
+    public void PlanningIntakeIssue_Diagnostic_UsesSameShape()
     {
         var issue = new PlanningIntakeValidationIssue(
             "planning_intake.project_id.required",
