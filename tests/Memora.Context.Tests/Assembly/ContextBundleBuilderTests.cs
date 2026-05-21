@@ -72,7 +72,7 @@ public sealed class ContextBundleBuilderTests
     }
 
     [Fact]
-    public void Build_AttachesExplicitInclusionReasonsToEverySelectedArtifact()
+    public void Build_SelectedArtifacts_HaveInclusionReasons()
     {
         var request = new ContextBundleRequest("memora", "Prepare milestone 3 context.", focusArtifactIds: ["ADR-010"]);
 
@@ -119,7 +119,7 @@ public sealed class ContextBundleBuilderTests
     }
 
     [Fact]
-    public void Build_RespectsMaxLayer2ArtifactsCapAndKeepsTopRankedCandidates()
+    public void Build_Layer2Cap_KeepsTopRanked()
     {
         var request = new ContextBundleRequest(
             "memora",
@@ -142,7 +142,7 @@ public sealed class ContextBundleBuilderTests
     }
 
     [Fact]
-    public void Build_RespectsMaxLayer3ArtifactsCapWhenSupportingHistoryIsRequested()
+    public void Build_Layer3Cap_WithHistory_Respected()
     {
         var request = new ContextBundleRequest(
             "memora",
