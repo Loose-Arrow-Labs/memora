@@ -14,7 +14,7 @@ public sealed class HumanLoopWorkflowTests
     private readonly ArtifactApprovalWorkflow _approvalWorkflow = new();
 
     [Fact]
-    public void PlanningToDraft_EditAndApproval_PromotesCanonicalStateOnlyOnApproval()
+    public void PlanningToDraft_Approval_PromotesCanonicalOnly()
     {
         var intake = PlanningIntakeTestBuilder.CreateValidIntake();
 
@@ -79,7 +79,7 @@ public sealed class HumanLoopWorkflowTests
     }
 
     [Fact]
-    public void RejectingPendingArtifact_RemovesItFromPendingQueueWithoutCreatingCanonicalState()
+    public void RejectPending_RemovesQueue_NoCanonical()
     {
         var intake = PlanningIntakeTestBuilder.CreateValidIntake();
         var generation = _draftGenerator.Generate(intake);
@@ -109,7 +109,7 @@ public sealed class HumanLoopWorkflowTests
     }
 
     [Fact]
-    public void InvalidEdit_SurfacesValidationBeforeApprovalAndLeavesOriginalDraftPending()
+    public void InvalidEdit_ValidationBeforeApproval_KeepsDraft()
     {
         var intake = PlanningIntakeTestBuilder.CreateValidIntake();
         var generation = _draftGenerator.Generate(intake);
