@@ -38,7 +38,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Root_uses_repo_sample_workspaces_when_no_workspace_root_is_configured()
+    public async Task Root_NoConfiguredRoot_UsesSampleWorkspaces()
     {
         using var factory = new WebApplicationFactory<Program>();
         using var client = LocalAuthTestClient.CreateAuthorizedClient(factory);
@@ -79,7 +79,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Edit_post_without_antiforgery_token_returns_structured_bad_request()
+    public async Task EditPost_NoAntiforgery_ReturnsBadRequest()
     {
         using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
 
@@ -188,7 +188,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Proposal_review_renders_evidence_provenance_and_candidate_notes()
+    public async Task ProposalReview_RendersProvenanceNotes()
     {
         using var factory = new OperatorShellFactory();
         var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
@@ -216,7 +216,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Proposal_review_blocks_readiness_when_required_provenance_is_missing()
+    public async Task ProposalReview_MissingProvenance_BlocksReadiness()
     {
         using var factory = new OperatorShellFactory();
         var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
@@ -237,7 +237,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Proposal_review_does_not_treat_artifact_relationships_as_evidence_ids()
+    public async Task ProposalReview_RelationshipsNotEvidenceIds()
     {
         using var factory = new OperatorShellFactory();
         var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
@@ -261,7 +261,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Trust_dashboard_renders_review_and_diagnostic_summary()
+    public async Task TrustDashboard_RendersReviewDiagnosticSummary()
     {
         using var client = LocalAuthTestClient.CreateAuthorizedClient(_factory);
 
@@ -279,7 +279,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public void Trust_dashboard_scopes_rebuild_diagnostics_to_selected_project()
+    public void TrustDashboard_RebuildDiagnostics_ScopedToProject()
     {
         using var factory = new OperatorShellFactory();
         var service = new LocalOperatorWorkspaceService(new OperatorShellOptions(factory.WorkspacesRootPath, UsesSeededSampleRoot: false));
@@ -300,7 +300,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public void Trust_dashboard_counts_first_run_readiness_warnings()
+    public void TrustDashboard_CountsFirstRunReadinessWarnings()
     {
         using var factory = new OperatorShellFactory();
         var workspaceRoot = Path.Combine(factory.WorkspacesRootPath, "demo-project");
@@ -325,7 +325,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Review_approve_draft_persists_approved_revision_through_workflow()
+    public async Task Review_ApproveDraft_PersistsApprovedRevision()
     {
         using var factory = new OperatorShellFactory();
         using var client = LocalAuthTestClient.CreateAuthorizedClient(factory, new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -348,7 +348,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Review_approve_update_persists_superseded_revision_and_single_approved_baseline()
+    public async Task Review_ApproveUpdate_PersistsSupersededBaseline()
     {
         using var factory = new OperatorShellFactory();
         using var client = LocalAuthTestClient.CreateAuthorizedClient(factory, new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -414,7 +414,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Review_promote_proposal_transitions_to_draft_and_enables_approve_button()
+    public async Task Review_PromoteProposal_TransitionsToDraft()
     {
         using var factory = new OperatorShellFactory();
         using var client = LocalAuthTestClient.CreateAuthorizedClient(factory, new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -493,7 +493,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public void Startup_rejects_non_loopback_urls()
+    public void Startup_RejectsNonLoopbackUrls()
     {
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder => builder.UseSetting(WebHostDefaults.ServerUrlsKey, "http://0.0.0.0:5080"));
@@ -504,7 +504,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public void Startup_validates_only_effective_loopback_url_source()
+    public void Startup_ValidatesEffectiveLoopbackUrlSource()
     {
         var previousAspNetCoreUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
         try
@@ -524,7 +524,7 @@ public sealed class OperatorShellSmokeTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public async Task Query_token_sets_local_cookie_and_redirects_to_sanitized_url()
+    public async Task QueryToken_SetsLocalCookie_RedirectsSanitizedUrl()
     {
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var token = _factory.Services.GetRequiredService<LocalAccessTokenStore>().GetOrCreateToken();
