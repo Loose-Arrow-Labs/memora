@@ -5,7 +5,7 @@ namespace Memora.Import.Tests.GitHub;
 public sealed class GitHubCliEvidenceClientRetryTests
 {
     [Fact]
-    public void Fetch_TimeoutDiagnostic_IsStructuredAndActionable()
+    public void Fetch_TimeoutDiagnostic_StructuredActionable()
     {
         var client = new GitHubCliEvidenceClient(
             (args, _) =>
