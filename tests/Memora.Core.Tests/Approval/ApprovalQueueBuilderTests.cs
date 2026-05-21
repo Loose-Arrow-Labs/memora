@@ -38,7 +38,7 @@ public sealed class ApprovalQueueBuilderTests
     }
 
     [Fact]
-    public void Build_OrdersProposedBeforeDraftThenByPendingTimestampAndArtifactId()
+    public void Build_OrdersProposedBeforeDraftByTimestampId()
     {
         var artifacts = new ArtifactDocument[]
         {
