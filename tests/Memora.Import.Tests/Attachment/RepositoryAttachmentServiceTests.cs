@@ -48,7 +48,7 @@ public sealed class RepositoryAttachmentServiceTests : IDisposable
     }
 
     [Fact]
-    public void Attach_GitHub_PersistsRemoteIdentityAndDefaultBranch()
+    public void Attach_GitHub_PersistsRemoteIdentityDefaultBranch()
     {
         CreateWorkspace("memora");
         var service = CreateService();
