@@ -14,7 +14,7 @@ namespace Memora.Api.Tests;
 public sealed class ProtocolSurfaceParityTests
 {
     [Fact]
-    public async Task ProjectLookup_RemainsAlignedAcrossApiAndMcpSurfaces()
+    public async Task ProjectLookup_AlignedAcrossApiAndMcpSurfaces()
     {
         using var harness = await ProtocolHarness.CreateAsync(new SharedAgentInteractionService());
 
@@ -40,7 +40,7 @@ public sealed class ProtocolSurfaceParityTests
     }
 
     [Fact]
-    public async Task ContextErrors_RemainAlignedAcrossApiAndMcpSurfaces()
+    public async Task ContextErrors_AlignedAcrossApiAndMcpSurfaces()
     {
         using var harness = await ProtocolHarness.CreateAsync(new FailingAgentInteractionService());
         var request = new GetContextRequest("memora", "Prepare integration validation.");
@@ -58,7 +58,7 @@ public sealed class ProtocolSurfaceParityTests
     }
 
     [Fact]
-    public async Task ProposalAndOutcomeFlows_PreserveProposalOnlyBehaviorAcrossApiAndMcp()
+    public async Task ProposalOutcomeFlows_PreserveProposalOnlyAcrossSurfaces()
     {
         using var harness = await ProtocolHarness.CreateAsync(new SharedAgentInteractionService());
 
