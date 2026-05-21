@@ -13,7 +13,7 @@ public sealed class ArtifactRevisionDiffBuilderTests
     private readonly ArtifactFactory _artifactFactory = new();
 
     [Fact]
-    public void Build_EditedDraftAgainstApprovedArtifact_ReturnsDeterministicFieldChanges()
+    public void Build_EditedDraft_ReturnsDeterministicChanges()
     {
         var currentApproved = CreatePlanArtifact(ArtifactStatus.Approved, revision: 1);
         var editResult = _editor.Edit(
@@ -79,7 +79,7 @@ public sealed class ArtifactRevisionDiffBuilderTests
     }
 
     [Fact]
-    public void Build_RevisedDraftWithOnlyWorkflowFieldChanges_ReturnsNoContentChanges()
+    public void Build_WorkflowOnlyRevision_NoContentChanges()
     {
         var currentApproved = CreatePlanArtifact(ArtifactStatus.Approved, revision: 1);
         var candidate = currentApproved with

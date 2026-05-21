@@ -35,7 +35,7 @@ public sealed class MemoraMcpServerTests
     }
 
     [Fact]
-    public void ReadResource_ForProjectUri_ForwardsToSharedAgentInteractionService()
+    public void ReadResource_ProjectUri_ForwardsToAgentService()
     {
         var server = new MemoraMcpServer(new TestAgentInteractionService());
 
@@ -47,7 +47,7 @@ public sealed class MemoraMcpServerTests
     }
 
     [Fact]
-    public void ReadResource_ForImportedProject_IncludesHybridReadinessStatus()
+    public void ReadResource_ImportedProject_IncludesReadiness()
     {
         var server = new MemoraMcpServer(new TestAgentInteractionService());
 
@@ -124,7 +124,7 @@ public sealed class MemoraMcpServerTests
     }
 
     [Fact]
-    public void InvokeTool_ForKnownTool_UsesPublishedContractsAndReturnsTypedPayload()
+    public void InvokeTool_KnownTool_ReturnsTypedPayload()
     {
         var server = new MemoraMcpServer(new TestAgentInteractionService());
 
