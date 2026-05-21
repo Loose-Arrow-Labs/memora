@@ -22,7 +22,7 @@ public sealed class ArtifactMarkdownWriterTests
     }
 
     [Fact]
-    public void Write_DoubleQuotedTitleWithBackslashes_PreservesLiteralBackslashes()
+    public void Write_DoubleQuotedTitleBackslashes_PreservesLiterals()
     {
         const string title = @"it's \\server\share";
 

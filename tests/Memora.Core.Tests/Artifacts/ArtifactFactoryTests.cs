@@ -130,7 +130,7 @@ public sealed class ArtifactFactoryTests
     }
 
     [Fact]
-    public void NoteArtifact_WithMinimalFrontmatterAndArbitraryBody_PassesValidation()
+    public void NoteArtifact_MinimalFrontmatterArbitraryBody_Valid()
     {
         var frontmatter = ArtifactTestBuilder.CreateFrontmatter(ArtifactType.Note);
         var sections = new Dictionary<string, string>(StringComparer.Ordinal)
