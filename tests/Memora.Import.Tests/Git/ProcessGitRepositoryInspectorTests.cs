@@ -23,7 +23,7 @@ public sealed class ProcessGitRepositoryInspectorTests : IDisposable
     }
 
     [Fact]
-    public void Inspect_QuoteAndSemicolonRepositoryPath_ReturnsToplevelOnUnix()
+    public void Inspect_QuotedSemicolonPath_ReturnsToplevelOnUnix()
     {
         if (OperatingSystem.IsWindows())
         {

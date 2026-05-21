@@ -91,7 +91,7 @@ public sealed class CandidateArtifactConverterTests
     }
 
     [Fact]
-    public void Convert_ContributionStyleKind_ProducesWorkflowConstraintArtifact()
+    public void Convert_ContributionStyle_ProducesWorkflowConstraint()
     {
         var converter = new CandidateArtifactConverter();
         var candidate = MakeCandidate(CandidateMemoryKind.ContributionStyle);

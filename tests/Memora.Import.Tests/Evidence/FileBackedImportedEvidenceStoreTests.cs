@@ -13,7 +13,7 @@ public sealed class FileBackedImportedEvidenceStoreTests : IDisposable
     private readonly FileBackedImportedEvidenceStore _store = new();
 
     [Fact]
-    public async Task Save_ConcurrentDuplicateEvidence_AllowsOnlyOneWriterAndLeavesNoTempFiles()
+    public async Task Save_ConcurrentDuplicateEvidence_SingleWriterNoTemps()
     {
         Directory.CreateDirectory(_workspaceRootPath);
         var request = new ProjectEvidenceWriteRequest(_workspaceRootPath, [CreateRecord("commit-001")]);
