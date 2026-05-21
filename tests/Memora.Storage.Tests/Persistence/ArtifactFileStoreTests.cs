@@ -108,7 +108,7 @@ public sealed class ArtifactFileStoreTests : IDisposable
     }
 
     [Fact]
-    public void AtomicFileWriter_DoesNotTreatGenericIoFailuresAsDuplicateTargets()
+    public void AtomicFileWriter_GenericIoFailure_NotDuplicateTarget()
     {
         var exception = new IOException("Generic move failure.", unchecked((int)0x80131620));
 
@@ -127,7 +127,7 @@ public sealed class ArtifactFileStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task Save_ConcurrentDuplicateRevision_AllowsOnlyOneWriterAndLeavesNoTempFiles()
+    public async Task Save_ConcurrentDuplicateRevision_SingleWriterNoTemps()
     {
         var workspace = CreateWorkspace();
         var artifact = CreatePlanArtifact(status: ArtifactStatus.Approved, revision: 1);
