@@ -105,7 +105,7 @@ public sealed class GitHubEvidenceImporterTests : IDisposable
     }
 
     [Fact]
-    public void Import_GitHubCliPayloadWithNullOptionalAndBadRecord_PersistsValidRecordsAndReportsDiagnostic()
+    public void Import_GitHubCliPayload_BadRecord_PersistsValidAndDiagnostic()
     {
         var workspacePath = CreateWorkspaceWithGitHubAttachment("memora");
         var runner = new FakeGhRunner(
