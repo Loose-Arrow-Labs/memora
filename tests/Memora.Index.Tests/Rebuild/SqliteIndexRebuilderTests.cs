@@ -146,7 +146,7 @@ public sealed class SqliteIndexRebuilderTests : IDisposable
     }
 
     [Fact]
-    public void Rebuild_InvalidApprovedRelationship_ReturnsDiagnosticsAndPreservesRows()
+    public void Rebuild_InvalidRelationship_DiagnosticsPreserveRows()
     {
         var workspace = CreateWorkspace("alpha-workspace", "alpha", "Alpha");
         _fileStore.Save(workspace, CreateDecisionArtifact("alpha", revision: 1));
@@ -175,7 +175,7 @@ public sealed class SqliteIndexRebuilderTests : IDisposable
     }
 
     [Fact]
-    public void Rebuild_TwoProjectWorkspaceWithBadArtifact_PreservesExistingIndex()
+    public void Rebuild_BadArtifact_PreservesExistingIndex()
     {
         var alphaWorkspace = CreateWorkspace("alpha-workspace", "alpha", "Alpha");
         var betaWorkspace = CreateWorkspace("beta-workspace", "beta", "Beta");
