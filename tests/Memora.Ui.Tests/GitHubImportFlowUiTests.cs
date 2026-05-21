@@ -54,7 +54,7 @@ public sealed class GitHubImportFlowUiTests : IClassFixture<OperatorShellFactory
     }
 
     [Fact]
-    public void GitHubImportFlowService_ListUserRepositories_RejectsBlankToken()
+    public void GitHubImportFlow_ListRepositories_RejectsBlankToken()
     {
         var options = new OperatorShellOptions(_factory.WorkspacesRootPath, UsesSeededSampleRoot: false);
         var workspaceService = new LocalOperatorWorkspaceService(options);
