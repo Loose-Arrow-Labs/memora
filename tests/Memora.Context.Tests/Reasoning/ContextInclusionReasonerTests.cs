@@ -24,7 +24,7 @@ public sealed class ContextInclusionReasonerTests
     }
 
     [Fact]
-    public void ExplainInclusion_RejectsDraftArtifactsWhenDraftsAreNotAllowed()
+    public void ExplainInclusion_RejectsDrafts_WhenNotAllowed()
     {
         var request = new ContextBundleRequest("memora", "Need context.");
         var rankedArtifact = CreateRankedArtifact(
@@ -39,7 +39,7 @@ public sealed class ContextInclusionReasonerTests
     }
 
     [Fact]
-    public void ExplainInclusion_AddsDraftAllowanceReasonWhenRequestAllowsDrafts()
+    public void ExplainInclusion_DraftAllowance_WhenDraftsAllowed()
     {
         var request = new ContextBundleRequest("memora", "Need context.", includeDraftArtifacts: true);
         var rankedArtifact = CreateRankedArtifact(
@@ -68,7 +68,7 @@ public sealed class ContextInclusionReasonerTests
     }
 
     [Fact]
-    public void ExplainInclusion_AddsMilestoneAndKeywordOverlapReasonsFromRankingBreakdown()
+    public void ExplainInclusion_MilestoneKeywordOverlapReasons()
     {
         var request = new ContextBundleRequest("memora", "Prepare milestone 3 context.");
         var rankedArtifact = CreateRankedArtifact(
@@ -84,7 +84,7 @@ public sealed class ContextInclusionReasonerTests
     }
 
     [Fact]
-    public void ExplainInclusion_AddsStrongKeywordMatchWhenScoreExceedsThreshold()
+    public void ExplainInclusion_StrongKeywordMatch_AboveThreshold()
     {
         var request = new ContextBundleRequest("memora", "Caching strategy for context packages.");
         var rankedArtifact = CreateRankedArtifact(
@@ -113,7 +113,7 @@ public sealed class ContextInclusionReasonerTests
     }
 
     [Fact]
-    public void ExplainInclusion_AddsTraversalReasonForBoundedRelationshipPaths()
+    public void ExplainInclusion_Traversal_BoundedRelationshipPaths()
     {
         var request = new ContextBundleRequest("memora", "Need context.", focusArtifactIds: ["ADR-003"]);
         var artifact = new ContextBundleArtifact(
