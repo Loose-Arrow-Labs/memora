@@ -39,7 +39,7 @@ public sealed class AgentInteractionContractTests
     }
 
     [Fact]
-    public void ProposalContent_NormalizesTagsAndPreservesSections()
+    public void ProposalContent_NormalizesTagsPreservesSections()
     {
         var content = new ArtifactProposalContent(
             "Context decision",
@@ -75,7 +75,7 @@ public sealed class AgentInteractionContractTests
     }
 
     [Fact]
-    public void Responses_SurfaceErrorsAndSuccessState()
+    public void Responses_SurfaceErrorsSuccessState()
     {
         var success = new ProposalResponse("memora", "ADR-001", ArtifactType.Decision, ArtifactStatus.Proposed, 1, []);
         var failure = new GetContextResponse(
@@ -88,7 +88,7 @@ public sealed class AgentInteractionContractTests
     }
 
     [Fact]
-    public void ExternalRuntimeContract_PublishesProviderAgnosticProposalOnlyOperations()
+    public void ExternalRuntimeContract_PublishesProposalOnlyOperations()
     {
         var contract = ExternalRuntimeContract.Current;
 
