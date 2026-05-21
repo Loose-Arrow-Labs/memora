@@ -16,7 +16,7 @@ public sealed class RepositoryAttachmentServiceTests : IDisposable
     private readonly WorkspaceDiscovery _workspaceDiscovery = new();
 
     [Fact]
-    public void Attach_LocalGit_PersistsRepositoryMetadataWithoutUsingSourceAsWorkspace()
+    public void Attach_LocalGit_PersistsMetadataWithoutSourceWorkspace()
     {
         CreateWorkspace("memora");
         var repoPath = CreateSourceRepository("memora-source");

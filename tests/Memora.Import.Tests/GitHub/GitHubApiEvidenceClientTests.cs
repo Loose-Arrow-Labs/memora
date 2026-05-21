@@ -29,7 +29,7 @@ public sealed class GitHubApiEvidenceClientTests
     }
 
     [Fact]
-    public void Fetch_HappyPath_ReturnsSnapshotWithIssuesPullRequestsCommitsReleases()
+    public void Fetch_HappyPath_ReturnsFullSnapshot()
     {
         var responsesByPath = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -172,7 +172,7 @@ public sealed class GitHubApiEvidenceClientTests
     }
 
     [Fact]
-    public void Fetch_PageSizeLimit_AddsPartialDiagnosticWhenResultEqualsPageSize()
+    public void Fetch_PageSizeLimit_AddsPartialDiagnostic()
     {
         var pageOfFifty = "[" + string.Join(",", Enumerable.Range(1, 50).Select(BuildIssueJson)) + "]";
         var client = new GitHubApiEvidenceClient(
