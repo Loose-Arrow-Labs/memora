@@ -105,7 +105,7 @@ public sealed class GitHubEvidenceImporterTests : IDisposable
     }
 
     [Fact]
-    public void Import_GitHubCliPayloadWithNullOptionalAndBadRecord_PersistsValidRecordsAndReportsDiagnostic()
+    public void Import_GitHubCliPayload_BadRecord_PersistsValidAndDiagnostic()
     {
         var workspacePath = CreateWorkspaceWithGitHubAttachment("memora");
         var runner = new FakeGhRunner(
@@ -165,7 +165,7 @@ public sealed class GitHubEvidenceImporterTests : IDisposable
     [Theory]
     [InlineData("not-json", "github.response.invalid_json")]
     [InlineData("""{"message":"not an array"}""", "github.response.unexpected")]
-    public void GitHubCliClient_MalformedEndpointPayloads_MarkSnapshotPartial(string issuesPayload, string diagnosticCode)
+    public void GitHubCliClient_MalformedPayloads_MarkSnapshotPartial(string issuesPayload, string diagnosticCode)
     {
         var runner = new FakeGhRunner(
             new Dictionary<string, string>(StringComparer.Ordinal)
