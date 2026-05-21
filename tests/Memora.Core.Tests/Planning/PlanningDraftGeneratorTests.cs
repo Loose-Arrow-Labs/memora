@@ -53,7 +53,7 @@ public sealed class PlanningDraftGeneratorTests
     }
 
     [Fact]
-    public void IdenticalInput_ProducesDeterministicDraftIdsAndBodies()
+    public void IdenticalInput_ProducesDeterministicDraftIdsBodies()
     {
         var intake = PlanningIntakeTestBuilder.CreateValidIntake() with
         {

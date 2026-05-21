@@ -10,7 +10,7 @@ public sealed class ArtifactMarkdownWriterTests
     private readonly ArtifactMarkdownParser _parser = new();
 
     [Fact]
-    public void Write_TitleWithSingleAndDoubleQuotes_RoundTrips()
+    public void Write_TitleSingleDoubleQuotes_RoundTrips()
     {
         const string title = "it's \"complex\"";
 
