@@ -8,7 +8,7 @@ public sealed class SqliteIndexSchemaTests
     private readonly SqliteIndexSchema _schema = new();
 
     [Fact]
-    public void EnsureCreated_CreatesExpectedTablesAndIndexes()
+    public void EnsureCreated_CreatesTablesAndIndexes()
     {
         using var connection = CreateConnection();
 
