@@ -72,7 +72,7 @@ public sealed class AgentLoopIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void ProposedUpdate_RemainsNonCanonicalUntilReviewedDraftIsExplicitlyApproved()
+    public void ProposedUpdate_NonCanonicalUntilDraftApproved()
     {
         var workspace = CreateWorkspace("memora");
         var approvedPath = _fileStore.Save(workspace, CreateDecisionArtifact());
@@ -119,7 +119,7 @@ public sealed class AgentLoopIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void RejectedProposal_RemainsNonCanonicalAndLeavesPendingQueueInMemory()
+    public void RejectedProposal_NonCanonical_StaysInQueue()
     {
         var workspace = CreateWorkspace("memora");
         var service = new FileSystemAgentInteractionService(_workspacesRootPath);
