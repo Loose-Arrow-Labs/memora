@@ -58,7 +58,7 @@ public sealed class ProtocolSurfaceParityTests
     }
 
     [Fact]
-    public async Task ProposalAndOutcomeFlows_PreserveProposalOnlyBehaviorAcrossApiAndMcp()
+    public async Task ProposalOutcomeFlows_PreserveProposalOnlyAcrossSurfaces()
     {
         using var harness = await ProtocolHarness.CreateAsync(new SharedAgentInteractionService());
 
