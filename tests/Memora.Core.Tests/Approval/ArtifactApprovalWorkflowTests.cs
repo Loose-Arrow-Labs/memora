@@ -35,7 +35,7 @@ public sealed class ArtifactApprovalWorkflowTests
     }
 
     [Fact]
-    public void Approve_EditedDraftWithExistingCanonical_SupersedesCurrentApprovedArtifact()
+    public void Approve_EditedDraft_SupersedesApproved()
     {
         var currentApproved = CreatePlanArtifact(ArtifactStatus.Approved, revision: 1, updatedAt: "2026-04-16T09:00:00Z");
         var editedDraftResult = _editor.Edit(
@@ -83,7 +83,7 @@ public sealed class ArtifactApprovalWorkflowTests
     }
 
     [Fact]
-    public void Reject_DraftArtifact_DeprecatesItWithoutCreatingCanonicalArtifact()
+    public void Reject_Draft_DeprecatesWithoutCanonical()
     {
         var draft = CreatePlanArtifact(ArtifactStatus.Draft, revision: 1);
 
@@ -161,7 +161,7 @@ public sealed class ArtifactApprovalWorkflowTests
     }
 
     [Fact]
-    public void Approve_WithMismatchedCurrentApprovedArtifact_FailsValidation()
+    public void Approve_MismatchedApproved_FailsValidation()
     {
         var generation = _draftGenerator.Generate(PlanningIntakeTestBuilder.CreateValidIntake());
         var draftArtifact = Assert.IsType<PlanArtifact>(generation.DraftArtifacts[0]);
