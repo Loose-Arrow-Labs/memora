@@ -1,23 +1,23 @@
 # Security-sensitive repository surfaces.
 # Keep this list small and focused so review requests remain meaningful.
 
-/.github/workflows/ @alucero270
-/.github/actions/ @alucero270
-/build/ @alucero270
-*.sh @alucero270
-*.ps1 @alucero270
-*.cmd @alucero270
-*.bat @alucero270
-*.csproj @alucero270
-/Directory.Build.props @alucero270
-/Directory.Build.targets @alucero270
-/global.json @alucero270
-/nuget.config @alucero270
-/NuGet.config @alucero270
-/packages.lock.json @alucero270
+/.github/workflows/ @Loose-Arrow-Labs/memora-maintainers
+/.github/actions/ @Loose-Arrow-Labs/memora-maintainers
+/build/ @Loose-Arrow-Labs/memora-maintainers
+*.sh @Loose-Arrow-Labs/memora-maintainers
+*.ps1 @Loose-Arrow-Labs/memora-maintainers
+*.cmd @Loose-Arrow-Labs/memora-maintainers
+*.bat @Loose-Arrow-Labs/memora-maintainers
+*.csproj @Loose-Arrow-Labs/memora-maintainers
+/Directory.Build.props @Loose-Arrow-Labs/memora-maintainers
+/Directory.Build.targets @Loose-Arrow-Labs/memora-maintainers
+/global.json @Loose-Arrow-Labs/memora-maintainers
+/nuget.config @Loose-Arrow-Labs/memora-maintainers
+/NuGet.config @Loose-Arrow-Labs/memora-maintainers
+/packages.lock.json @Loose-Arrow-Labs/memora-maintainers
 
 # Integration and execution boundaries.
-/src/Memora.Api/ @alucero270
-/src/Memora.Mcp/ @alucero270
-/src/Memora.Import/ @alucero270
-/integrations/ @alucero270
+/src/Memora.Api/ @Loose-Arrow-Labs/memora-maintainers
+/src/Memora.Mcp/ @Loose-Arrow-Labs/memora-maintainers
+/src/Memora.Import/ @Loose-Arrow-Labs/memora-maintainers
+/integrations/ @Loose-Arrow-Labs/memora-maintainers
